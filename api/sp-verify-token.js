@@ -43,12 +43,14 @@ export default async function handler(req, res) {
     });
   });
 
-  const { email, token } = req.body;
+  // Accept both "token" and "magiclink" as parameter names for flexibility
+  const { email, token, magiclink } = req.body;
+  const finalToken = token || magiclink;
 
-  if (!email || !token) {
+  if (!email || !finalToken) {
     return res.status(400).json({ 
       valid: false, 
-      message: "Email and token required" 
+      message: "Email and token/magiclink are required" 
     });
   }
 
@@ -101,12 +103,13 @@ export default async function handler(req, res) {
     console.log(`[SP_VerifyToken] Found contact: ${contact.id}`);
 
     // Extract stored values from Supabase
-    const storedToken = contact.magic_link;
+    const storedToken = contact.magic_link; // The token is stored in magic_link column
     const storedExpiry = contact.link_expiry;
 
     // Validate token
-    if (!storedToken || storedToken !== token) {
+    if (!storedToken || storedToken !== finalToken) {
       console.log(`[SP_VerifyToken] Invalid token for: ${email}`);
+      console.log(`[SP_VerifyToken] Stored: ${storedToken}, Received: ${finalToken}`);
       return res.status(401).json({ 
         valid: false, 
         message: "Invalid token" 
