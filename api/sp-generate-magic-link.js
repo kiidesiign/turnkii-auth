@@ -6,6 +6,7 @@
 // ============================================================
 
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://www.turnkii.es';
+const APP_URL = process.env.VERCEL_URL || 'https://project-qv4f9.vercel.app';
 
 // ============================================================
 // RATE LIMITING
@@ -44,25 +45,16 @@ function checkRateLimit(email, limitMinutes = 5, maxRequests = 3) {
 // HELPER FUNCTIONS
 // ============================================================
 
-/**
- * Generate a 6-digit OTP
- */
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-/**
- * Generate a 32-character token
- */
 function generateToken() {
   return [...Array(32)]
     .map(() => Math.floor(Math.random() * 16).toString(16))
     .join("");
 }
 
-/**
- * Generate magic link URL
- */
 function generateMagicLink(email, token, otp) {
   return `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}&otp=${otp}&token=${token}`;
 }
@@ -80,12 +72,10 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Only allow POST
   if (req.method !== 'POST') {
     return res.status(405).json({ 
       success: false,
@@ -110,7 +100,6 @@ export default async function handler(req, res) {
   try {
     const { email, firstName = '', lastName = '' } = req.body;
 
-    // Validate email
     if (!email) {
       return res.status(400).json({ 
         success: false,
@@ -126,7 +115,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Check environment variables
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
@@ -139,7 +127,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Rate limiting
     const rateCheck = checkRateLimit(email, 5, 3);
     if (!rateCheck.allowed) {
       return res.status(429).json({
@@ -148,20 +135,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // ============================================================
-    // MAIN LOGIC
-    // ============================================================
-
     console.log(`[SP_GenerateMagicLink] Processing request for: ${email}`);
 
     // 1. Find existing contact
     let contact = null;
     let isNewContact = false;
 
-    // Try to find existing contact using native fetch
     const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
-    console.log(`[SP_GenerateMagicLink] Finding contact: ${findUrl}`);
-    
     const findResponse = await fetch(findUrl, {
       headers: {
         'apikey': supabaseKey,
@@ -181,7 +161,6 @@ export default async function handler(req, res) {
       contact = findData[0];
       console.log(`[SP_GenerateMagicLink] Found existing contact: ${contact.id}`);
     } else {
-      // Create new contact
       console.log(`[SP_GenerateMagicLink] Creating new contact: ${email}`);
       const createUrl = `${supabaseUrl}/rest/v1/contacts`;
       const createResponse = await fetch(createUrl, {
@@ -221,8 +200,6 @@ export default async function handler(req, res) {
 
     // 3. Update contact with magic link data
     const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
-    console.log(`[SP_GenerateMagicLink] Updating contact: ${updateUrl}`);
-    
     const updateResponse = await fetch(updateUrl, {
       method: 'PATCH',
       headers: {
@@ -245,7 +222,6 @@ export default async function handler(req, res) {
       throw new Error(`Failed to update contact: ${updateResponse.status}`);
     }
 
-    // Get the updated contact data
     let updatedContact;
     const responseText = await updateResponse.text();
     
@@ -275,7 +251,31 @@ export default async function handler(req, res) {
     
     console.log(`[SP_GenerateMagicLink] Updated contact with magic link data`);
 
-    // 4. Generate magic link URL
+    // 4. Send OTP email
+    console.log(`[SP_GenerateMagicLink] Sending OTP email to: ${email}`);
+    
+    let emailSent = false;
+    try {
+      const emailResponse = await fetch(`${APP_URL}/api/send-otp-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, token })
+      });
+
+      const emailResult = await emailResponse.json();
+      
+      if (emailResult.success) {
+        emailSent = true;
+        console.log(`[SP_GenerateMagicLink] ✅ Email sent to: ${email}`);
+      } else {
+        console.error(`[SP_GenerateMagicLink] ❌ Email failed:`, emailResult.error);
+      }
+    } catch (emailError) {
+      console.error(`[SP_GenerateMagicLink] ❌ Email error:`, emailError);
+      // Non-critical - continue even if email fails
+    }
+
+    // 5. Generate magic link URL
     const magicLink = generateMagicLink(email, token, otp);
 
     // ============================================================
@@ -285,21 +285,18 @@ export default async function handler(req, res) {
     const responseData = {
       success: true,
       status: 'success',
-      message: 'Magic link generated successfully',
+      message: emailSent ? 'Magic link generated successfully. Check your email for the OTP.' : 'Magic link generated but email could not be sent. Please contact support.',
       
-      // Magic link data
       otp: otp,
       token: token,
       magicLink: magicLink,
       
-      // Contact info
       contactId: contact.id,
       email: email,
       firstName: updatedContact.first_name || '',
       lastName: updatedContact.last_name || '',
       isNewContact: isNewContact,
       
-      // Full contact data for display
       contact: {
         id: contact.id,
         fields: {
@@ -314,15 +311,11 @@ export default async function handler(req, res) {
         }
       },
       
-      // API call tracking
       apiCallsUsed: isNewContact ? 3 : 2,
       apiCallsDetails: isNewContact ? 'Find + Create + Update' : 'Find + Update',
-      
-      // Rate limiting info
       remainingRequests: rateCheck.remaining,
-      
-      // Redirect URL for frontend
-      redirect: `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}`
+      emailSent: emailSent,
+      redirect: `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}&token=${token}`
     };
 
     console.log(`[SP_GenerateMagicLink] Success for: ${email}`);
@@ -338,10 +331,6 @@ export default async function handler(req, res) {
     });
   }
 }
-
-// ============================================================
-// EXPORT HELPER FUNCTIONS FOR USE IN OTHER FILES
-// ============================================================
 
 export {
   generateOTP,
