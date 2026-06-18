@@ -1,14 +1,9 @@
 // api/sp-verify-token.js
 // Supabase version of token verification - uses service role key
 
-// ============================================================
-// MAIN HANDLER
-// ============================================================
-
 export default async function handler(req, res) {
-  const CORS_ORIGIN = 'https://www.turnkii.es'; 
+  const CORS_ORIGIN = 'https://www.turnkii.es';
 
-  // Handle CORS preflight (OPTIONS request)
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -16,12 +11,10 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  // Set CORS headers for all responses
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Only allow POST
   if (req.method !== "POST") {
     return res.status(405).json({ 
       valid: false, 
@@ -29,7 +22,6 @@ export default async function handler(req, res) {
     });
   }
 
-  // Parse request body
   let body = '';
   await new Promise((resolve) => {
     req.on('data', chunk => { body += chunk.toString(); });
@@ -43,18 +35,16 @@ export default async function handler(req, res) {
     });
   });
 
-  // Accept both "token" and "magiclink" as parameter names for flexibility
-  const { email, token, magiclink } = req.body;
-  const finalToken = token || magiclink;
+  // ✅ Expects email and token (NOT otp!)
+  const { email, token } = req.body;
 
-  if (!email || !finalToken) {
+  if (!email || !token) {
     return res.status(400).json({ 
       valid: false, 
-      message: "Email and token/magiclink are required" 
+      message: "Email and token required" 
     });
   }
 
-  // Check environment variables
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
@@ -69,9 +59,7 @@ export default async function handler(req, res) {
   try {
     console.log(`[SP_VerifyToken] Verifying token for: ${email}`);
 
-    // Find contact in Supabase using native fetch
     const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
-    console.log(`[SP_VerifyToken] Finding contact: ${findUrl}`);
     
     const findResponse = await fetch(findUrl, {
       headers: {
@@ -102,21 +90,18 @@ export default async function handler(req, res) {
     const contact = findData[0];
     console.log(`[SP_VerifyToken] Found contact: ${contact.id}`);
 
-    // Extract stored values from Supabase
-    const storedToken = contact.magic_link; // The token is stored in magic_link column
+    const storedToken = contact.magic_link;
     const storedExpiry = contact.link_expiry;
 
-    // Validate token
-    if (!storedToken || storedToken !== finalToken) {
+    if (!storedToken || storedToken !== token) {
       console.log(`[SP_VerifyToken] Invalid token for: ${email}`);
-      console.log(`[SP_VerifyToken] Stored: ${storedToken}, Received: ${finalToken}`);
+      console.log(`[SP_VerifyToken] Stored: ${storedToken}, Received: ${token}`);
       return res.status(401).json({ 
         valid: false, 
         message: "Invalid token" 
       });
     }
 
-    // Validate expiry
     if (storedExpiry) {
       const now = new Date();
       const expiry = new Date(storedExpiry);
@@ -129,32 +114,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // Token is valid - return user details
     console.log(`[SP_VerifyToken] Successfully verified token for: ${email}`);
 
-    // Extract name fields
     const firstName = contact.first_name || "";
     const lastName = contact.last_name || "";
     const fullName = `${firstName} ${lastName}`.trim();
-
-    // Optional: Extend the session by refreshing the expiry
-    // Uncomment if you want to extend the session
-    /*
-    const newExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
-    await fetch(updateUrl, {
-      method: 'PATCH',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        link_expiry: newExpiry,
-        updated_at: new Date().toISOString()
-      })
-    });
-    */
 
     return res.status(200).json({ 
       valid: true, 
