@@ -1,9 +1,12 @@
 // api/send-otp-email.js
-// Send OTP email using Resend
-
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resendApiKey = process.env.RESEND_API_KEY;
+if (!resendApiKey) {
+  console.error('❌ RESEND_API_KEY is not set in environment variables');
+}
+
+const resend = new Resend(resendApiKey);
 
 export default async function handler(req, res) {
   const CORS_ORIGIN = 'https://www.turnkii.es';
@@ -27,10 +30,22 @@ export default async function handler(req, res) {
   try {
     const { email, otp, token } = req.body;
 
+    console.log(`📧 send-otp-email called with:`, { email, otp: otp ? 'present' : 'missing', token: token ? 'present' : 'missing' });
+
     if (!email || !otp) {
+      console.error('❌ Missing email or OTP');
       return res.status(400).json({ 
         success: false, 
         error: 'Email and OTP are required' 
+      });
+    }
+
+    if (!process.env.RESEND_API_KEY) {
+      console.error('❌ RESEND_API_KEY is not set in environment variables');
+      return res.status(500).json({
+        success: false,
+        error: 'Email service not configured',
+        details: 'RESEND_API_KEY is missing'
       });
     }
 
@@ -52,7 +67,6 @@ export default async function handler(req, res) {
           .otp-code { font-size: 48px; font-weight: bold; color: #0a1a2f; text-align: center; padding: 30px 0; letter-spacing: 8px; }
           .message { color: #4a5568; line-height: 1.6; text-align: center; }
           .footer { text-align: center; padding-top: 20px; border-top: 2px solid #e8eef2; color: #a0aec0; font-size: 12px; }
-          .button { display: inline-block; background: #0a1a2f; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; }
         </style>
       </head>
       <body>
@@ -70,12 +84,6 @@ export default async function handler(req, res) {
             <p>This code will expire in <strong>1 hour</strong>.</p>
             <p>If you didn't request this, please ignore this email.</p>
           </div>
-          ${token ? `
-          <div style="text-align: center; margin: 20px 0;">
-            <p style="color: #4a5568;">Or click the button below:</p>
-            <a href="https://www.turnkii.es/otp?email=${encodeURIComponent(email)}&token=${token}" class="button">Login Now</a>
-          </div>
-          ` : ''}
           <div class="footer">
             <p>© ${new Date().getFullYear()} TurnKii. All rights reserved.</p>
             <p>This is an automated message, please do not reply.</p>
@@ -85,33 +93,45 @@ export default async function handler(req, res) {
       </html>
     `;
 
-    // Send email via Resend
-    const { data, error } = await resend.emails.send({
-      from: 'TurnKii <noreply@turnkii.es>',
-      to: [email],
-      subject: `Your TurnKii Verification Code: ${otp}`,
-      html: htmlContent,
-    });
+    try {
+      // ============================================================
+      // STEP 1: Test with mail.turnkii.es subdomain
+      // ============================================================
+      const { data, error } = await resend.emails.send({
+        from: 'TurnKii <noreply@mail.turnkii.es>',  // ← Using mail.turnkii.es
+        to: [email],
+        subject: `Your TurnKii Verification Code: ${otp}`,
+        html: htmlContent,
+      });
 
-    if (error) {
-      console.error('Resend error:', error);
+      if (error) {
+        console.error('❌ Resend error:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to send email',
+          details: error.message
+        });
+      }
+
+      console.log(`✅ OTP email sent to: ${email}`, data?.id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'OTP email sent successfully',
+        emailId: data?.id
+      });
+
+    } catch (sendError) {
+      console.error('❌ Email sending exception:', sendError);
       return res.status(500).json({
         success: false,
-        error: 'Failed to send email',
-        details: error.message
+        error: 'Email sending failed',
+        details: sendError.message
       });
     }
 
-    console.log(`✅ OTP email sent to: ${email}`, data?.id);
-
-    return res.status(200).json({
-      success: true,
-      message: 'OTP email sent successfully',
-      emailId: data?.id
-    });
-
   } catch (error) {
-    console.error('Email error:', error);
+    console.error('❌ Email handler error:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to send email',
