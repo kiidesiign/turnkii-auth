@@ -26,9 +26,36 @@ begin
   end if;
 end $$;
 
--- Create policies (safe, with checks)
-create policy if not exists "Allow authenticated users to read contacts"
-on public.contacts
-for select
-to authenticated
-using (true);
+
+-- Update the policy section to this:
+-- Safe policy creation: Check if policy exists before creating
+do $$ 
+begin
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'public' 
+    and tablename = 'contacts' 
+    and policyname = 'Allow authenticated users to read contacts'
+  ) then
+    create policy "Allow authenticated users to read contacts"
+    on public.contacts
+    for select
+    to authenticated
+    using (true);
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'public' 
+    and tablename = 'contacts' 
+    and policyname = 'Allow authenticated users to insert contacts'
+  ) then
+    create policy "Allow authenticated users to insert contacts"
+    on public.contacts
+    for insert
+    to authenticated
+    with check (true);
+  end if;
+end $$;
