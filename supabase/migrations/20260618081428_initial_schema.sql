@@ -181,7 +181,7 @@ create table if not exists meetings (
 -- Indexes for meetings
 create index if not exists idx_meetings_contact_id on meetings(contact_id);
 create index if not exists idx_meetings_meeting_date on meetings(meeting_date);
-create index if not exists idx_meetings_status on meetings(status);  -- ← Now works because status exists
+-- create index if not exists idx_meetings_status on meetings(status);  -- ← Now works because status exists
 
 -- Trigger for meetings
 drop trigger if exists update_meetings_updated_at on meetings;
