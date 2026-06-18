@@ -1,7 +1,5 @@
 // api/sp-verify-token.js
-// Supabase version of token verification
-
-import { supabase } from '../lib/supabase.js';
+// Supabase version of token verification - uses service role key
 
 // ============================================================
 // MAIN HANDLER
@@ -54,28 +52,52 @@ export default async function handler(req, res) {
     });
   }
 
+  // Check environment variables
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing Supabase environment variables');
+    return res.status(500).json({
+      valid: false,
+      message: "Server configuration error"
+    });
+  }
+
   try {
     console.log(`[SP_VerifyToken] Verifying token for: ${email}`);
 
-    // Find contact in Supabase
-    const { data: contact, error: findError } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('email', email)
-      .single();
+    // Find contact in Supabase using native fetch
+    const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
+    console.log(`[SP_VerifyToken] Finding contact: ${findUrl}`);
+    
+    const findResponse = await fetch(findUrl, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    });
 
-    if (findError) {
-      console.error('[SP_VerifyToken] Find error:', findError);
-      if (findError.code === 'PGRST116') {
-        // No rows found
-        return res.status(404).json({ 
-          valid: false, 
-          message: "User not found" 
-        });
-      }
-      throw findError;
+    if (!findResponse.ok) {
+      const errorText = await findResponse.text();
+      console.error('[SP_VerifyToken] Find error:', errorText);
+      return res.status(500).json({
+        valid: false,
+        message: "Failed to find contact"
+      });
     }
 
+    const findData = await findResponse.json();
+
+    if (!findData || findData.length === 0) {
+      console.log(`[SP_VerifyToken] No contact found for: ${email}`);
+      return res.status(404).json({ 
+        valid: false, 
+        message: "User not found" 
+      });
+    }
+
+    const contact = findData[0];
     console.log(`[SP_VerifyToken] Found contact: ${contact.id}`);
 
     // Extract stored values from Supabase
@@ -112,17 +134,23 @@ export default async function handler(req, res) {
     const lastName = contact.last_name || "";
     const fullName = `${firstName} ${lastName}`.trim();
 
-    // Optional: You might want to extend the session by refreshing the expiry
-    // This is optional - uncomment if you want to extend the session
+    // Optional: Extend the session by refreshing the expiry
+    // Uncomment if you want to extend the session
     /*
     const newExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    await supabase
-      .from('contacts')
-      .update({
+    const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
+    await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         link_expiry: newExpiry,
         updated_at: new Date().toISOString()
       })
-      .eq('id', contact.id);
+    });
     */
 
     return res.status(200).json({ 
