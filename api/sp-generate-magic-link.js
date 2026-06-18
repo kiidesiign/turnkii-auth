@@ -1,7 +1,5 @@
 // api/sp-generate-magic-link.js
-// Supabase version of magic link generator
-
-import { supabase } from '../lib/supabase.js';
+// Supabase version of magic link generator - uses service role key
 
 // ============================================================
 // CONFIGURATION
@@ -129,7 +127,10 @@ export default async function handler(req, res) {
     }
 
     // Check environment variables
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
       console.error('Missing Supabase environment variables');
       return res.status(500).json({ 
         success: false,
@@ -153,46 +154,61 @@ export default async function handler(req, res) {
 
     console.log(`[SP_GenerateMagicLink] Processing request for: ${email}`);
 
-    // 1. Find or create contact
+    // 1. Find existing contact
     let contact = null;
     let isNewContact = false;
 
-    // Try to find existing contact
-    const { data: existingContact, error: findError } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('email', email)
-      .single();
+    // Try to find existing contact using native fetch
+    const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
+    console.log(`[SP_GenerateMagicLink] Finding contact: ${findUrl}`);
+    
+    const findResponse = await fetch(findUrl, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    });
 
-    if (findError && findError.code !== 'PGRST116') {
-      // PGRST116 = no rows found
-      console.error('Error finding contact:', findError);
-      throw new Error(`Failed to find contact: ${findError.message}`);
+    if (!findResponse.ok) {
+      const errorText = await findResponse.text();
+      console.error('Error finding contact:', errorText);
+      throw new Error(`Failed to find contact: ${findResponse.status}`);
     }
 
-    if (existingContact) {
-      contact = existingContact;
+    const findData = await findResponse.json();
+
+    if (findData && findData.length > 0) {
+      contact = findData[0];
       console.log(`[SP_GenerateMagicLink] Found existing contact: ${contact.id}`);
     } else {
       // Create new contact
       console.log(`[SP_GenerateMagicLink] Creating new contact: ${email}`);
-      const { data: newContact, error: createError } = await supabase
-        .from('contacts')
-        .insert({
+      const createUrl = `${supabaseUrl}/rest/v1/contacts`;
+      const createResponse = await fetch(createUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({
           email: email,
           first_name: firstName || email.split('@')[0],
           last_name: lastName || ''
         })
-        .select()
-        .single();
+      });
 
-      if (createError) {
-        console.error('Error creating contact:', createError);
-        throw new Error(`Failed to create contact: ${createError.message}`);
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        console.error('Error creating contact:', errorText);
+        throw new Error(`Failed to create contact: ${createResponse.status}`);
       }
 
-      contact = newContact;
+      const createData = await createResponse.json();
+      contact = createData[0] || createData;
       isNewContact = true;
+      console.log(`[SP_GenerateMagicLink] Created new contact: ${contact.id}`);
     }
 
     // 2. Generate OTP and Token
@@ -204,23 +220,59 @@ export default async function handler(req, res) {
     console.log(`[SP_GenerateMagicLink] Generated Token: ${token.substring(0, 10)}...`);
 
     // 3. Update contact with magic link data
-    const { data: updatedContact, error: updateError } = await supabase
-      .from('contacts')
-      .update({
+    const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
+    console.log(`[SP_GenerateMagicLink] Updating contact: ${updateUrl}`);
+    
+    const updateResponse = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
         otp: otp,
         magic_link: token,
         link_expiry: expiry,
         updated_at: new Date().toISOString()
       })
-      .eq('id', contact.id)
-      .select()
-      .single();
+    });
 
-    if (updateError) {
-      console.error('Error updating contact:', updateError);
-      throw new Error(`Failed to update contact: ${updateError.message}`);
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error('Error updating contact:', errorText);
+      throw new Error(`Failed to update contact: ${updateResponse.status}`);
     }
 
+    // Get the updated contact data
+    let updatedContact;
+    const responseText = await updateResponse.text();
+    
+    if (responseText && responseText.length > 0) {
+      try {
+        const parsed = JSON.parse(responseText);
+        updatedContact = parsed[0] || parsed;
+      } catch (e) {
+        console.warn('Could not parse update response, using existing contact data');
+        updatedContact = {
+          ...contact,
+          otp: otp,
+          magic_link: token,
+          link_expiry: expiry,
+          updated_at: new Date().toISOString()
+        };
+      }
+    } else {
+      updatedContact = {
+        ...contact,
+        otp: otp,
+        magic_link: token,
+        link_expiry: expiry,
+        updated_at: new Date().toISOString()
+      };
+    }
+    
     console.log(`[SP_GenerateMagicLink] Updated contact with magic link data`);
 
     // 4. Generate magic link URL

@@ -1,7 +1,5 @@
 // api/sp-verify-otp.js
-// Supabase version of OTP verification
-
-import { supabase } from '../lib/supabase.js';
+// Supabase version of OTP verification - uses service role key
 
 // ============================================================
 // RATE LIMITING
@@ -83,7 +81,11 @@ export default async function handler(req, res) {
 
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
+      return res.status(405).json({ 
+        status: "error",
+        valid: false,
+        message: "Method not allowed" 
+      });
     }
 
     const { email, otp } = req.body;
@@ -117,29 +119,52 @@ export default async function handler(req, res) {
     }
     // ===============================
 
-    // 1. Find contact in Supabase
-    console.log(`[SP_VerifyOTP] Looking for contact: ${email}`);
-    
-    const { data: contact, error: findError } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('email', email)
-      .single();
+    // Check environment variables
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
-    if (findError) {
-      console.error('[SP_VerifyOTP] Find error:', findError);
-      if (findError.code === 'PGRST116') {
-        // No rows found
-        return res.status(404).json({
-          status: "error",
-          valid: false,
-          reason: "not_found",
-          message: "Email not found. Please request a new code."
-        });
-      }
-      throw findError;
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase environment variables');
+      return res.status(500).json({
+        status: "error",
+        valid: false,
+        message: "Server configuration error"
+      });
     }
 
+    // 1. Find contact in Supabase using native fetch
+    console.log(`[SP_VerifyOTP] Looking for contact: ${email}`);
+    
+    const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
+    const findResponse = await fetch(findUrl, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    });
+
+    if (!findResponse.ok) {
+      const errorText = await findResponse.text();
+      console.error('[SP_VerifyOTP] Find error:', errorText);
+      return res.status(500).json({
+        status: "error",
+        valid: false,
+        message: "Failed to find contact"
+      });
+    }
+
+    const findData = await findResponse.json();
+
+    if (!findData || findData.length === 0) {
+      return res.status(404).json({
+        status: "error",
+        valid: false,
+        reason: "not_found",
+        message: "Email not found. Please request a new code."
+      });
+    }
+
+    const contact = findData[0];
     console.log(`[SP_VerifyOTP] Found contact: ${contact.id}`);
 
     // 2. Extract stored values from Supabase
@@ -178,18 +203,24 @@ export default async function handler(req, res) {
     verifyRateLimits.delete(`sp_verify_${email}`);
 
     // 6. Clear the OTP from the database (one-time use)
-    const { error: updateError } = await supabase
-      .from('contacts')
-      .update({
+    const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
+    const updateResponse = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         otp: null,
         magic_link: null,
         link_expiry: null,
         updated_at: new Date().toISOString()
       })
-      .eq('id', contact.id);
+    });
 
-    if (updateError) {
-      console.error('[SP_VerifyOTP] Error clearing OTP:', updateError);
+    if (!updateResponse.ok) {
+      console.error('[SP_VerifyOTP] Error clearing OTP:', await updateResponse.text());
       // Non-critical error, continue
     }
 
@@ -213,7 +244,7 @@ export default async function handler(req, res) {
     console.error("[SP_VerifyOTP] Error:", err);
     return res.status(500).json({ 
       status: "error",
-      error: err.message,
+      valid: false,
       message: "Server error. Please try again."
     });
   }
