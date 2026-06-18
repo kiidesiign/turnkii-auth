@@ -202,7 +202,9 @@ export default async function handler(req, res) {
     // 5. On success, clear the rate limit record for this email
     verifyRateLimits.delete(`sp_verify_${email}`);
 
-    // 6. Clear the OTP from the database (one-time use)
+    // 6. Clear ONLY the OTP from the database (keep token for account page)
+    //    The token remains valid until its expiry time is reached
+    console.log(`[SP_VerifyOTP] Clearing OTP, keeping token for: ${email}`);
     const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
     const updateResponse = await fetch(updateUrl, {
       method: 'PATCH',
@@ -212,9 +214,8 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        otp: null,
-        magic_link: null,
-        link_expiry: null,
+        otp: null,  // Only clear OTP
+        // Keep magic_link and link_expiry for account page verification
         updated_at: new Date().toISOString()
       })
     });
@@ -226,7 +227,7 @@ export default async function handler(req, res) {
 
     console.log(`[SP_VerifyOTP] Successfully verified OTP for: ${email}`);
 
-    // 7. Build redirect URL with BOTH email and token as query parameters
+    // 7. Build redirect URL with email and token for account page
     const encodedEmail = encodeURIComponent(email);
     const redirectUrl = `${process.env.UI_HOST || 'https://www.turnkii.es'}/account/?email=${encodedEmail}&token=${storedToken}`;
 
