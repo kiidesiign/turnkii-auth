@@ -1,5 +1,5 @@
 // api/sp-get-contact.js
-import { supabase } from '../lib/supabase.js';
+// UPDATED: Use service role key to bypass RLS
 
 export default async function handler(req, res) {
   const CORS_ORIGIN = 'https://www.turnkii.es';
@@ -30,24 +30,24 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Email is required' });
   }
 
-  // Check environment variables
+  // Use SERVICE ROLE KEY to bypass RLS
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
   console.log('🔍 Environment check:', {
     hasSupabaseUrl: !!supabaseUrl,
-    hasSupabaseAnonKey: !!supabaseAnonKey,
+    hasSupabaseKey: !!supabaseKey,
     supabaseUrlValue: supabaseUrl,
-    supabaseAnonKeyPrefix: supabaseAnonKey ? supabaseAnonKey.substring(0, 20) + '...' : 'missing'
+    supabaseKeyPrefix: supabaseKey ? supabaseKey.substring(0, 20) + '...' : 'missing'
   });
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseKey) {
     console.error('❌ Missing environment variables');
     return res.status(500).json({
       error: 'Server configuration error',
       missing: {
         supabaseUrl: !supabaseUrl,
-        supabaseAnonKey: !supabaseAnonKey
+        supabaseKey: !supabaseKey
       }
     });
   }
@@ -55,22 +55,34 @@ export default async function handler(req, res) {
   try {
     console.log(`🔍 Searching for email: ${email}`);
 
-    // Search for the contact in Supabase
-    const { data: contact, error } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('email', email)
-      .single();
+    // Use native fetch with service role key
+    const url = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
+    console.log(`🔍 URL: ${url}`);
 
-    if (error) {
-      console.log(`❌ Supabase error:`, error);
-      if (error.code === 'PGRST116') {
-        console.log(`❌ No contact found for email: ${email}`);
-        return res.status(404).json({ error: 'Contact not found' });
-      }
-      throw error;
+    const response = await fetch(url, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ API error: ${response.status} - ${errorText}`);
+      return res.status(response.status).json({
+        error: `Supabase API error: ${response.status}`,
+        details: errorText
+      });
     }
 
+    const data = await response.json();
+
+    if (!data || data.length === 0) {
+      console.log(`❌ No contact found for email: ${email}`);
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+
+    const contact = data[0];
     console.log(`✅ Contact found with ID: ${contact.id}`);
 
     // Format the contact data
