@@ -37,7 +37,8 @@ export default async function handler(req, res) {
   console.log('🔍 Environment check:', {
     hasSupabaseUrl: !!supabaseUrl,
     hasSupabaseAnonKey: !!supabaseAnonKey,
-    supabaseUrlPrefix: supabaseUrl ? supabaseUrl.substring(0, 20) + '...' : 'missing'
+    supabaseUrlValue: supabaseUrl,
+    supabaseAnonKeyPrefix: supabaseAnonKey ? supabaseAnonKey.substring(0, 20) + '...' : 'missing'
   });
 
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -64,7 +65,6 @@ export default async function handler(req, res) {
     if (error) {
       console.log(`❌ Supabase error:`, error);
       if (error.code === 'PGRST116') {
-        // No rows found - contact doesn't exist
         console.log(`❌ No contact found for email: ${email}`);
         return res.status(404).json({ error: 'Contact not found' });
       }
@@ -76,27 +76,23 @@ export default async function handler(req, res) {
     // Format the contact data
     const formattedContact = {
       id: contact.id,
-      // Original fields
       email: contact.email || '',
       firstName: contact.first_name || '',
       lastName: contact.last_name || '',
       phone: contact.phone || '',
-      
-      // Magic link fields
       otp: contact.otp || '',
       token: contact.magic_link || '',
-      otpVerified: false, // No separate verified field in this schema
+      otpVerified: false,
       otpGeneratedAt: contact.updated_at || '',
       linkExpiry: contact.link_expiry || '',
       createdAt: contact.created_at || '',
       updatedAt: contact.updated_at || '',
     };
 
-    console.log('📤 Returning contact data with magic link fields');
+    console.log('📤 Returning contact data');
     return res.status(200).json({
       success: true,
       contact: formattedContact,
-      // Also return raw fields for compatibility with existing HTML
       fields: contact,
       id: contact.id
     });
