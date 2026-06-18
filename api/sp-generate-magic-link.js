@@ -6,7 +6,10 @@
 // ============================================================
 
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://www.turnkii.es';
-const APP_URL = process.env.VERCEL_URL || 'https://project-qv4f9.vercel.app';
+// FIX: Ensure URL has https:// protocol
+const APP_URL = process.env.VERCEL_URL 
+  ? `https://${process.env.VERCEL_URL}` 
+  : 'https://project-qv4f9.vercel.app';
 
 // ============================================================
 // RATE LIMITING
@@ -256,7 +259,10 @@ export default async function handler(req, res) {
     
     let emailSent = false;
     try {
-      const emailResponse = await fetch(`${APP_URL}/api/send-otp-email`, {
+      const emailUrl = `${APP_URL}/api/send-otp-email`;
+      console.log(`[SP_GenerateMagicLink] Email URL: ${emailUrl}`);
+      
+      const emailResponse = await fetch(emailUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp, token })
