@@ -1,4 +1,4 @@
--- supabase/migrations/20250317120000_initial_schema.sql
+-- supabase/migrations/20260618081428_initial_schema.sql
 -- This migration creates the initial CRM tables
 
 -- ============================================================
@@ -108,10 +108,9 @@ create table if not exists files (
   contact_id bigint references contacts(id) on delete cascade,
   file_name text not null,
   file_url text not null,
-  file_id text,  -- OneDrive file ID
-  file_type text,  -- MIME type
+  file_id text,
+  file_type text,
   size_bytes bigint,
-  -- Tracking
   uploaded_at timestamptz default now() not null,
   created_by_email text
 );
@@ -170,10 +169,9 @@ create table if not exists meetings (
   title text not null,
   meeting_date timestamptz not null,
   duration_minutes int,
-  calendar_event_id text,  -- Cal.com or external calendar ID
+  calendar_event_id text,
   notes text,
-  -- Status tracking
-  status text default 'scheduled', -- scheduled, completed, cancelled, no_show
+  status text default 'scheduled',  -- ← ADDED: scheduled, completed, cancelled, no_show
   -- Tracking
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null,
@@ -183,7 +181,7 @@ create table if not exists meetings (
 -- Indexes for meetings
 create index if not exists idx_meetings_contact_id on meetings(contact_id);
 create index if not exists idx_meetings_meeting_date on meetings(meeting_date);
-create index if not exists idx_meetings_status on meetings(status);
+create index if not exists idx_meetings_status on meetings(status);  -- ← Now works because status exists
 
 -- Trigger for meetings
 drop trigger if exists update_meetings_updated_at on meetings;
@@ -255,11 +253,10 @@ create table if not exists notes (
   id bigint primary key generated always as identity,
   contact_id bigint references contacts(id) on delete cascade,
   content text not null,
-  -- Tracking
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null,
   created_by_email text,
-  is_internal boolean default false  -- For internal notes vs client-facing
+  is_internal boolean default false
 );
 
 -- Indexes for notes
@@ -327,19 +324,3 @@ begin
     with check (true);
   end if;
 end $$;
-
--- ============================================================
--- VERIFICATION QUERIES (Run these to confirm setup)
--- ============================================================
-
--- Check all tables exist
--- SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
-
--- Check all indexes exist
--- SELECT tablename, indexname FROM pg_indexes WHERE schemaname = 'public' ORDER BY tablename, indexname;
-
--- Check RLS is enabled
--- SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
-
--- Check policies exist
--- SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename, policyname;
