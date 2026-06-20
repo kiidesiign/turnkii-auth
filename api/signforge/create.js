@@ -1,23 +1,14 @@
 // api/signforge/create.js
 const SIGNFORGE_API_BASE = 'https://signforge.io/api/v1';
-const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY;
+const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY || process.env.SIGNFORGE_KEY;
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-// Minimal valid PDF (base64) – same as before
-const FALLBACK_PDF_BASE64 =
-  'JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4gZW5kb2JqIDIgMCBvYmogPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4gZW5kb2JqIDMgMCBvYmogPDwgL1R5cGUgL1BhZ2UgL01lZGlhQm94IFswIDAgNjEyIDc5Ml0gL1BhcmVudCAyIDAgUiAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4gZW5kb2JqIDQgMCBvYmogPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+IGVuZG9iaiA1IDAgb2JqIDw8IC9MZW5ndGggNjMgPj4gc3RyZWFtCkJUIC9GMSAyNCBUZiAxMDAgNzAwIFRkIChUZXN0KSBUaiBFVE0KZW5kc3RyZWFtIGVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA2MiAwMDAwMCBuIAowMDAwMDAwMTE3IDAwMDAwIG4gCjAwMDAwMDAyMzQgMDAwMDAgbiAKMDAwMDAwMDI5NiAwMDAwMCBuIAp0cmFpbGVyIDw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjM3NQolJUVPRg==';
+// Minimal valid PDF (base64)
+const FALLBACK_PDF_BASE64 = 'JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4gZW5kb2JqIDIgMCBvYmogPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4gZW5kb2JqIDMgMCBvYmogPDwgL1R5cGUgL1BhZ2UgL01lZGlhQm94IFswIDAgNjEyIDc5Ml0gL1BhcmVudCAyIDAgUiAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4gZW5kb2JqIDQgMCBvYmogPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+IGVuZG9iaiA1IDAgb2JqIDw8IC9MZW5ndGggNjMgPj4gc3RyZWFtCkJUIC9GMSAyNCBUZiAxMDAgNzAwIFRkIChUZXN0KSBUaiBFVE0KZW5kc3RyZWFtIGVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA2MiAwMDAwMCBuIAowMDAwMDAwMTE3IDAwMDAwIG4gCjAwMDAwMDAyMzQgMDAwMDAgbiAKMDAwMDAwMDI5NiAwMDAwMCBuIAp0cmFpbGVyIDw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjM3NQolJUVPRg==';
 
 export default async function handler(req, res) {
-  // api/signforge/create.js
-  // Add this at the very top of the handler function
-  console.log('🔍 DEBUG: Environment check:');
-  console.log('  SIGNFORGE_API_KEY exists?', !!process.env.SIGNFORGE_API_KEY);
-  console.log('  First 10 chars:', process.env.SIGNFORGE_API_KEY ? process.env.SIGNFORGE_API_KEY.substring(0, 10) : 'missing');
-  console.log('  SUPABASE_URL exists?', !!process.env.SUPABASE_URL);
-  console.log('  SUPABASE_SERVICE_KEY exists?', !!process.env.SUPABASE_SERVICE_KEY);
-
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', 'https://www.turnkii.es');
@@ -27,44 +18,37 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Parse request body
-  let body = '';
-  await new Promise((resolve) => {
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', () => {
-      try { req.body = body ? JSON.parse(body) : {}; } catch (e) { req.body = {}; }
-      resolve();
-    });
-  });
-
-  const { email, firstName, lastName } = req.body;
-
-  // ============================================================
-  // DEBUG: Return API key status immediately if missing
-  // ============================================================
-  if (!SIGNFORGE_API_KEY) {
-    return res.status(500).json({
-      error: 'SIGNFORGE_API_KEY is not set in environment',
-      debug: {
-        hasKey: false,
-        envKeys: Object.keys(process.env).filter(k => k.includes('SIGNFORGE') || k.includes('API'))
-      }
-    });
-  }
-
-  // Log key presence (will appear in Vercel logs)
-  console.log('🔑 SIGNFORGE_API_KEY present:', SIGNFORGE_API_KEY.substring(0, 10) + '...');
-
-  if (!email || !firstName || !lastName) {
-    return res.status(400).json({ error: 'Email, firstName, and lastName are required' });
-  }
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    return res.status(500).json({ error: 'Supabase credentials missing' });
-  }
-
   try {
+    // Parse request body
+    let body = '';
+    await new Promise((resolve) => {
+      req.on('data', chunk => { body += chunk.toString(); });
+      req.on('end', () => {
+        try { req.body = body ? JSON.parse(body) : {}; } catch (e) { req.body = {}; }
+        resolve();
+      });
+    });
+
+    const { email, firstName, lastName } = req.body;
+
+    console.log('🔍 Received request:', { email, firstName, lastName });
+
+    if (!email || !firstName || !lastName) {
+      return res.status(400).json({ error: 'Email, firstName, and lastName are required' });
+    }
+
+    if (!SIGNFORGE_API_KEY) {
+      console.error('❌ SIGNFORGE_API_KEY is not set');
+      return res.status(500).json({ error: 'API key not configured' });
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+      console.error('❌ Supabase credentials missing');
+      return res.status(500).json({ error: 'Supabase credentials missing' });
+    }
+
     // 1. Find or create contact in Supabase
+    console.log('🔍 Finding/creating contact:', email);
     const findUrl = `${SUPABASE_URL}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
     const findResponse = await fetch(findUrl, {
       headers: {
@@ -75,6 +59,7 @@ export default async function handler(req, res) {
 
     if (!findResponse.ok) {
       const errorText = await findResponse.text();
+      console.error('❌ Supabase find failed:', errorText);
       throw new Error(`Supabase find failed: ${findResponse.status} ${errorText}`);
     }
 
@@ -82,6 +67,7 @@ export default async function handler(req, res) {
     let contact = findData[0];
 
     if (!contact) {
+      console.log('🆕 Creating new contact');
       const createUrl = `${SUPABASE_URL}/rest/v1/contacts`;
       const createResponse = await fetch(createUrl, {
         method: 'POST',
@@ -100,24 +86,60 @@ export default async function handler(req, res) {
 
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
+        console.error('❌ Supabase create failed:', errorText);
         throw new Error(`Supabase create failed: ${createResponse.status} ${errorText}`);
       }
 
       const createData = await createResponse.json();
       contact = createData[0] || createData;
+      console.log('✅ Contact created:', contact.id);
+    } else {
+      console.log('✅ Contact found:', contact.id);
     }
 
-    // 2. Use the /quick-sign endpoint (simpler)
+    // 2. Call SignForge API
     const signforgePayload = {
       title: 'Test Agreement',
       pdf_base64: FALLBACK_PDF_BASE64,
       signer_email: email,
       signer_name: `${firstName} ${lastName}`,
+      fields: [
+        {
+          recipient_index: 0,
+          field_type: 'signature',
+          page_index: 0,
+          x_norm: 0.1,
+          y_norm: 0.3,
+          w_norm: 0.3,
+          h_norm: 0.08,
+        },
+        {
+          recipient_index: 0,
+          field_type: 'text',
+          page_index: 0,
+          x_norm: 0.1,
+          y_norm: 0.4,
+          w_norm: 0.3,
+          h_norm: 0.05,
+          label: 'Full Name',
+        },
+        {
+          recipient_index: 0,
+          field_type: 'date',
+          page_index: 0,
+          x_norm: 0.1,
+          y_norm: 0.47,
+          w_norm: 0.2,
+          h_norm: 0.05,
+          label: 'Date',
+        },
+      ],
       webhook_url: `https://project-qv4f9.vercel.app/api/signforge/webhook?envelope_id={envelope_id}`,
       redirect_url: 'https://www.turnkii.es/account',
     };
 
-    console.log('📤 Sending to SignForge /quick-sign...');
+    console.log('📤 Sending to SignForge...');
+    console.log('📤 Payload:', JSON.stringify(signforgePayload, null, 2));
 
     const signforgeResponse = await fetch(`${SIGNFORGE_API_BASE}/quick-sign`, {
       method: 'POST',
@@ -138,12 +160,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // The response structure for /quick-sign may be different.
-    // Adjust based on actual response.
     const envelopeId = data.id || data.envelope_id;
     const signingUrl = data.signing_url || data.embedded_signing_url || data.url;
 
-    // 3. Store in Supabase
+    // 3. Store in Supabase (optional)
     if (envelopeId) {
       try {
         const docInsertUrl = `${SUPABASE_URL}/rest/v1/documents`;
@@ -173,13 +193,13 @@ export default async function handler(req, res) {
       success: true,
       envelopeId: envelopeId,
       signingUrl: signingUrl,
-      debug: { keyPresent: !!SIGNFORGE_API_KEY },
     });
 
   } catch (error) {
-    console.error('❌ SignForge create error:', error);
+    console.error('❌ Unhandled error:', error);
     return res.status(500).json({
-      error: error.message,
+      error: 'Internal server error',
+      message: error.message,
       stack: error.stack,
     });
   }
