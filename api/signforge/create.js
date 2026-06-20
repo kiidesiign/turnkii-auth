@@ -1,6 +1,7 @@
 // api/signforge/create.js
 const SIGNFORGE_API_BASE = 'https://signforge.io/api/v1';
-const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY || process.env.SIGNFORGE_KEY;
+const SIGNFORGE_API_KEY = 'sf_live_ECKOEvh0IVAdh3BvjR4r-luJcowQaYHl9si_f2H2cZA';
+//const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY || process.env.SIGNFORGE_KEY;
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
