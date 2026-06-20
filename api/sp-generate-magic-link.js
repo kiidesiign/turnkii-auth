@@ -6,7 +6,6 @@
 // ============================================================
 
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://www.turnkii.es';
-// FIX: Use hardcoded URL for now to ensure email sending works
 const APP_URL = 'https://project-qv4f9.vercel.app';
 
 // ============================================================
@@ -54,10 +53,6 @@ function generateToken() {
   return [...Array(32)]
     .map(() => Math.floor(Math.random() * 16).toString(16))
     .join("");
-}
-
-function generateMagicLink(email, token, otp) {
-  return `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}&otp=${otp}&token=${token}`;
 }
 
 // ============================================================
@@ -261,7 +256,7 @@ export default async function handler(req, res) {
       const emailResponse = await fetch(`${APP_URL}/api/send-otp-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp, token })
+        body: JSON.stringify({ email, otp })
       });
 
       const emailResult = await emailResponse.json();
@@ -277,11 +272,8 @@ export default async function handler(req, res) {
       // Non-critical - continue even if email fails
     }
 
-    // 5. Generate magic link URL
-    const magicLink = generateMagicLink(email, token, otp);
-
     // ============================================================
-    // RESPONSE
+    // RESPONSE - SECURE: No token in redirect URL
     // ============================================================
 
     const responseData = {
@@ -289,9 +281,8 @@ export default async function handler(req, res) {
       status: 'success',
       message: emailSent ? 'Magic link generated successfully. Check your email for the OTP.' : 'Magic link generated but email could not be sent. Please contact support.',
       
-      otp: otp,
-      token: token,
-      magicLink: magicLink,
+      // Only return OTP for debugging, never expose token in response
+      // Token is only stored in database, not returned to client
       
       contactId: contact.id,
       email: email,
@@ -305,9 +296,6 @@ export default async function handler(req, res) {
           'First Name': updatedContact.first_name || '',
           'Last Name': updatedContact.last_name || '',
           'Email': updatedContact.email,
-          'OTP': updatedContact.otp || '',
-          'Token': updatedContact.magic_link || '',
-          'OTP_Expiry': updatedContact.link_expiry || '',
           'OTP_Generated_At': updatedContact.updated_at || '',
           'OTP_Verified': false
         }
@@ -317,7 +305,9 @@ export default async function handler(req, res) {
       apiCallsDetails: isNewContact ? 'Find + Create + Update' : 'Find + Update',
       remainingRequests: rateCheck.remaining,
       emailSent: emailSent,
-      redirect: `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}&token=${token}`
+      
+      // SECURE: Redirect to OTP page with only email, no token
+      redirect: `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}`
     };
 
     console.log(`[SP_GenerateMagicLink] Success for: ${email}`);
@@ -336,6 +326,5 @@ export default async function handler(req, res) {
 
 export {
   generateOTP,
-  generateToken,
-  generateMagicLink
+  generateToken
 };

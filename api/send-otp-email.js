@@ -11,7 +11,6 @@ const resend = new Resend(resendApiKey);
 export default async function handler(req, res) {
   const CORS_ORIGIN = 'https://www.turnkii.es';
 
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -28,9 +27,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, otp, token } = req.body;
+    const { email, otp } = req.body;
 
-    console.log(`📧 send-otp-email called with:`, { email, otp: otp ? 'present' : 'missing', token: token ? 'present' : 'missing' });
+    console.log(`📧 send-otp-email called for: ${email}`);
 
     if (!email || !otp) {
       console.error('❌ Missing email or OTP');
@@ -41,17 +40,15 @@ export default async function handler(req, res) {
     }
 
     if (!process.env.RESEND_API_KEY) {
-      console.error('❌ RESEND_API_KEY is not set in environment variables');
+      console.error('❌ RESEND_API_KEY is not set');
       return res.status(500).json({
         success: false,
-        error: 'Email service not configured',
-        details: 'RESEND_API_KEY is missing'
+        error: 'Email service not configured'
       });
     }
 
     console.log(`📧 Sending OTP email to: ${email}`);
 
-    // Email HTML content
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -94,11 +91,8 @@ export default async function handler(req, res) {
     `;
 
     try {
-      // ============================================================
-      // STEP 1: Test with mail.turnkii.es subdomain
-      // ============================================================
       const { data, error } = await resend.emails.send({
-        from: 'TurnKii <noreply@mail.turnkii.es>',  // ← Using mail.turnkii.es
+        from: 'TurnKii <noreply@mail.turnkii.es>',
         to: [email],
         subject: `Your TurnKii Verification Code: ${otp}`,
         html: htmlContent,
