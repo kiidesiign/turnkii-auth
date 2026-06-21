@@ -70,3 +70,5 @@ ALTER TABLE contacts ADD COLUMN IF NOT EXISTS account_id BIGINT REFERENCES accou
 
 -- 3. Add role column if missing (optional but good)
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member' CHECK (role IN ('primary', 'member'));
+
+ALTER TABLE documents ALTER COLUMN file_name DROP NOT NULL;

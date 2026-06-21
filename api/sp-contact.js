@@ -39,6 +39,105 @@ export default async function handler(req, res) {
     });
   }
 
+  // ============================================================
+  // HELPER: Ensure contact has an account (create if missing)
+  // ============================================================
+  async function ensureAccount(contactId) {
+    // Fetch current contact to check account_id
+    const findUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contactId}&select=account_id,role`;
+    const findRes = await fetch(findUrl, {
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    });
+    if (!findRes.ok) return;
+    const data = await findRes.json();
+    const contact = data[0];
+    if (!contact) return;
+    if (contact.account_id) return; // already has account
+
+    // Create account
+    const createAccountUrl = `${supabaseUrl}/rest/v1/accounts`;
+    const accountRes = await fetch(createAccountUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({}),
+    });
+    if (!accountRes.ok) {
+      console.error('❌ Failed to create account for contact', contactId);
+      return;
+    }
+    const accountData = await accountRes.json();
+    const accountId = accountData[0]?.id;
+    if (!accountId) return;
+
+    // Update contact with account_id and set role = 'primary'
+    const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contactId}`;
+    await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        account_id: accountId,
+        role: 'primary',
+        updated_at: new Date().toISOString()
+      })
+    });
+    console.log(`✅ Account ${accountId} assigned to contact ${contactId}`);
+  }
+
+  // ============================================================
+  // HELPER: Ensure the three document types exist for a contact
+  // ============================================================
+  async function ensureDocuments(contactId) {
+    // Get document types that should be created on signup
+    const typesUrl = `${supabaseUrl}/rest/v1/document_types?created_on_signup=eq.true&select=name`;
+    const typesRes = await fetch(typesUrl, {
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    });
+    if (!typesRes.ok) return;
+    const types = await typesRes.json();
+    if (!types || types.length === 0) return;
+
+    // Get existing documents for this contact
+    const docsUrl = `${supabaseUrl}/rest/v1/documents?contact_id=eq.${contactId}&select=document_type`;
+    const docsRes = await fetch(docsUrl, {
+      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+    });
+    if (!docsRes.ok) return;
+    const existingDocs = await docsRes.json();
+    const existingTypes = existingDocs.map(d => d.document_type);
+
+    // Insert missing types
+    const missing = types.filter(t => !existingTypes.includes(t.name));
+    if (missing.length === 0) return;
+
+    const insertPromises = missing.map(t => {
+      return fetch(`${supabaseUrl}/rest/v1/documents`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contact_id: contactId,
+          document_type: t.name,
+          status: 'pending',
+          provider: null,
+        })
+      });
+    });
+    await Promise.all(insertPromises);
+    console.log(`✅ Inserted missing documents for contact ${contactId}: ${missing.map(t => t.name).join(', ')}`);
+  }
+
   try {
     // ============================================================
     // GET: Fetch contact by email OR fetch documents for a user
@@ -556,6 +655,10 @@ export default async function handler(req, res) {
           return res.status(401).json({ success: false, error: 'OTP has expired' });
         }
 
+        // Ensure account and documents exist for this contact (fix missing account)
+        await ensureAccount(contact.id);
+        await ensureDocuments(contact.id);
+
         const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
         await fetch(updateUrl, {
           method: 'PATCH',
@@ -685,6 +788,10 @@ export default async function handler(req, res) {
         if (contact.link_expiry && new Date(contact.link_expiry) < new Date()) {
           return res.status(401).json({ success: false, error: 'Token has expired' });
         }
+
+        // Ensure account and documents exist for this contact (fix missing account)
+        await ensureAccount(contact.id);
+        await ensureDocuments(contact.id);
 
         return res.status(200).json({
           success: true,
