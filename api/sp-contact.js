@@ -39,56 +39,6 @@ export default async function handler(req, res) {
     });
   }
 
-  // Helper: Create an account and return its ID
-  async function createAccount() {
-    const createAccountUrl = `${supabaseUrl}/rest/v1/accounts`;
-    const accountRes = await fetch(createAccountUrl, {
-      method: 'POST',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
-      body: JSON.stringify({}), // no extra fields yet
-    });
-    if (!accountRes.ok) {
-      const errorText = await accountRes.text();
-      throw new Error(`Failed to create account: ${errorText}`);
-    }
-    const accountData = await accountRes.json();
-    return accountData[0]?.id;
-  }
-
-  // Helper: Create a contact with account_id
-  async function createContact(email, firstName, lastName, accountId, mobileCountryCode, mobileNumber) {
-    const createContactUrl = `${supabaseUrl}/rest/v1/contacts`;
-    const contactRes = await fetch(createContactUrl, {
-      method: 'POST',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
-      body: JSON.stringify({
-        email,
-        first_name: firstName || '',
-        last_name: lastName || '',
-        account_id: accountId,
-        role: 'primary',
-        mobile_country_code: mobileCountryCode || '+34',
-        mobile_number: mobileNumber || '',
-      }),
-    });
-    if (!contactRes.ok) {
-      const errorText = await contactRes.text();
-      throw new Error(`Failed to create contact: ${errorText}`);
-    }
-    const contactData = await contactRes.json();
-    return contactData[0] || contactData;
-  }
-
   try {
     // ============================================================
     // GET: Fetch contact by email OR fetch documents for a user
@@ -352,17 +302,50 @@ export default async function handler(req, res) {
         }
 
         // Create account
-        const accountId = await createAccount();
+        const createAccountUrl = `${supabaseUrl}/rest/v1/accounts`;
+        const accountRes = await fetch(createAccountUrl, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({}),
+        });
+        if (!accountRes.ok) {
+          const errorText = await accountRes.text();
+          throw new Error(`Failed to create account: ${errorText}`);
+        }
+        const accountData = await accountRes.json();
+        const accountId = accountData[0]?.id;
 
         // Create contact with account_id
-        const newContact = await createContact(
-          email,
-          firstName,
-          lastName,
-          accountId,
-          mobileCountryCode || '+34',
-          mobileNumber || ''
-        );
+        const createContactUrl = `${supabaseUrl}/rest/v1/contacts`;
+        const contactRes = await fetch(createContactUrl, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({
+            email,
+            first_name: firstName,
+            last_name: lastName,
+            account_id: accountId,
+            role: 'primary',
+            mobile_country_code: mobileCountryCode || '+34',
+            mobile_number: mobileNumber || '',
+          }),
+        });
+        if (!contactRes.ok) {
+          const errorText = await contactRes.text();
+          throw new Error(`Failed to create contact: ${errorText}`);
+        }
+        const contactData = await contactRes.json();
+        const newContact = contactData[0] || contactData;
 
         return res.status(200).json({
           success: true,
@@ -381,97 +364,155 @@ export default async function handler(req, res) {
 
       // MAGIC_LINK
       if (action === 'magic_link') {
+        console.log('[MAGIC_LINK] Starting for email:', email);
         const otpCode = otp || Math.floor(100000 + Math.random() * 900000).toString();
         const tokenCode = token || [...Array(32)].map(() => Math.floor(Math.random() * 16).toString(16)).join("");
         const expiryTime = expiry || new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-        // Check if contact exists
-        const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
-        const findResponse = await fetch(findUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
-        });
-
-        if (!findResponse.ok) {
-          const errorText = await findResponse.text();
-          return res.status(findResponse.status).json({
-            success: false,
-            error: 'Failed to find contact',
-            details: errorText
+        try {
+          // Check if contact exists
+          const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
+          console.log('[MAGIC_LINK] Finding contact:', findUrl);
+          const findResponse = await fetch(findUrl, {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
           });
-        }
 
-        const findData = await findResponse.json();
-        let contact = findData[0];
-
-        // If contact does not exist, create one (and an account)
-        if (!contact) {
-          console.log('🆕 Contact not found; creating new account and contact for magic link...');
-          try {
-            const accountId = await createAccount();
-            const newContact = await createContact(
-              email,
-              firstName || '',        // may be missing, but we use what's provided
-              lastName || '',
-              accountId,
-              '+34',
-              ''
-            );
-            contact = newContact;
-          } catch (createError) {
-            console.error('❌ Failed to create contact for magic link:', createError);
-            return res.status(500).json({
+          if (!findResponse.ok) {
+            const errorText = await findResponse.text();
+            console.error('[MAGIC_LINK] Failed to find contact:', errorText);
+            return res.status(findResponse.status).json({
               success: false,
-              error: 'Failed to create contact',
-              details: createError.message
+              error: 'Failed to find contact',
+              details: errorText
             });
           }
-        }
 
-        // Update contact with OTP and magic link
-        const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
-        const updateResponse = await fetch(updateUrl, {
-          method: 'PATCH',
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation',
-          },
-          body: JSON.stringify({
+          const findData = await findResponse.json();
+          let contact = findData[0];
+
+          // If contact does not exist, create one (and an account)
+          if (!contact) {
+            console.log('[MAGIC_LINK] Contact not found; creating new account and contact...');
+            try {
+              // Create account
+              const createAccountUrl = `${supabaseUrl}/rest/v1/accounts`;
+              console.log('[MAGIC_LINK] Creating account:', createAccountUrl);
+              const accountRes = await fetch(createAccountUrl, {
+                method: 'POST',
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': `Bearer ${supabaseKey}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=representation',
+                },
+                body: JSON.stringify({}),
+              });
+              if (!accountRes.ok) {
+                const errorText = await accountRes.text();
+                console.error('[MAGIC_LINK] Failed to create account:', errorText);
+                throw new Error(`Failed to create account: ${errorText}`);
+              }
+              const accountData = await accountRes.json();
+              const accountId = accountData[0]?.id;
+              console.log('[MAGIC_LINK] Account created with id:', accountId);
+
+              // Create contact
+              const createContactUrl = `${supabaseUrl}/rest/v1/contacts`;
+              console.log('[MAGIC_LINK] Creating contact:', createContactUrl);
+              const contactRes = await fetch(createContactUrl, {
+                method: 'POST',
+                headers: {
+                  'apikey': supabaseKey,
+                  'Authorization': `Bearer ${supabaseKey}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=representation',
+                },
+                body: JSON.stringify({
+                  email,
+                  first_name: firstName || '',
+                  last_name: lastName || '',
+                  account_id: accountId,
+                  role: 'primary',
+                  mobile_country_code: '+34',
+                  mobile_number: '',
+                }),
+              });
+              if (!contactRes.ok) {
+                const errorText = await contactRes.text();
+                console.error('[MAGIC_LINK] Failed to create contact:', errorText);
+                throw new Error(`Failed to create contact: ${errorText}`);
+              }
+              const contactData = await contactRes.json();
+              contact = contactData[0] || contactData;
+              console.log('[MAGIC_LINK] Contact created with id:', contact.id);
+            } catch (createError) {
+              console.error('[MAGIC_LINK] Error during account/contact creation:', createError);
+              return res.status(500).json({
+                success: false,
+                error: 'Failed to create account/contact',
+                details: createError.message
+              });
+            }
+          } else {
+            console.log('[MAGIC_LINK] Contact found with id:', contact.id);
+          }
+
+          // Update contact with OTP and magic link
+          const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
+          console.log('[MAGIC_LINK] Updating contact with OTP:', updateUrl);
+          const updateResponse = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            body: JSON.stringify({
+              otp: otpCode,
+              magic_link: tokenCode,
+              link_expiry: expiryTime,
+              updated_at: new Date().toISOString()
+            })
+          });
+
+          if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            console.error('[MAGIC_LINK] Failed to update contact:', errorText);
+            return res.status(updateResponse.status).json({
+              success: false,
+              error: 'Failed to update contact with magic link',
+              details: errorText
+            });
+          }
+
+          const updateData = await updateResponse.json();
+          const updatedContact = updateData[0] || updateData;
+          console.log('[MAGIC_LINK] Contact updated successfully');
+
+          return res.status(200).json({
+            success: true,
             otp: otpCode,
-            magic_link: tokenCode,
-            link_expiry: expiryTime,
-            updated_at: new Date().toISOString()
-          })
-        });
-
-        if (!updateResponse.ok) {
-          const errorText = await updateResponse.text();
-          return res.status(updateResponse.status).json({
+            token: tokenCode,
+            expiry: expiryTime,
+            contact: {
+              id: updatedContact.id,
+              email: updatedContact.email || '',
+              firstName: updatedContact.first_name || '',
+              lastName: updatedContact.last_name || '',
+            }
+          });
+        } catch (error) {
+          console.error('[MAGIC_LINK] Unhandled error:', error);
+          return res.status(500).json({
             success: false,
-            error: 'Failed to update contact with magic link',
-            details: errorText
+            error: 'Failed to generate magic link',
+            details: error.message
           });
         }
-
-        const updateData = await updateResponse.json();
-        const updatedContact = updateData[0] || updateData;
-
-        return res.status(200).json({
-          success: true,
-          otp: otpCode,
-          token: tokenCode,
-          expiry: expiryTime,
-          contact: {
-            id: updatedContact.id,
-            email: updatedContact.email || '',
-            firstName: updatedContact.first_name || '',
-            lastName: updatedContact.last_name || '',
-          }
-        });
       }
 
       // VERIFY_OTP

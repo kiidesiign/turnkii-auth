@@ -58,3 +58,15 @@ CREATE TRIGGER after_contact_insert
 AFTER INSERT ON contacts
 FOR EACH ROW
 EXECUTE FUNCTION create_initial_documents();
+
+-- 1. Create accounts table if it doesn't exist
+CREATE TABLE IF NOT EXISTS accounts (
+  id BIGSERIAL PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Add account_id to contacts if missing
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS account_id BIGINT REFERENCES accounts(id) ON DELETE CASCADE;
+
+-- 3. Add role column if missing (optional but good)
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member' CHECK (role IN ('primary', 'member'));
