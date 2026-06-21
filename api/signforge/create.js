@@ -198,9 +198,9 @@ export default async function handler(req, res) {
     const signingUrl = data.embedded_signing_url || data.signing_url || data.url;
 
     // ============================================================
-    // 4. Store in Supabase – with detailed logging
+    // 4. Upsert document record in Supabase
     // ============================================================
-    console.log('📝 Attempting to insert document record for contact:', contact.id);
+    console.log('📝 Upserting document record for contact:', contact.id);
     console.log('📝 Document data:', {
       contact_id: contact.id,
       file_name: fileName,
@@ -211,12 +211,15 @@ export default async function handler(req, res) {
       sent_at: new Date().toISOString(),
     });
 
+    let documentId = null;
+
     if (envelopeId) {
       try {
-        const docInsertUrl = `${SUPABASE_URL}/rest/v1/documents`;
-        console.log('📝 Insert URL:', docInsertUrl);
+        // Use POST with on_conflict to upsert based on the unique constraint (contact_id, document_type)
+        const docUpsertUrl = `${SUPABASE_URL}/rest/v1/documents?on_conflict=contact_id,document_type`;
+        console.log('📝 Upsert URL:', docUpsertUrl);
 
-        const insertResponse = await fetch(docInsertUrl, {
+        const upsertResponse = await fetch(docUpsertUrl, {
           method: 'POST',
           headers: {
             'apikey': SUPABASE_SERVICE_KEY,
@@ -235,29 +238,34 @@ export default async function handler(req, res) {
           }),
         });
 
-        console.log('📝 Insert response status:', insertResponse.status);
+        console.log('📝 Upsert response status:', upsertResponse.status);
 
-        if (!insertResponse.ok) {
-          const errorText = await insertResponse.text();
-          console.error('❌ Failed to insert document:', insertResponse.status, errorText);
-          // Don't throw – we still want to return the signing URL
+        if (!upsertResponse.ok) {
+          const errorText = await upsertResponse.text();
+          console.error('❌ Failed to upsert document:', upsertResponse.status, errorText);
+          // We still want to return the signing URL, but we'll log the error
         } else {
-          const insertedDoc = await insertResponse.json();
-          console.log('✅ Document record inserted successfully:', insertedDoc);
+          const upsertedDoc = await upsertResponse.json();
+          // The response might be an array if multiple rows are returned; we take the first
+          const docRecord = Array.isArray(upsertedDoc) ? upsertedDoc[0] : upsertedDoc;
+          documentId = docRecord?.id || null;
+          console.log('✅ Document record upserted successfully:', docRecord);
         }
       } catch (docError) {
-        console.error('⚠️ Exception during document insertion:', docError);
+        console.error('⚠️ Exception during document upsert:', docError);
         // Don't throw – we still want to return the signing URL
       }
     } else {
-      console.warn('⚠️ No envelopeId, skipping document insertion');
+      console.warn('⚠️ No envelopeId, skipping document upsert');
     }
 
+    // Return the signing URL along with the envelope ID and document ID (if available)
     return res.status(200).json({
       success: true,
       envelopeId: envelopeId,
       signingUrl: signingUrl,
       documentType: documentType,
+      documentId: documentId, // helpful for frontend tracking
     });
 
   } catch (error) {
