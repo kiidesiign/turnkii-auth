@@ -197,11 +197,26 @@ export default async function handler(req, res) {
     const envelopeId = data.id || data.envelope_id;
     const signingUrl = data.embedded_signing_url || data.signing_url || data.url;
 
-    // 4. Store in Supabase – use upsert to avoid duplicates
+    // ============================================================
+    // 4. Store in Supabase – with detailed logging
+    // ============================================================
+    console.log('📝 Attempting to insert document record for contact:', contact.id);
+    console.log('📝 Document data:', {
+      contact_id: contact.id,
+      file_name: fileName,
+      document_type: documentType,
+      provider_request_id: envelopeId,
+      provider: 'signforge',
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+
     if (envelopeId) {
       try {
         const docInsertUrl = `${SUPABASE_URL}/rest/v1/documents`;
-        await fetch(docInsertUrl, {
+        console.log('📝 Insert URL:', docInsertUrl);
+
+        const insertResponse = await fetch(docInsertUrl, {
           method: 'POST',
           headers: {
             'apikey': SUPABASE_SERVICE_KEY,
@@ -219,9 +234,23 @@ export default async function handler(req, res) {
             sent_at: new Date().toISOString(),
           }),
         });
+
+        console.log('📝 Insert response status:', insertResponse.status);
+
+        if (!insertResponse.ok) {
+          const errorText = await insertResponse.text();
+          console.error('❌ Failed to insert document:', insertResponse.status, errorText);
+          // Don't throw – we still want to return the signing URL
+        } else {
+          const insertedDoc = await insertResponse.json();
+          console.log('✅ Document record inserted successfully:', insertedDoc);
+        }
       } catch (docError) {
-        console.error('⚠️ Failed to store document:', docError);
+        console.error('⚠️ Exception during document insertion:', docError);
+        // Don't throw – we still want to return the signing URL
       }
+    } else {
+      console.warn('⚠️ No envelopeId, skipping document insertion');
     }
 
     return res.status(200).json({
