@@ -1,114 +1,246 @@
 // api/documents/upload.js
-// Handles file uploads for documents that do NOT require signing (e.g., PASSPORT)
+// Handles file uploads for documents (e.g., PASSPORT) using OneDrive storage,
+// with validation, security scan, and Supabase document update.
 
-import formidable from 'formidable';
-import fs from 'fs';
-import path from 'path';
+import { getOneDriveToken, uploadToOneDrive } from '../lib/onedrive.js';
+import multer from 'multer';
+import { promisify } from 'util';
+import {
+  validateFile,
+  basicSecurityScan,
+  compressImage,
+  validatePDF,
+} from '../lib/file-validator.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const SUPABASE_STORAGE_BUCKET = 'documents'; // change to your bucket name
 
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max (increase from 5MB)
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/pdf',
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type: ${file.mimetype}. Please upload a JPEG, PNG, or PDF.`));
+    }
+  },
+});
+
+// Disable bodyParser for this route (multer handles it)
 export const config = {
   api: {
-    bodyParser: false, // required for formidable
+    bodyParser: false,
   },
 };
 
 export default async function handler(req, res) {
-  // CORS
+  // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', 'https://www.turnkii.es');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
-    // 1. Parse the multipart form
-    const form = new formidable.IncomingForm({
-      keepExtensions: true,
-      maxFileSize: 10 * 1024 * 1024, // 10 MB
+    console.log('🔍 Step 1: Starting upload process...');
+
+    // Parse the multipart form data
+    const parseUpload = promisify(upload.single('file')); // field name is "file"
+    await parseUpload(req, res);
+
+    console.log('🔍 Step 2: File parsed successfully');
+
+    const file = req.file;
+    const { email, documentType } = req.body;
+
+    console.log('🔍 Step 3: File details -', {
+      hasFile: !!file,
+      email: email || 'not provided',
+      documentType: documentType || 'not provided',
+      fileType: file?.mimetype,
+      fileSize: file?.size,
     });
 
-    const { fields, files } = await new Promise((resolve, reject) => {
-      form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
+    if (!file) {
+      console.error('❌ No file uploaded');
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    if (!email) {
+      console.error('❌ No email provided');
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    if (!documentType) {
+      console.error('❌ No documentType provided');
+      return res.status(400).json({ error: 'documentType is required' });
+    }
+
+    // ============================================================
+    // VALIDATION STEP 1: Basic File Validation
+    // ============================================================
+    console.log('🔍 Step 4: Validating file...');
+    const validation = validateFile(file, {
+      maxSize: 10 * 1024 * 1024, // 10MB
+      allowedTypes: ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'],
+    });
+
+    if (!validation.valid) {
+      console.error('❌ Validation failed:', validation.errors);
+      return res.status(400).json({
+        success: false,
+        error: 'File validation failed',
+        details: validation.errors,
       });
-    });
+    }
+    console.log('✅ File validation passed');
 
-    const email = fields.email?.[0] || fields.email;
-    const documentType = fields.documentType?.[0] || fields.documentType;
-    const file = files.file; // formidable returns an object with file properties
+    // ============================================================
+    // VALIDATION STEP 2: Security Scan
+    // ============================================================
+    console.log('🔍 Step 5: Running security scan...');
+    const securityScan = basicSecurityScan(file.buffer);
 
-    if (!email || !documentType || !file) {
-      return res.status(400).json({ error: 'Missing email, documentType, or file' });
+    if (!securityScan.safe) {
+      console.error('❌ Security scan failed:', securityScan.errors);
+      return res.status(400).json({
+        success: false,
+        error: 'Security scan failed',
+        details: securityScan.errors,
+        warnings: securityScan.warnings,
+      });
+    }
+    if (securityScan.warnings.length > 0) {
+      console.warn('⚠️ Security warnings:', securityScan.warnings);
+    } else {
+      console.log('✅ Security scan passed');
     }
 
-    // 2. Validate file type (optional: restrict to PDF and images)
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-    if (!allowedTypes.includes(file.mimetype)) {
-      return res.status(400).json({ error: 'File must be PDF, JPEG, or PNG' });
+    // ============================================================
+    // VALIDATION STEP 3: PDF Validation (if PDF)
+    // ============================================================
+    let pdfValidation = null;
+    if (file.mimetype === 'application/pdf') {
+      console.log('🔍 Step 6: Validating PDF...');
+      pdfValidation = await validatePDF(file.buffer);
+      if (!pdfValidation.valid) {
+        console.error('❌ PDF validation failed:', pdfValidation.errors);
+        return res.status(400).json({
+          success: false,
+          error: 'PDF validation failed',
+          details: pdfValidation.errors,
+        });
+      }
+      console.log('✅ PDF validation passed:', {
+        pages: pdfValidation.pageCount,
+        textLength: pdfValidation.textLength,
+      });
     }
 
-    // 3. Find the contact ID from the email
+    // ============================================================
+    // OPTIONAL: Image Compression (if image)
+    // ============================================================
+    let processedBuffer = file.buffer;
+    let compressionInfo = null;
+
+    if (file.mimetype.startsWith('image/')) {
+      console.log('🔍 Step 7: Compressing image...');
+      const compressionResult = await compressImage(file.buffer);
+      if (compressionResult.success) {
+        processedBuffer = compressionResult.buffer;
+        compressionInfo = {
+          originalSize: compressionResult.originalSize,
+          compressedSize: compressionResult.compressedSize,
+          ratio: compressionResult.compressionRatio,
+        };
+        console.log('✅ Image compressed:', compressionInfo.ratio);
+      } else {
+        console.warn('⚠️ Compression failed, using original file');
+      }
+    }
+
+    // ============================================================
+    // FIND CONTACT ID FROM EMAIL
+    // ============================================================
+    console.log('🔍 Step 8: Finding contact by email...');
     const findContactUrl = `${SUPABASE_URL}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=id`;
     const contactRes = await fetch(findContactUrl, {
       headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
       },
     });
     if (!contactRes.ok) {
       const errorText = await contactRes.text();
-      return res.status(contactRes.status).json({ error: 'Failed to find contact', details: errorText });
+      return res.status(contactRes.status).json({
+        success: false,
+        error: 'Failed to find contact',
+        details: errorText,
+      });
     }
     const contactData = await contactRes.json();
     if (!contactData || contactData.length === 0) {
-      return res.status(404).json({ error: 'Contact not found' });
+      return res.status(404).json({ success: false, error: 'Contact not found' });
     }
     const contactId = contactData[0].id;
+    console.log('✅ Found contact id:', contactId);
 
-    // 4. Upload file to Supabase Storage (or OneDrive)
-    //    Option A: Supabase Storage (recommended for simplicity)
-    //    Option B: OneDrive – you’d replace this block with your OneDrive SDK call
-    const fileBuffer = fs.readFileSync(file.filepath);
-    const fileName = `${contactId}/${documentType}_${Date.now()}_${file.originalFilename}`;
-    const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${SUPABASE_STORAGE_BUCKET}/${fileName}`;
+    // ============================================================
+    // UPLOAD TO ONEDRIVE
+    // ============================================================
+    console.log('🔍 Step 9: Generating filename...');
+    const fileExtension = file.originalname.split('.').pop();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `${documentType.toLowerCase()}_${timestamp}.${fileExtension}`;
+    console.log('  Filename:', filename);
 
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        'Content-Type': file.mimetype,
-      },
-      body: fileBuffer,
-    });
+    console.log('🔍 Step 10: Getting OneDrive token...');
+    const accessToken = await getOneDriveToken();
+    console.log('✅ OneDrive token obtained');
 
-    if (!uploadRes.ok) {
-      const errorText = await uploadRes.text();
-      return res.status(uploadRes.status).json({ error: 'Failed to upload file', details: errorText });
-    }
+    console.log('🔍 Step 11: Uploading to OneDrive...');
+    const uploadResult = await uploadToOneDrive(
+      accessToken,
+      email,           // folder path (e.g., /email/passport_...)
+      filename,
+      processedBuffer
+    );
+    console.log('✅ File uploaded to OneDrive:', uploadResult.webUrl);
 
-    const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_STORAGE_BUCKET}/${fileName}`;
-
-    // 5. Update the document record (using upsert to be safe, but we expect it exists)
+    // ============================================================
+    // UPDATE SUPABASE DOCUMENT RECORD
+    // ============================================================
+    console.log('🔍 Step 12: Updating document record...');
     const docUpdateUrl = `${SUPABASE_URL}/rest/v1/documents?contact_id=eq.${contactId}&document_type=eq.${encodeURIComponent(documentType)}`;
     const updateRes = await fetch(docUpdateUrl, {
       method: 'PATCH',
       headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
+        Prefer: 'return=representation',
       },
       body: JSON.stringify({
-        file_name: file.originalFilename,
-        file_url: fileUrl,
-        file_id: fileName, // you can store the path or ID
+        file_name: file.originalname,
+        file_url: uploadResult.webUrl,
+        file_id: uploadResult.id,          // OneDrive file ID
         status: 'completed',
         updated_at: new Date().toISOString(),
       }),
@@ -116,23 +248,55 @@ export default async function handler(req, res) {
 
     if (!updateRes.ok) {
       const errorText = await updateRes.text();
-      return res.status(updateRes.status).json({ error: 'Failed to update document', details: errorText });
+      console.error('❌ Failed to update document:', errorText);
+      return res.status(updateRes.status).json({
+        success: false,
+        error: 'Failed to update document',
+        details: errorText,
+      });
     }
 
     const updatedDoc = await updateRes.json();
+    console.log('✅ Document updated successfully:', updatedDoc[0]?.id);
 
-    // 6. Clean up temporary file
-    fs.unlink(file.filepath, (err) => {
-      if (err) console.warn('Could not delete temp file:', err);
-    });
-
+    // ============================================================
+    // RESPONSE
+    // ============================================================
     return res.status(200).json({
       success: true,
+      message: 'File uploaded and document updated successfully',
+      filename: filename,
+      fileUrl: uploadResult.webUrl,
+      fileId: uploadResult.id,
       document: updatedDoc[0] || updatedDoc,
+      validation: {
+        passed: true,
+        securityWarnings: securityScan.warnings,
+        pdfInfo: pdfValidation
+          ? {
+              pageCount: pdfValidation.pageCount,
+              textLength: pdfValidation.textLength,
+            }
+          : null,
+        compression: compressionInfo,
+      },
     });
-
   } catch (error) {
-    console.error('Upload error:', error);
-    return res.status(500).json({ error: 'Internal server error', details: error.message });
+    console.error('❌ Upload error:', error);
+    console.error('❌ Error stack:', error.stack);
+
+    // Handle multer errors
+    if (error.message && error.message.includes('Invalid file type')) {
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to upload file',
+      details: error.message,
+    });
   }
 }
