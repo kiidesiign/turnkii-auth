@@ -1,18 +1,21 @@
 // api/signforge/create-template.js
 // Dedicated endpoint for SignForge template-based signing
-// Uses /envelopes endpoint with template_id
+// Uses /quick-sign endpoint with template_id
 
 const SIGNFORGE_API_BASE = 'https://signforge.io/api/v1';
 const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY || process.env.SIGNFORGE_KEY;
 
 // ⚠️ REPLACE THIS WITH YOUR ACTUAL TEMPLATE ID
-const TEMPLATE_ID = 'YOUR_ACTUAL_TEMPLATE_ID_HERE';
+const TEMPLATE_ID = '7c08b4a0-faf3-4787-ae06-3ae6cc49efc2';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
+// Minimal PDF fallback
+const FALLBACK_PDF_BASE64 = 'JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4gZW5kb2JqIDIgMCBvYmogPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4gZW5kb2JqIDMgMCBvYmogPDwgL1R5cGUgL1BhZ2UgL01lZGlhQm94IFswIDAgNjEyIDc5Ml0gL1BhcmVudCAyIDAgUiAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4gZW5kb2JqIDQgMCBvYmogPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+IGVuZG9iaiA1IDAgb2JqIDw8IC9MZW5ndGggNjMgPj4gc3RyZWFtCkJUIC9GMSAyNCBUZiAxMDAgNzAwIFRkIChUZXN0KSBUaiBFVE0KZW5kc3RyZWFtIGVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA2MiAwMDAwMCBuIAowMDAwMDAwMTE3IDAwMDAwIG4gCjAwMDAwMDAyMzQgMDAwMDAgbiAKMDAwMDAwMDI5NiAwMDAwMCBuIAp0cmFpbGVyIDw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjM3NQolJUVPRg==';
+
 export default async function handler(req, res) {
-  // CORS
+  // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', 'https://www.turnkii.es');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -20,10 +23,6 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  // 🔍 EARLY DEBUG – always return this to confirm the function is hit
-  // Uncomment the next line to test:
-  // return res.status(200).json({ debug: 'create-template.js reached', templateId: TEMPLATE_ID });
 
   try {
     let body = '';
@@ -96,18 +95,16 @@ export default async function handler(req, res) {
       console.log('✅ Contact created:', contact.id);
     }
 
-    // 2. Build template payload
-    const endpoint = `${SIGNFORGE_API_BASE}/envelopes`;
+    // 2. Build template payload for /quick-sign
+    // This endpoint works with a template_id and doesn't require fields
+    const endpoint = `${SIGNFORGE_API_BASE}/quick-sign`;
     const payload = {
       template_id: TEMPLATE_ID,
       title: 'Turnkii Terms and Conditions',
-      recipients: [
-        {
-          email: email,
-          name: `${firstName} ${lastName}`,
-          role: 'signer',
-        }
-      ],
+      pdf_base64: FALLBACK_PDF_BASE64, // Required by /quick-sign
+      signer_email: email,
+      signer_name: `${firstName} ${lastName}`,
+      // No fields array – the template provides them
       embedded: true,
       webhook_url: `https://project-qv4f9.vercel.app/api/signforge/webhook?envelope_id={envelope_id}`,
       redirect_url: 'https://www.turnkii.es/account',

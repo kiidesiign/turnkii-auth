@@ -1,5 +1,6 @@
 // api/sp-contact.js
 // Consolidated Supabase contact operations - handles GET, CREATE, UPDATE
+// Extended to support fetching user documents
 
 export default async function handler(req, res) {
   const CORS_ORIGIN = 'https://www.turnkii.es';
@@ -40,15 +41,65 @@ export default async function handler(req, res) {
 
   try {
     // ============================================================
-    // GET: Fetch contact by email
+    // GET: Fetch contact by email OR fetch documents for a user
     // ============================================================
     if (req.method === 'GET') {
-      const { email } = req.query;
+      const { email, action } = req.query;
 
       if (!email) {
         return res.status(400).json({ success: false, error: 'Email is required' });
       }
 
+      // GET action: 'get_documents'
+      if (action === 'get_documents') {
+        // Find contact id
+        const findContactUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=id`;
+        const contactResponse = await fetch(findContactUrl, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        });
+
+        if (!contactResponse.ok) {
+          const errorText = await contactResponse.text();
+          return res.status(contactResponse.status).json({
+            success: false,
+            error: 'Failed to fetch contact',
+            details: errorText
+          });
+        }
+
+        const contactData = await contactResponse.json();
+        if (!contactData || contactData.length === 0) {
+          return res.status(404).json({ success: false, error: 'Contact not found' });
+        }
+
+        const contactId = contactData[0].id;
+
+        // Fetch documents
+        const docsUrl = `${supabaseUrl}/rest/v1/documents?contact_id=eq.${contactId}&select=*`;
+        const docsResponse = await fetch(docsUrl, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        });
+
+        if (!docsResponse.ok) {
+          const errorText = await docsResponse.text();
+          return res.status(docsResponse.status).json({
+            success: false,
+            error: 'Failed to fetch documents',
+            details: errorText
+          });
+        }
+
+        const documents = await docsResponse.json();
+        return res.status(200).json({ success: true, documents });
+      }
+
+      // Default GET: Fetch contact by email
       const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
       const response = await fetch(findUrl, {
         headers: {
@@ -104,9 +155,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Email is required' });
       }
 
-      // ============================================================
-      // ACTION: UPDATE - Update contact profile
-      // ============================================================
+      // UPDATE
       if (action === 'update') {
         if (!firstName) {
           return res.status(400).json({ success: false, error: 'First name is required' });
@@ -115,7 +164,6 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, error: 'Last name is required' });
         }
 
-        // Find existing contact
         const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
         const findResponse = await fetch(findUrl, {
           headers: {
@@ -141,7 +189,6 @@ export default async function handler(req, res) {
 
         const contact = findData[0];
 
-        // Use provided values or fallback to existing
         const finalCountryCode = mobileCountryCode || contact.mobile_country_code || '+34';
         const finalMobileNumber = mobileNumber || contact.mobile_number || '';
 
@@ -191,9 +238,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // ============================================================
-      // ACTION: CREATE - Create new contact (for registration)
-      // ============================================================
+      // CREATE
       if (action === 'create') {
         if (!firstName) {
           return res.status(400).json({ success: false, error: 'First name is required' });
@@ -202,7 +247,6 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, error: 'Last name is required' });
         }
 
-        // Check if contact already exists
         const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
         const findResponse = await fetch(findUrl, {
           headers: {
@@ -269,15 +313,12 @@ export default async function handler(req, res) {
         });
       }
 
-      // ============================================================
-      // ACTION: MAGIC_LINK - Generate OTP/Token (for existing flow)
-      // ============================================================
+      // MAGIC_LINK
       if (action === 'magic_link') {
         const otpCode = otp || Math.floor(100000 + Math.random() * 900000).toString();
         const tokenCode = token || [...Array(32)].map(() => Math.floor(Math.random() * 16).toString(16)).join("");
         const expiryTime = expiry || new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-        // Find contact
         const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
         const findResponse = await fetch(findUrl, {
           headers: {
@@ -346,9 +387,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // ============================================================
-      // ACTION: VERIFY_OTP - Verify OTP
-      // ============================================================
+      // VERIFY_OTP
       if (action === 'verify_otp') {
         const { otp } = req.body;
 
@@ -389,7 +428,6 @@ export default async function handler(req, res) {
           return res.status(401).json({ success: false, error: 'OTP has expired' });
         }
 
-        // Clear OTP after verification
         const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
         await fetch(updateUrl, {
           method: 'PATCH',
@@ -412,9 +450,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // ============================================================
-      // ACTION: LOGOUT - Invalidate the current token
-      // ============================================================
+      // LOGOUT
       if (action === 'logout') {
         const { token } = req.body;
 
@@ -422,7 +458,6 @@ export default async function handler(req, res) {
           return res.status(400).json({ success: false, error: 'Token is required' });
         }
 
-        // Find contact by email
         const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
         const findResponse = await fetch(findUrl, {
           headers: {
@@ -448,12 +483,10 @@ export default async function handler(req, res) {
 
         const contact = findData[0];
 
-        // Verify the token matches
         if (contact.magic_link !== token) {
           return res.status(401).json({ success: false, error: 'Invalid token' });
         }
 
-        // Invalidate the token
         const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
         const updateResponse = await fetch(updateUrl, {
           method: 'PATCH',
@@ -484,9 +517,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // ============================================================
-      // ACTION: VERIFY_TOKEN - Verify token
-      // ============================================================
+      // VERIFY_TOKEN
       if (action === 'verify_token') {
         const { token } = req.body;
 
@@ -540,19 +571,14 @@ export default async function handler(req, res) {
         });
       }
 
-      // ============================================================
       // Unrecognized action
-      // ============================================================
       return res.status(400).json({
         success: false,
         error: 'Invalid action. Valid actions: update, create, magic_link, verify_otp, verify_token, logout'
       });
-
     }
 
-    // ============================================================
     // Unsupported method
-    // ============================================================
     return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   } catch (error) {
