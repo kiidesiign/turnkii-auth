@@ -215,7 +215,7 @@ export default async function handler(req, res) {
     console.log('📝 Document data:', {
       contact_id: contact.id,
       file_name: fileName,
-      document_type: dbType, // store the database type
+      document_type: dbType,
       provider_request_id: envelopeId,
       provider: 'signforge',
       status: 'sent',
@@ -226,21 +226,22 @@ export default async function handler(req, res) {
 
     if (envelopeId) {
       try {
+        // Use PUT with on_conflict to upsert – this ensures existing records are updated
         const docUpsertUrl = `${SUPABASE_URL}/rest/v1/documents?on_conflict=contact_id,document_type`;
         console.log('📝 Upsert URL:', docUpsertUrl);
 
         const upsertResponse = await fetch(docUpsertUrl, {
-          method: 'POST',
+          method: 'PUT', // CHANGED from POST to PUT to correctly perform upsert
           headers: {
             'apikey': SUPABASE_SERVICE_KEY,
             'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
             'Content-Type': 'application/json',
-            'Prefer': 'return=representation',
+            'Prefer': 'return=representation', // ensures we get the updated/inserted row
           },
           body: JSON.stringify({
             contact_id: contact.id,
             file_name: fileName,
-            document_type: dbType, // use the original database type
+            document_type: dbType, // store the database type
             provider_request_id: envelopeId,
             provider: 'signforge',
             status: 'sent',
