@@ -1,6 +1,6 @@
 // api/sp-contact.js
 // Consolidated Supabase contact operations - handles GET, CREATE, UPDATE
-// Extended to support fetching user documents
+// Extended to support fetching user documents with enriched type info
 
 export default async function handler(req, res) {
   const CORS_ORIGIN = 'https://www.turnkii.es';
@@ -50,9 +50,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Email is required' });
       }
 
-      // GET action: 'get_documents'
+      // GET action: 'get_documents' - fetch documents enriched with type metadata
       if (action === 'get_documents') {
-        // Find contact id
+        // 1. Find contact id
         const findContactUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=id`;
         const contactResponse = await fetch(findContactUrl, {
           headers: {
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
 
         const contactId = contactData[0].id;
 
-        // Fetch documents
+        // 2. Fetch documents
         const docsUrl = `${supabaseUrl}/rest/v1/documents?contact_id=eq.${contactId}&select=*`;
         const docsResponse = await fetch(docsUrl, {
           headers: {
@@ -95,7 +95,47 @@ export default async function handler(req, res) {
           });
         }
 
-        const documents = await docsResponse.json();
+        let documents = await docsResponse.json();
+
+        // 3. Fetch document types to enrich the documents with display_name, requires_signing, etc.
+        try {
+          const typesUrl = `${supabaseUrl}/rest/v1/document_types?select=*`;
+          const typesResponse = await fetch(typesUrl, {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+          });
+
+          if (typesResponse.ok) {
+            const types = await typesResponse.json();
+            // Create a map keyed by document_type name
+            const typeMap = {};
+            types.forEach(t => {
+              typeMap[t.name] = t;
+            });
+
+            // Enrich each document with type metadata
+            documents = documents.map(doc => {
+              const type = typeMap[doc.document_type] || {};
+              return {
+                ...doc,
+                display_name: type.display_name || doc.document_type,
+                requires_signing: type.requires_signing || false,
+                store_file_1d: type.store_file_1d || false,
+                file_template: type.file_template || null,
+                // You can add more fields if needed
+              };
+            });
+          } else {
+            // If types fetch fails, still return documents without enrichment (fallback)
+            console.warn('Could not fetch document types; returning raw documents');
+          }
+        } catch (typeError) {
+          console.error('Error fetching document types:', typeError);
+          // Continue with raw documents
+        }
+
         return res.status(200).json({ success: true, documents });
       }
 

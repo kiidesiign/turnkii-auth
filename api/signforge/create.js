@@ -8,7 +8,7 @@ const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY || process.env.SIGNFORGE
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-// Map document types to file paths and display names
+// Map document types to file paths and display names (internal keys)
 const DOCUMENTS = {
   privacy: {
     path: path.join(process.cwd(), 'api', 'signforge', 'pdf', 'Turnkii-TC-v1a.pdf'),
@@ -22,12 +22,18 @@ const DOCUMENTS = {
   },
 };
 
+// Reverse mapping: database type → internal key
+const DB_TO_INTERNAL = {
+  'DATA_POLICY': 'privacy',
+  'NIE_APODERADO': 'nie',
+};
+
 const FALLBACK_PDF_BASE64 = 'JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4gZW5kb2JqIDIgMCBvYmogPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4gZW5kb2JqIDMgMCBvYmogPDwgL1R5cGUgL1BhZ2UgL01lZGlhQm94IFswIDAgNjEyIDc5Ml0gL1BhcmVudCAyIDAgUiAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA0IDAgUiA+PiA+PiAvQ29udGVudHMgNSAwIFIgPj4gZW5kb2JqIDQgMCBvYmogPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+IGVuZG9iaiA1IDAgb2JqIDw8IC9MZW5ndGggNjMgPj4gc3RyZWFtCkJUIC9GMSAyNCBUZiAxMDAgNzAwIFRkIChUZXN0KSBUaiBFVE0KZW5kc3RyZWFtIGVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA2MiAwMDAwMCBuIAowMDAwMDAwMTE3IDAwMDAwIG4gCjAwMDAwMDAyMzQgMDAwMDAgbiAKMDAwMDAwMDI5NiAwMDAwMCBuIAp0cmFpbGVyIDw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjM3NQolJUVPRg==';
 
-function getPdfBase64(documentType) {
-  const doc = DOCUMENTS[documentType];
+function getPdfBase64(internalType) {
+  const doc = DOCUMENTS[internalType];
   if (!doc) {
-    console.warn(`⚠️ Unknown document type: ${documentType}, using fallback.`);
+    console.warn(`⚠️ Unknown internal type: ${internalType}, using fallback.`);
     return FALLBACK_PDF_BASE64;
   }
   try {
@@ -64,9 +70,13 @@ export default async function handler(req, res) {
       });
     });
 
-    const { email, firstName, lastName, documentType = 'privacy' } = req.body;
+    const { email, firstName, lastName, documentType } = req.body;
 
-    console.log('🔍 Received request:', { email, firstName, lastName, documentType });
+    // documentType is expected to be a database type like 'NIE_APODERADO' or 'DATA_POLICY'
+    // If not provided, default to 'privacy' (fallback)
+    const dbType = documentType || 'privacy';
+
+    console.log('🔍 Received request:', { email, firstName, lastName, dbType });
 
     if (!email || !firstName || !lastName) {
       return res.status(400).json({ error: 'Email, firstName, and lastName are required' });
@@ -132,12 +142,13 @@ export default async function handler(req, res) {
       console.log('✅ Contact found:', contact.id);
     }
 
-    // 2. Get the PDF base64 for the requested document type
-    const pdfBase64 = getPdfBase64(documentType);
-    const docInfo = DOCUMENTS[documentType] || DOCUMENTS.privacy;
+    // 2. Map database type to internal key, then get the PDF
+    const internalType = DB_TO_INTERNAL[dbType] || dbType; // fallback if unknown
+    const pdfBase64 = getPdfBase64(internalType);
+    const docInfo = DOCUMENTS[internalType] || DOCUMENTS.privacy;
     const fileName = docInfo.fileName || 'Document.pdf';
 
-    console.log(`📄 Using PDF for ${documentType} (${pdfBase64.length} chars)`);
+    console.log(`📄 Using PDF for ${dbType} (internal: ${internalType}) (${pdfBase64.length} chars)`);
 
     // 3. Build SignForge payload
     const endpoint = `${SIGNFORGE_API_BASE}/quick-sign`;
@@ -152,7 +163,7 @@ export default async function handler(req, res) {
           field_type: 'signature',
           page_index: 0,
           x_norm: 0.1,
-          y_norm: 0.8,   // bottom of page
+          y_norm: 0.8,
           w_norm: 0.3,
           h_norm: 0.08,
         },
@@ -198,13 +209,13 @@ export default async function handler(req, res) {
     const signingUrl = data.embedded_signing_url || data.signing_url || data.url;
 
     // ============================================================
-    // 4. Upsert document record in Supabase
+    // 4. Upsert document record – uses the database type (dbType)
     // ============================================================
     console.log('📝 Upserting document record for contact:', contact.id);
     console.log('📝 Document data:', {
       contact_id: contact.id,
       file_name: fileName,
-      document_type: documentType,
+      document_type: dbType, // store the database type
       provider_request_id: envelopeId,
       provider: 'signforge',
       status: 'sent',
@@ -215,7 +226,6 @@ export default async function handler(req, res) {
 
     if (envelopeId) {
       try {
-        // Use POST with on_conflict to upsert based on the unique constraint (contact_id, document_type)
         const docUpsertUrl = `${SUPABASE_URL}/rest/v1/documents?on_conflict=contact_id,document_type`;
         console.log('📝 Upsert URL:', docUpsertUrl);
 
@@ -230,7 +240,7 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             contact_id: contact.id,
             file_name: fileName,
-            document_type: documentType,
+            document_type: dbType, // use the original database type
             provider_request_id: envelopeId,
             provider: 'signforge',
             status: 'sent',
@@ -243,29 +253,25 @@ export default async function handler(req, res) {
         if (!upsertResponse.ok) {
           const errorText = await upsertResponse.text();
           console.error('❌ Failed to upsert document:', upsertResponse.status, errorText);
-          // We still want to return the signing URL, but we'll log the error
         } else {
           const upsertedDoc = await upsertResponse.json();
-          // The response might be an array if multiple rows are returned; we take the first
           const docRecord = Array.isArray(upsertedDoc) ? upsertedDoc[0] : upsertedDoc;
           documentId = docRecord?.id || null;
           console.log('✅ Document record upserted successfully:', docRecord);
         }
       } catch (docError) {
         console.error('⚠️ Exception during document upsert:', docError);
-        // Don't throw – we still want to return the signing URL
       }
     } else {
       console.warn('⚠️ No envelopeId, skipping document upsert');
     }
 
-    // Return the signing URL along with the envelope ID and document ID (if available)
     return res.status(200).json({
       success: true,
       envelopeId: envelopeId,
       signingUrl: signingUrl,
-      documentType: documentType,
-      documentId: documentId, // helpful for frontend tracking
+      documentType: dbType,
+      documentId: documentId,
     });
 
   } catch (error) {
