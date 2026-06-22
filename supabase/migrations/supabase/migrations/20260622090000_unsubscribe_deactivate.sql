@@ -10,3 +10,14 @@ ALTER TABLE contacts
 DROP TRIGGER IF EXISTS after_contact_insert ON contacts;
 -- Optionally drop the function if no longer needed
 DROP FUNCTION IF EXISTS create_initial_documents() CASCADE;
+
+CREATE OR REPLACE FUNCTION create_initial_documents()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO documents (contact_id, document_type, status, provider, requires_signing)
+  SELECT NEW.id, dt.name, 'pending', NULL, dt.requires_signing
+  FROM document_types dt
+  WHERE dt.created_on_signup = TRUE;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;

@@ -1030,9 +1030,11 @@ function showToast(message, type, duration) {
       var signedDate = doc.signed_at ? new Date(doc.signed_at).toLocaleDateString() : null;
       var displayName = doc.display_name || doc.document_type;
       
+      // 🔥 FIX: Force PASSPORT to always use Upload
+      var shouldSign = (doc.requires_signing === true) && (doc.document_type !== 'PASSPORT');
       var actionButton = '';
       if (!isCompleted) {
-        if (doc.requires_signing === true) {
+        if (shouldSign) {
           actionButton = '<button class="btn-sign" onclick="window.signDocument(window._doc_'+doc.id+')">Sign</button>';
         } else {
           actionButton = '<button class="btn-sign" onclick="window.uploadDocument(window._doc_'+doc.id+')">Upload</button>';
@@ -1055,11 +1057,11 @@ function showToast(message, type, duration) {
         </div>
       `;
     });
-    
-    html += '</div>';
-    container.innerHTML = html;
-  }
   
+  html += '</div>';
+  container.innerHTML = html;
+}
+
   // ============================================================
   // Logout Function
   // ============================================================
