@@ -675,12 +675,31 @@ export default async function handler(req, res) {
         }
         const contact = findData[0];
 
+         // Verify OTP
         if (contact.otp !== otp) {
           return res.status(401).json({ success: false, error: 'Invalid OTP' });
         }
         if (contact.link_expiry && new Date(contact.link_expiry) < new Date()) {
           return res.status(401).json({ success: false, error: 'OTP has expired' });
         }
+        
+        // Mark email as verified (if not already)
+        const updatePayload = {
+          otp: null,
+          email_verified: true,
+          updated_at: new Date().toISOString()
+        };
+
+        const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
+        await fetch(updateUrl, {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatePayload)
+        });
 
         // Ensure account and documents exist (safety net)
         await ensureAccount(contact.id, supabaseUrl, supabaseKey);
