@@ -101,8 +101,7 @@ async function ensureAccount(contactId, supabaseUrl, supabaseKey) {
   return updateRes.ok;
 }
 
-// Ensure documents exist for a contact (trigger will handle this for new contacts,
-// but this is a safety net)
+// Ensure documents exist for a contact (safety net)
 async function ensureDocuments(contactId, supabaseUrl, supabaseKey) {
   const typesUrl = `${supabaseUrl}/rest/v1/document_types?created_on_signup=eq.true&select=name`;
   const typesRes = await fetch(typesUrl, {
@@ -282,7 +281,7 @@ export default async function handler(req, res) {
           firstName: contact.first_name || '',
           lastName: contact.last_name || '',
           mobileNumber: contact.mobile_number || '',
-          mobileCountryCode: contact.mobile_country_code || '+34',
+          mobileCountryCode: contact.mobile_country_code || '',
           fullName: (contact.first_name || '' + ' ' + contact.last_name || '').trim(),
           otp: contact.otp || '',
           magicLink: contact.magic_link || '',
@@ -373,7 +372,7 @@ export default async function handler(req, res) {
             firstName: updatedContact.first_name || '',
             lastName: updatedContact.last_name || '',
             mobileNumber: updatedContact.mobile_number || '',
-            mobileCountryCode: updatedContact.mobile_country_code || '+34',
+            mobileCountryCode: updatedContact.mobile_country_code || '',
             fullName: (updatedContact.first_name || '' + ' ' + updatedContact.last_name || '').trim(),
           }
         });
@@ -424,7 +423,21 @@ export default async function handler(req, res) {
         const accountData = await accountRes.json();
         const accountId = accountData[0]?.id;
 
-        // Create contact with account_id
+        // Build contact payload
+        const contactPayload = {
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          account_id: accountId,
+          role: 'primary',
+          mobile_number: mobileNumber || '',
+        };
+
+        // Only set mobile_country_code if phone number is provided
+        if (mobileNumber && mobileNumber.trim() !== '') {
+          contactPayload.mobile_country_code = mobileCountryCode || '+34';
+        }
+
         const createContactUrl = `${supabaseUrl}/rest/v1/contacts`;
         const contactRes = await fetch(createContactUrl, {
           method: 'POST',
@@ -434,15 +447,7 @@ export default async function handler(req, res) {
             'Content-Type': 'application/json',
             'Prefer': 'return=representation',
           },
-          body: JSON.stringify({
-            email,
-            first_name: firstName,
-            last_name: lastName,
-            account_id: accountId,
-            role: 'primary',
-            mobile_country_code: mobileCountryCode || '+34',
-            mobile_number: mobileNumber || '',
-          }),
+          body: JSON.stringify(contactPayload),
         });
         if (!contactRes.ok) {
           const errorText = await contactRes.text();
@@ -460,7 +465,7 @@ export default async function handler(req, res) {
             firstName: newContact.first_name || '',
             lastName: newContact.last_name || '',
             mobileNumber: newContact.mobile_number || '',
-            mobileCountryCode: newContact.mobile_country_code || '+34',
+            mobileCountryCode: newContact.mobile_country_code || '',
           }
         });
       }
@@ -534,7 +539,21 @@ export default async function handler(req, res) {
               const accountId = accountData[0]?.id;
               console.log('[MAGIC_LINK] Account created with id:', accountId);
 
-              // Create contact
+              // Build contact payload
+              const contactPayload = {
+                email,
+                first_name: firstName || email.split('@')[0],
+                last_name: lastName || '',
+                account_id: accountId,
+                role: 'primary',
+                mobile_number: mobileNumber || '',
+              };
+
+              // Only set mobile_country_code if phone number is provided
+              if (mobileNumber && mobileNumber.trim() !== '') {
+                contactPayload.mobile_country_code = mobileCountryCode || '+34';
+              }
+
               const createContactUrl = `${supabaseUrl}/rest/v1/contacts`;
               const contactRes = await fetch(createContactUrl, {
                 method: 'POST',
@@ -544,15 +563,7 @@ export default async function handler(req, res) {
                   'Content-Type': 'application/json',
                   'Prefer': 'return=representation',
                 },
-                body: JSON.stringify({
-                  email,
-                  first_name: firstName || email.split('@')[0],
-                  last_name: lastName || '',
-                  account_id: accountId,
-                  role: 'primary',
-                  mobile_country_code: '+34',
-                  mobile_number: '',
-                }),
+                body: JSON.stringify(contactPayload),
               });
               if (!contactRes.ok) {
                 const errorText = await contactRes.text();
@@ -624,7 +635,7 @@ export default async function handler(req, res) {
             console.error('[MAGIC_LINK] Email error:', emailError);
           }
 
-          // Return success (token is included for compatibility, but frontend shouldn't rely on it)
+          // Return success
           return res.status(200).json({
             success: true,
             otp: otpCode,
@@ -718,7 +729,7 @@ export default async function handler(req, res) {
           email: contact.email,
         });
       }
-      
+
       // ----------------------------------------------------------
       // VERIFY_TOKEN
       // ----------------------------------------------------------
@@ -764,7 +775,7 @@ export default async function handler(req, res) {
           lastName: contact.last_name || '',
           fullName: (contact.first_name || '' + ' ' + contact.last_name || '').trim(),
           mobileNumber: contact.mobile_number || '',
-          mobileCountryCode: contact.mobile_country_code || '+34',
+          mobileCountryCode: contact.mobile_country_code || '',
         });
       }
 
