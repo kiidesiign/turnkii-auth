@@ -14,7 +14,7 @@ import {
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-// Multer config (only used for POST)
+// Multer config
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -84,6 +84,28 @@ async function updateDocument(docId, updates) {
   return data[0] || data;
 }
 
+async function createSharingLink(accessToken, fileId) {
+  const url = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/createLink`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'view',
+      scope: 'anonymous',
+    }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.warn(`Failed to create sharing link: ${errorText}`);
+    return null;
+  }
+  const data = await response.json();
+  return data.link?.webUrl || null;
+}
+
 // ============================================================
 // MAIN HANDLER
 // ============================================================
@@ -101,7 +123,7 @@ export default async function handler(req, res) {
 
   try {
     // ----------------------------------------------------------
-    // GET: View file
+    // GET: View file (returns both URLs)
     // ----------------------------------------------------------
     if (req.method === 'GET') {
       const { email, documentType } = req.query;
@@ -119,6 +141,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         fileUrl: doc.file_url,
+        fileWebUrl: doc.file_web_url,
         fileName: doc.file_name,
         fileId: doc.file_id,
         status: doc.status,
@@ -156,6 +179,7 @@ export default async function handler(req, res) {
       const updated = await updateDocument(doc.id, {
         file_name: null,
         file_url: null,
+        file_web_url: null,
         file_id: null,
         status: 'pending',
         updated_at: new Date().toISOString(),
@@ -188,7 +212,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'documentType is required' });
       }
 
-      // ---- VALIDATION (same as your original code) ----
+      // ---- VALIDATION ----
       const validation = validateFile(file, {
         maxSize: 10 * 1024 * 1024,
         allowedTypes: ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'],
@@ -235,7 +259,7 @@ export default async function handler(req, res) {
       const uploadResult = await uploadToOneDrive(accessToken, email, filename, processedBuffer);
       console.log('✅ Uploaded to OneDrive. File ID:', uploadResult.id);
 
-      // ---- 🔥 NEW: Fetch direct download URL ----
+      // ---- Fetch direct download URL ----
       const itemUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadResult.id}?select=id,name,webUrl,@microsoft.graph.downloadUrl`;
       const itemRes = await fetch(itemUrl, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -247,10 +271,23 @@ export default async function handler(req, res) {
       }
       const itemData = await itemRes.json();
       const directDownloadUrl = itemData['@microsoft.graph.downloadUrl'];
-      const fileUrl = directDownloadUrl || uploadResult.webUrl; // fallback to webUrl if downloadUrl not available
-      console.log('✅ Direct download URL:', fileUrl);
+      const webUrl = itemData.webUrl || uploadResult.webUrl;
 
-      // ---- Update Supabase with the direct URL ----
+      // ---- Create anonymous sharing link (for viewing without login) ----
+      let shareLink = webUrl; // fallback
+      try {
+        const link = await createSharingLink(accessToken, uploadResult.id);
+        if (link) {
+          shareLink = link;
+          console.log('✅ Created anonymous sharing link:', shareLink);
+        } else {
+          console.warn('⚠️ Could not create sharing link, using webUrl as fallback');
+        }
+      } catch (err) {
+        console.warn('⚠️ Error creating sharing link:', err.message);
+      }
+
+      // ---- Update Supabase with both URLs ----
       const docUpdateUrl = `${SUPABASE_URL}/rest/v1/documents?contact_id=eq.${contactId}&document_type=eq.${encodeURIComponent(documentType)}`;
       const updateRes = await fetch(docUpdateUrl, {
         method: 'PATCH',
@@ -262,7 +299,8 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           file_name: file.originalname,
-          file_url: fileUrl, // <-- store the direct download URL
+          file_url: directDownloadUrl,       // for download
+          file_web_url: shareLink,           // for viewing (anonymous share)
           file_id: uploadResult.id,
           status: 'completed',
           updated_at: new Date().toISOString(),
@@ -278,7 +316,8 @@ export default async function handler(req, res) {
         success: true,
         message: 'File uploaded and document updated successfully',
         filename: filename,
-        fileUrl: fileUrl,
+        fileUrl: directDownloadUrl,
+        fileWebUrl: shareLink,
         fileId: uploadResult.id,
         document: updatedDoc[0] || updatedDoc,
         validation: {
