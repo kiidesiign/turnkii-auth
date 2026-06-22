@@ -1,0 +1,163 @@
+<!-- Systeme.io Page - Magic Link Form (Supabase Version) -->
+<div style="display:flex;flex-direction:column;align-items:center;gap:20px;max-width:420px;margin:0 auto;">
+  <form id="email-otp-form" style="display:flex;flex-direction:column;align-items:center;gap:20px;width:100%;">
+    <label for="email-otp-input" class="sr-only">Email</label>
+
+    <input
+      id="email-otp-input"
+      name="email"
+      type="email"
+      required
+      placeholder="Enter your email"
+      autocomplete="email"
+      style="border-radius:8px;border:2px solid rgba(0,31,31,0.08);color:rgba(27,2,47,0.8);
+             font-size:16px;letter-spacing:0.5px;text-align:center;padding:16px;width:320px;
+             font-family:Inter,system-ui,monospace;box-sizing:border-box;"
+    />
+
+    <button id="email-otp-submit" type="submit" style="background-color:#3d0566;color:#fff;
+             padding:12px 24px;border:none;border-radius:8px;font-size:20px;cursor:pointer;width:320px;">
+      Login
+    </button>
+  </form>
+
+  <!-- ============================================================
+       Create Account Link - Secondary button with white hover
+  ============================================================ -->
+  <a href="https://www.turnkii.es/create-account/"
+     id="create-account-link"
+     style="display:block;background-color:transparent;color:#3d0566;
+            padding:10px 20px;border:2px solid #3d0566;border-radius:8px;font-size:16px;cursor:pointer;width:320px;
+            text-align:center;text-decoration:none;transition:all 0.3s ease;font-family:Inter,system-ui,monospace;
+            box-sizing:border-box;">
+    Create Account
+  </a>
+
+  <noscript>
+    <!-- Fallback: plain form submit if JS is disabled -->
+    <!-- Updated to use consolidated endpoint -->
+    <form action="https://project-qv4f9.vercel.app/api/sp-contact" method="POST" style="text-align:center;margin-top:12px;">
+      <input type="hidden" name="action" value="magic_link" />
+      <input type="hidden" name="email" id="noscript-email" />
+      <button type="submit" style="background:#0a1a2f;color:#fff;padding:10px 16px;border-radius:8px;border:none;">Continue without JS</button>
+    </form>
+  </noscript>
+</div>
+
+<style>
+  .sr-only {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+  @media (max-width:420px) {
+    #email-otp-input { width: 90%; font-size:16px; padding:14px; }
+    #email-otp-submit, #create-account-link { width: 90%; }
+  }
+  #email-otp-submit:hover { opacity:0.92; }
+  #create-account-link:hover {
+    background-color:#ffffff !important;
+    color:#3d0566 !important;
+    border-color:#3d0566 !important;
+  }
+</style>
+
+<script>
+(function () {
+  // ============================================================
+  // SECURE: Use consolidated endpoint with action=magic_link
+  // ============================================================
+  const API_URL = 'https://project-qv4f9.vercel.app/api/sp-contact';
+  const form = document.getElementById('email-otp-form');
+  const input = document.getElementById('email-otp-input');
+  const btn = document.getElementById('email-otp-submit');
+
+  const noscriptEmail = document.getElementById('noscript-email');
+
+  if (!form || !input || !btn) {
+    console.error('Required form elements not found');
+    return;
+  }
+
+  input.addEventListener('input', () => {
+    input.value = input.value.trim();
+    if (noscriptEmail) noscriptEmail.value = input.value;
+  });
+
+  async function safeJson(resp) {
+    const text = await resp.text().catch(() => '');
+    try { return text ? JSON.parse(text) : null; } catch (e) { return { raw: text }; }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = input.value.trim();
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!re.test(email)) {
+      alert('Please enter a valid email address');
+      input.focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    btn.style.opacity = '0.6';
+    console.log('📧 Sending magic link request for:', email);
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      // Updated payload with action
+      const payload = {
+        action: 'magic_link',
+        email: email
+        // firstName and lastName are optional; backend will use existing contact if found,
+        // or create with empty names if new
+      };
+
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+      console.log('📡 Response status:', resp.status);
+
+      const json = await safeJson(resp);
+      console.log('📦 Response data:', json);
+
+      if (!resp.ok || !json.success) {
+        const errorMsg = json?.error || json?.message || `Server returned ${resp.status}`;
+        alert('❌ ' + errorMsg);
+        btn.disabled = false;
+        btn.textContent = 'Login';
+        btn.style.opacity = '1';
+        return;
+      }
+
+      if (json.redirect) {
+        console.log('🔀 Redirecting to:', json.redirect);
+        window.location.href = json.redirect;
+        return;
+      }
+
+      const fallback = `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}`;
+      console.log('⚠️ No redirect, falling back to:', fallback);
+      window.location.href = fallback;
+
+    } catch (err) {
+      console.error('❌ Error:', err);
+      alert('Network error. Please check your connection and try again.');
+      btn.disabled = false;
+      btn.textContent = 'Login';
+      btn.style.opacity = '1';
+    }
+  });
+})();
+</script>

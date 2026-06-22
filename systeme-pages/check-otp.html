@@ -1,0 +1,222 @@
+<!-- OTP page with smaller Resend Code button -->
+<div id="otp-box">
+  <div id="otp-email" style="margin-bottom:8px;color:#333;font-size:14px;"></div>
+
+  <input 
+      id="otp-input"
+      type="tel"
+      inputmode="numeric"
+      maxlength="6"
+      placeholder="------"
+      autocomplete="one-time-code"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      name="otp_code_field"
+  />
+  
+  <button id="otp-submit">Verify</button>
+  <button id="resend-otp">Resend Code</button>
+  
+  <div id="otp-msg" aria-live="polite" style="margin-top:20px;color:#b00;display:none"></div>
+</div>
+
+<style>
+#otp-box { display:flex;flex-direction:column;align-items:center;gap:20px; }
+#otp-input {
+  border-radius:8px;border:2px solid rgba(0,31,31,0.08);color:rgba(27,2,47,0.6);
+  font-size:18px;letter-spacing:8px;text-align:center;padding:18px;width:200px;
+  font-family:monospace;box-sizing:border-box;
+}
+#otp-submit {
+  background-color:#3d0566;
+  color:white;
+  border:none;
+  padding:14px 24px;
+  border-radius:8px;
+  font-size:18px;
+  cursor:pointer;
+  transition: opacity 0.2s;
+  min-width: 160px;
+}
+#resend-otp {
+  background-color:transparent;
+  color:#0a1a2f;
+  border:1px solid #0a1a2f;
+  padding:10px 18px;
+  border-radius:6px;
+  font-size:14px;
+  cursor:pointer;
+  transition: opacity 0.2s;
+  min-width: 120px;
+}
+#otp-submit[disabled], #resend-otp[disabled] {
+  opacity:0.6;
+  cursor:default;
+}
+#otp-submit:hover:not([disabled]), #resend-otp:hover:not([disabled]) {
+  opacity:0.85;
+}
+</style>
+
+<script>
+(function () { 
+  // ============================================================
+  // Consolidated Supabase endpoint - all actions
+  // ============================================================
+  const API_ENDPOINT = 'https://project-qv4f9.vercel.app/api/sp-contact';
+
+  function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name) || '';
+  }
+  
+  function normalizeEmail(raw) {
+    if (!raw) return '';
+    try { return decodeURIComponent(raw).trim().toLowerCase(); }
+    catch (e) { return raw.trim().toLowerCase(); }
+  }
+  
+  function showMessage(text, isError = true) {
+    msgEl.style.display = 'block';
+    msgEl.style.color = isError ? '#b00' : '#0a7';
+    msgEl.textContent = text;
+    setTimeout(() => {
+      if (msgEl.textContent === text) {
+        msgEl.style.display = 'none';
+      }
+    }, 5000);
+  }
+  
+  function setLoading(on) {
+    submitBtn.disabled = on;
+    resendBtn.disabled = on;
+    submitBtn.style.opacity = on ? 0.6 : 1;
+    resendBtn.style.opacity = on ? 0.6 : 1;
+  }
+
+  const field = document.getElementById("otp-input");
+  const submitBtn = document.getElementById("otp-submit");
+  const resendBtn = document.getElementById("resend-otp");
+  const msgEl = document.getElementById("otp-msg");
+  const emailDisplay = document.getElementById("otp-email");
+
+  // ============================================================
+  // SECURE: Only read email from URL, NO TOKEN
+  // ============================================================
+  const rawEmail = getQueryParam('email');
+  const email = normalizeEmail(rawEmail);
+  
+  if (email) {
+    emailDisplay.textContent = 'Email: ' + email;
+  } else {
+    emailDisplay.textContent = 'Email not found. Please request a new link.';
+    emailDisplay.style.color = '#b00';
+  }
+
+  field.addEventListener("input", function () {
+      let digits = field.value.replace(/\D/g, "").slice(0, 6);
+      field.value = digits;
+  });
+  
+  field.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); submitBtn.click(); }
+  });
+
+  // ----------------------------------------------------------
+  // Resend OTP using consolidated endpoint
+  // ----------------------------------------------------------
+  async function resendOTP() {
+    if (!email) {
+      showMessage('Missing email. Please request a new link.', true);
+      return;
+    }
+
+    setLoading(true);
+    showMessage('Sending new code...', false);
+
+    try {
+      const payload = {
+        action: 'magic_link',
+        email: email
+        // We don't have firstName/lastName here, but the backend will use existing contact
+      };
+
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success === true) {
+        showMessage('New verification code sent to your email!', false);
+        field.value = '';
+        field.focus();
+      } else {
+        showMessage(data.error || data.message || 'Failed to send new code. Please try again.', true);
+      }
+    } catch (err) {
+      console.error('Resend error', err);
+      showMessage('Network error. Please try again.', true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ----------------------------------------------------------
+  // Verify OTP using consolidated endpoint
+  // ----------------------------------------------------------
+  async function verifyOTP() {
+    const otp = field.value.trim();
+    if (otp.length !== 6) { 
+      showMessage('Enter the 6‑digit code', true); 
+      field.focus(); 
+      return; 
+    }
+    if (!email) { 
+      showMessage('Missing email. Please request a new link.', true); 
+      return; 
+    }
+
+    setLoading(true);
+    showMessage('Verifying…', false);
+
+    try {
+      const payload = {
+        action: 'verify_otp',
+        email: email,
+        otp: otp
+      };
+
+      const res = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success === true) {
+        showMessage('Code verified — redirecting…', false);
+        // Use the token from the response to build the account URL
+        const token = data.token || '';
+        const redirect = `https://www.turnkii.es/account/?email=${encodeURIComponent(email)}&token=${token}`;
+        setTimeout(function () { window.location.href = redirect; }, 300);
+      } else {
+        showMessage(data.message || data.error || 'Invalid code', true);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Verify error', err);
+      showMessage('Network error — try again', true);
+      setLoading(false);
+    }
+  }
+
+  // Attach event listeners
+  submitBtn.addEventListener('click', verifyOTP);
+  resendBtn.addEventListener('click', resendOTP);
+})();
+</script>

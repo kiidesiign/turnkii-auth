@@ -1,0 +1,501 @@
+<!-- Systeme.io Page - Register Form (Supabase Version) -->
+<div style="display:flex;flex-direction:column;align-items:center;gap:15px;max-width:420px;margin:0 auto;">
+  <form id="email-otp-form" style="display:flex;flex-direction:column;align-items:center;gap:15px;width:100%;">
+    <!-- Email (First field, mandatory) -->
+    <input
+      id="email-otp-input"
+      name="email"
+      type="email"
+      required
+      placeholder="Email address *"
+      autocomplete="email"
+      style="border-radius:8px;border:2px solid rgba(0,31,31,0.08);color:rgba(27,2,47,0.8);
+             font-size:16px;letter-spacing:0.5px;text-align:left;padding:16px 18px;width:320px;
+             font-family:Inter,system-ui,monospace;box-sizing:border-box;"
+    />
+
+    <!-- First Name (mandatory) -->
+    <input
+      id="first-name-input"
+      name="firstName"
+      type="text"
+      required
+      placeholder="First Name *"
+      autocomplete="given-name"
+      style="border-radius:8px;border:2px solid rgba(0,31,31,0.08);color:rgba(27,2,47,0.8);
+             font-size:16px;letter-spacing:0.5px;text-align:left;padding:16px 18px;width:320px;
+             font-family:Inter,system-ui,monospace;box-sizing:border-box;"
+    />
+
+    <!-- Last Name (mandatory) -->
+    <input
+      id="last-name-input"
+      name="lastName"
+      type="text"
+      required
+      placeholder="Last Name *"
+      autocomplete="family-name"
+      style="border-radius:8px;border:2px solid rgba(0,31,31,0.08);color:rgba(27,2,47,0.8);
+             font-size:16px;letter-spacing:0.5px;text-align:left;padding:16px 18px;width:320px;
+             font-family:Inter,system-ui,monospace;box-sizing:border-box;"
+    />
+
+    <!-- Phone Number with Country Code (optional) - Custom Dropdown -->
+    <div style="display:flex;width:320px;gap:8px;position:relative;">
+      <!-- Custom Country Dropdown - Wider but smaller overall -->
+      <div id="country-dropdown" style="position:relative;width:120px;flex-shrink:0;">
+        <div id="country-select-display" style="border-radius:8px;border:2px solid rgba(0,31,31,0.08);color:rgba(27,2,47,0.8);
+              font-size:16px;padding:14px 12px;cursor:pointer;background:#fff;display:flex;align-items:center;justify-content:space-between;
+              font-family:Inter,system-ui,monospace;box-sizing:border-box;height:100%;">
+          <span id="selected-country-display" style="text-align:left;">🇪🇸 +34</span>
+          <span style="font-size:12px;margin-left:6px;flex-shrink:0;">▼</span>
+        </div>
+        <div id="country-options" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;
+              border:2px solid rgba(0,31,31,0.08);border-radius:8px;max-height:220px;overflow-y:auto;z-index:1000;
+              box-shadow:0 4px 12px rgba(0,0,0,0.1);min-width:240px;">
+          <input type="text" id="country-search" placeholder="Search country..." 
+                 style="width:100%;padding:10px 12px;border:none;border-bottom:1px solid #eee;font-size:14px;box-sizing:border-box;outline:none;
+                        font-family:Inter,system-ui,monospace;text-align:left;">
+          <div id="country-list"></div>
+        </div>
+      </div>
+
+      <input
+        id="phone-input"
+        name="phone"
+        type="tel"
+        placeholder="Mobile number"
+        autocomplete="tel"
+        maxlength="20"
+        style="border-radius:8px;border:2px solid rgba(0,31,31,0.08);color:rgba(27,2,47,0.8);
+               font-size:16px;text-align:left;padding:16px 18px;width:100%;
+               font-family:Inter,system-ui,monospace;box-sizing:border-box;"
+      />
+    </div>
+
+    <button id="email-otp-submit" type="submit" style="background-color:#3d0566;color:#fff;
+             padding:12px 24px;border:none;border-radius:8px;font-size:20px;cursor:pointer;width:320px;">
+      Create Free Account
+    </button>
+  </form>
+
+  <!-- ============================================================
+       Login Button - Secondary style with white hover
+  ============================================================ -->
+  <a href="https://www.turnkii.es/login-email"
+     id="login-link"
+     style="display:block;background-color:transparent;color:#3d0566;
+            padding:10px 20px;border:2px solid #3d0566;border-radius:8px;font-size:16px;cursor:pointer;width:320px;
+            text-align:center;text-decoration:none;transition:all 0.3s ease;font-family:Inter,system-ui,monospace;
+            box-sizing:border-box;">
+    Already have an account? Login
+  </a>
+
+  <noscript>
+    <!-- Fallback: plain form submit if JS is disabled -->
+    <!-- Updated to use consolidated endpoint -->
+    <form action="https://project-qv4f9.vercel.app/api/sp-contact" method="POST" style="text-align:center;margin-top:12px;">
+      <input type="hidden" name="action" value="magic_link" />
+      <input type="hidden" name="email" id="noscript-email" />
+      <button type="submit" style="background:#0a1a2f;color:#fff;padding:10px 16px;border-radius:8px;border:none;">Continue without JS</button>
+    </form>
+  </noscript>
+</div>
+
+<style>
+  .sr-only {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+  @media (max-width:420px) {
+    #email-otp-input, #first-name-input, #last-name-input, #phone-input,
+    #email-otp-submit, #login-link { width: 90%; }
+    #country-dropdown { width: 110px; }
+    #country-select-display { font-size:14px; padding:14px 8px; }
+    #country-options { min-width: 180px; }
+  }
+  #email-otp-submit:hover { opacity:0.92; }
+  #login-link:hover {
+    background-color:#ffffff !important;
+    color:#3d0566 !important;
+    border-color:#3d0566 !important;
+  }
+  #country-options::-webkit-scrollbar {
+    width: 6px;
+  }
+  #country-options::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+  }
+  #country-options::-webkit-scrollbar-track {
+    background: #f0f0f0;
+  }
+  .country-option {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-family: Inter, system-ui, monospace;
+    font-size: 14px;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+    text-align: left;
+  }
+  .country-option:hover {
+    background: #f0f0f0;
+  }
+  .country-option.selected {
+    background: #e8e0f0;
+  }
+  #country-search:focus {
+    border-color: #3d0566;
+  }
+</style>
+
+<script>
+(function () {
+  // ============================================================
+  // Country data with flag, name, and calling code
+  // ============================================================
+  const countries = [
+    { code: '+34', name: 'Spain', flag: '🇪🇸' },
+    { code: '+44', name: 'United Kingdom', flag: '🇬🇧' },
+    { code: '+1', name: 'United States', flag: '🇺🇸' },
+    { code: '+353', name: 'Ireland', flag: '🇮🇪' },
+    { code: '+33', name: 'France', flag: '🇫🇷' },
+    { code: '+49', name: 'Germany', flag: '🇩🇪' },
+    { code: '+39', name: 'Italy', flag: '🇮🇹' },
+    { code: '+61', name: 'Australia', flag: '🇦🇺' },
+    { code: '+55', name: 'Brazil', flag: '🇧🇷' },
+    { code: '+91', name: 'India', flag: '🇮🇳' },
+    { code: '+81', name: 'Japan', flag: '🇯🇵' },
+    { code: '+86', name: 'China', flag: '🇨🇳' },
+    { code: '+52', name: 'Mexico', flag: '🇲🇽' },
+    { code: '+31', name: 'Netherlands', flag: '🇳🇱' },
+    { code: '+46', name: 'Sweden', flag: '🇸🇪' },
+    { code: '+47', name: 'Norway', flag: '🇳🇴' },
+    { code: '+45', name: 'Denmark', flag: '🇩🇰' },
+    { code: '+358', name: 'Finland', flag: '🇫🇮' },
+    { code: '+41', name: 'Switzerland', flag: '🇨🇭' },
+    { code: '+43', name: 'Austria', flag: '🇦🇹' },
+    { code: '+32', name: 'Belgium', flag: '🇧🇪' },
+    { code: '+351', name: 'Portugal', flag: '🇵🇹' },
+    { code: '+30', name: 'Greece', flag: '🇬🇷' },
+    { code: '+27', name: 'South Africa', flag: '🇿🇦' },
+    { code: '+971', name: 'UAE', flag: '🇦🇪' },
+    { code: '+966', name: 'Saudi Arabia', flag: '🇸🇦' },
+    { code: '+65', name: 'Singapore', flag: '🇸🇬' },
+    { code: '+60', name: 'Malaysia', flag: '🇲🇾' },
+    { code: '+63', name: 'Philippines', flag: '🇵🇭' },
+    { code: '+62', name: 'Indonesia', flag: '🇮🇩' },
+    { code: '+7', name: 'Russia', flag: '🇷🇺' },
+    { code: '+48', name: 'Poland', flag: '🇵🇱' },
+    { code: '+420', name: 'Czech Republic', flag: '🇨🇿' },
+    { code: '+36', name: 'Hungary', flag: '🇭🇺' },
+    { code: '+40', name: 'Romania', flag: '🇷🇴' },
+    { code: '+90', name: 'Turkey', flag: '🇹🇷' },
+    { code: '+64', name: 'New Zealand', flag: '🇳🇿' },
+    { code: '+82', name: 'South Korea', flag: '🇰🇷' },
+    { code: '+54', name: 'Argentina', flag: '🇦🇷' },
+    { code: '+56', name: 'Chile', flag: '🇨🇱' },
+    { code: '+57', name: 'Colombia', flag: '🇨🇴' },
+    { code: '+58', name: 'Venezuela', flag: '🇻🇪' },
+    { code: '+507', name: 'Panama', flag: '🇵🇦' },
+    { code: '+503', name: 'El Salvador', flag: '🇸🇻' },
+    { code: '+505', name: 'Nicaragua', flag: '🇳🇮' },
+    { code: '+506', name: 'Costa Rica', flag: '🇨🇷' },
+    { code: '+591', name: 'Bolivia', flag: '🇧🇴' },
+    { code: '+593', name: 'Ecuador', flag: '🇪🇨' },
+    { code: '+51', name: 'Peru', flag: '🇵🇪' },
+    { code: '+595', name: 'Paraguay', flag: '🇵🇾' },
+    { code: '+598', name: 'Uruguay', flag: '🇺🇾' }
+  ];
+
+  // ============================================================
+  // Custom Country Dropdown
+  // ============================================================
+  const dropdown = document.getElementById('country-dropdown');
+  const display = document.getElementById('country-select-display');
+  const selectedDisplay = document.getElementById('selected-country-display');
+  const optionsContainer = document.getElementById('country-options');
+  const countryList = document.getElementById('country-list');
+  const searchInput = document.getElementById('country-search');
+  let selectedCountry = countries.find(c => c.code === '+34');
+
+  // ============================================================
+  // Render country list
+  // ============================================================
+  function renderCountries(filter = '') {
+    const search = filter.toLowerCase().trim();
+    const filtered = countries.filter(c => 
+      c.name.toLowerCase().includes(search) ||
+      c.code.includes(search) ||
+      c.flag.includes(search)
+    );
+    
+    countryList.innerHTML = '';
+    filtered.forEach(country => {
+      const div = document.createElement('div');
+      div.className = 'country-option' + (country.code === selectedCountry.code ? ' selected' : '');
+      div.textContent = `${country.flag} ${country.code} ${country.name}`;
+      div.dataset.code = country.code;
+      div.addEventListener('click', function() {
+        selectCountry(country);
+      });
+      countryList.appendChild(div);
+    });
+  }
+
+  // ============================================================
+  // Select a country
+  // ============================================================
+  function selectCountry(country) {
+    selectedCountry = country;
+    selectedDisplay.textContent = `${country.flag} ${country.code}`;
+    document.getElementById('country-code-value').value = country.code;
+    optionsContainer.style.display = 'none';
+    document.querySelectorAll('.country-option').forEach(el => {
+      el.classList.toggle('selected', el.dataset.code === country.code);
+    });
+  }
+
+  // ============================================================
+  // Toggle dropdown
+  // ============================================================
+  display.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const isOpen = optionsContainer.style.display === 'block';
+    optionsContainer.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+      searchInput.value = '';
+      renderCountries();
+      setTimeout(() => searchInput.focus(), 100);
+    }
+  });
+
+  // ============================================================
+  // Close dropdown when clicking outside
+  // ============================================================
+  document.addEventListener('click', function(e) {
+    if (!dropdown.contains(e.target)) {
+      optionsContainer.style.display = 'none';
+    }
+  });
+
+  // ============================================================
+  // Search functionality
+  // ============================================================
+  searchInput.addEventListener('input', function() {
+    renderCountries(this.value);
+  });
+
+  // ============================================================
+  // Keyboard navigation for search
+  // ============================================================
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      optionsContainer.style.display = 'none';
+    }
+    if (e.key === 'Enter') {
+      const selected = countryList.querySelector('.country-option');
+      if (selected) {
+        const code = selected.dataset.code;
+        const country = countries.find(c => c.code === code);
+        if (country) selectCountry(country);
+      }
+    }
+  });
+
+  // ============================================================
+  // Auto-detect user's country based on IP
+  // ============================================================
+  async function detectCountry() {
+    try {
+      const response = await fetch('https://ipapi.co/json/');
+      const data = await response.json();
+      if (data && data.country_code) {
+        return data.country_code;
+      }
+    } catch (e) {
+      console.log('IP detection failed, using default');
+    }
+    return null;
+  }
+
+  // ============================================================
+  // Set default country based on IP detection
+  // ============================================================
+  async function setDefaultCountry() {
+    try {
+      const countryCode = await detectCountry();
+      if (countryCode) {
+        const codeToCountry = {
+          'ES': '+34', 'GB': '+44', 'US': '+1', 'IE': '+353',
+          'FR': '+33', 'DE': '+49', 'IT': '+39', 'AU': '+61',
+          'BR': '+55', 'IN': '+91', 'JP': '+81', 'CN': '+86',
+          'MX': '+52', 'NL': '+31', 'SE': '+46', 'NO': '+47',
+          'DK': '+45', 'FI': '+358', 'CH': '+41', 'AT': '+43',
+          'BE': '+32', 'PT': '+351', 'GR': '+30', 'ZA': '+27',
+          'AE': '+971', 'SA': '+966', 'SG': '+65', 'MY': '+60',
+          'PH': '+63', 'ID': '+62', 'RU': '+7', 'PL': '+48',
+          'CZ': '+420', 'HU': '+36', 'RO': '+40', 'TR': '+90',
+          'NZ': '+64', 'KR': '+82', 'AR': '+54', 'CL': '+56',
+          'CO': '+57', 'VE': '+58', 'PA': '+507', 'SV': '+503',
+          'NI': '+505', 'CR': '+506', 'BO': '+591', 'EC': '+593',
+          'PE': '+51', 'PY': '+595', 'UY': '+598'
+        };
+        const expectedCode = codeToCountry[countryCode];
+        if (expectedCode) {
+          const country = countries.find(c => c.code === expectedCode);
+          if (country) {
+            selectCountry(country);
+          }
+        }
+      }
+    } catch (e) {
+      console.log('Country detection failed, using default (Spain)');
+    }
+  }
+
+  // ============================================================
+  // Initial render
+  // ============================================================
+  const hiddenInput = document.createElement('input');
+  hiddenInput.type = 'hidden';
+  hiddenInput.id = 'country-code-value';
+  hiddenInput.value = '+34';
+  dropdown.appendChild(hiddenInput);
+
+  selectedDisplay.textContent = '🇪🇸 +34';
+  renderCountries();
+  setDefaultCountry();
+
+  // ============================================================
+  // SECURE: Use consolidated sp-contact endpoint with action=magic_link
+  // ============================================================
+  const API_URL = 'https://project-qv4f9.vercel.app/api/sp-contact';
+  const form = document.getElementById('email-otp-form');
+  const emailInput = document.getElementById('email-otp-input');
+  const firstNameInput = document.getElementById('first-name-input');
+  const lastNameInput = document.getElementById('last-name-input');
+  const phoneInput = document.getElementById('phone-input');
+  const btn = document.getElementById('email-otp-submit');
+
+  const noscriptEmail = document.getElementById('noscript-email');
+
+  if (!form || !emailInput || !btn) {
+    console.error('Required form elements not found');
+    return;
+  }
+
+  phoneInput.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '');
+  });
+
+  emailInput.addEventListener('input', () => {
+    emailInput.value = emailInput.value.trim();
+    if (noscriptEmail) noscriptEmail.value = emailInput.value;
+  });
+
+  async function safeJson(resp) {
+    const text = await resp.text().catch(() => '');
+    try { return text ? JSON.parse(text) : null; } catch (e) { return { raw: text }; }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email = emailInput.value.trim();
+    const firstName = firstNameInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+    const phone = phoneInput.value.trim();
+    const countryCode = document.getElementById('country-code-value').value;
+
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email)) {
+      alert('Please enter a valid email address');
+      emailInput.focus();
+      return;
+    }
+
+    if (!firstName) {
+      alert('Please enter your first name');
+      firstNameInput.focus();
+      return;
+    }
+
+    if (!lastName) {
+      alert('Please enter your last name');
+      lastNameInput.focus();
+      return;
+    }
+
+    if (phone && phone.length < 6) {
+      alert('Please enter a valid phone number (at least 6 digits)');
+      phoneInput.focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating account...';
+    btn.style.opacity = '0.6';
+    console.log('📧 Register for Free Account:', email);
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      // Prepare payload for consolidated endpoint
+      const payload = {
+        action: 'magic_link',
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        mobileNumber: phone || '',
+        mobileCountryCode: countryCode
+      };
+
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+      console.log('📡 Response status:', resp.status);
+
+      const json = await safeJson(resp);
+      console.log('📦 Response data:', json);
+
+      if (!resp.ok || !json.success) {
+        const errorMsg = json?.error || json?.message || `Server returned ${resp.status}`;
+        alert('❌ ' + errorMsg);
+        btn.disabled = false;
+        btn.textContent = 'Create Free Account';
+        btn.style.opacity = '1';
+        return;
+      }
+
+      if (json.redirect) {
+        console.log('🔀 Redirecting to:', json.redirect);
+        window.location.href = json.redirect;
+        return;
+      }
+
+      const fallback = `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}`;
+      console.log('⚠️ No redirect, falling back to:', fallback);
+      window.location.href = fallback;
+
+    } catch (err) {
+      console.error('❌ Error:', err);
+      alert('Network error. Please check your connection and try again.');
+      btn.disabled = false;
+      btn.textContent = 'Create Free Account';
+      btn.style.opacity = '1';
+    }
+  });
+})();
+</script>

@@ -1,0 +1,1256 @@
+<div id="accountContent" style="min-height:100vh;background:#f5f7fa;padding:20px;font-family:Arial,sans-serif;">
+  <div style="text-align:center;padding:60px 20px;color:#6c757d;font-size:14px;">
+    ⏳ Loading account page...
+  </div>
+</div>
+
+<style>
+.profile-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+.profile-header {
+  background: #0a1a2f;
+  color: white;
+  padding: 25px 35px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.profile-header h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.profile-header p {
+  margin: 4px 0 0 0;
+  opacity: 0.8;
+  font-size: 14px;
+}
+.profile-header .status-badge {
+  background: #28a745;
+  color: white;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+.profile-body {
+  padding: 25px 35px 35px 35px;
+  position: relative;
+}
+.profile-body .section-edit-icon {
+  position: absolute;
+  top: 12px;
+  right: 20px;
+  background: transparent;
+  color: #3d0566;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: none;
+  z-index: 2;
+  font-family: Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+}
+.profile-body .section-edit-icon:hover {
+  background: #fcf7fb;
+  color: #2a0447;
+}
+.profile-body .section-edit-icon span {
+  font-size: 13px;
+  font-weight: 500;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 4px;
+  padding-top: 8px;
+}
+.profile-field {
+  padding: 12px 12px 12px 16px;
+  background: #fcf7fb;
+  border-radius: 8px;
+  text-align: left;
+}
+.profile-field label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8a7a8a;
+  display: block;
+  margin-bottom: 2px;
+}
+.profile-field .field-value {
+  font-size: 16px;
+  color: #212529;
+  font-weight: 500;
+  text-align: left;
+}
+.profile-field .field-value.readonly {
+  color: #8a7a8a;
+  font-weight: 400;
+}
+.profile-actions {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #f0e8ee;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.profile-actions .btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+  border: none;
+}
+.profile-actions .btn-primary {
+  background: #3d0566;
+  color: white;
+}
+.profile-actions .btn-primary:hover {
+  opacity: 0.85;
+}
+.profile-actions .btn-secondary {
+  background: transparent;
+  color: #3d0566;
+  border: 2px solid #3d0566;
+}
+.profile-actions .btn-secondary:hover {
+  background: #3d0566;
+  color: white;
+}
+.profile-actions .btn-logout {
+  background: transparent;
+  color: #dc3545;
+  border: 2px solid #dc3545;
+}
+.profile-actions .btn-logout:hover {
+  background: #dc3545;
+  color: white;
+}
+.btn-refresh {
+  background: transparent;
+  color: #28a745;
+  border: 2px solid #28a745;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-refresh:hover {
+  background: #28a745;
+  color: white;
+}
+.lightbox-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(61, 5, 102, 0.35);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+.lightbox-overlay.active {
+  display: flex;
+}
+.lightbox {
+  background: white;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: visible;
+  padding: 30px 35px;
+  box-shadow: 0 20px 60px rgba(61, 5, 102, 0.2);
+  font-family: Arial, sans-serif;
+}
+.lightbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #fcf7fb;
+}
+.lightbox-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #212529;
+}
+.lightbox-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #b0a0b0;
+  padding: 0 6px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.lightbox-close:hover {
+  color: #3d0566;
+}
+.lightbox-field {
+  margin-bottom: 18px;
+}
+.lightbox-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 5px;
+}
+.lightbox-field input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #e8dee8;
+  border-radius: 8px;
+  font-size: 15px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  background: #fcf7fb;
+  transition: border-color 0.2s;
+}
+.lightbox-field input:focus {
+  outline: none;
+  border-color: #3d0566;
+}
+.lightbox-field input:disabled {
+  background: #f5f0f5;
+  color: #8a7a8a;
+}
+.lightbox-field .name-row {
+  display: flex;
+  gap: 12px;
+}
+.lightbox-field .name-row .name-field {
+  flex: 1;
+}
+.lightbox-field .phone-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  position: relative;
+}
+.lightbox-field .phone-wrapper .country-dropdown {
+  position: relative;
+  flex-shrink: 0;
+  width: 220px;
+  overflow: visible;
+}
+.lightbox-field .phone-wrapper .country-dropdown .selected-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 2px solid #e8dee8;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #fcf7fb;
+  cursor: pointer;
+  height: 48px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  transition: border-color 0.2s;
+}
+.lightbox-field .phone-wrapper .country-dropdown .selected-display:hover {
+  border-color: #3d0566;
+}
+.lightbox-field .phone-wrapper .country-dropdown .selected-display #selected-country-display {
+  text-align: left;
+  flex: 1;
+}
+.lightbox-field .phone-wrapper .country-dropdown .selected-display .arrow {
+  font-size: 12px;
+  color: #8a7a8a;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #e8dee8;
+  border-radius: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 1001;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list.open {
+  display: block;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list .search-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid #e8dee8;
+  font-size: 14px;
+  box-sizing: border-box;
+  outline: none;
+  font-family: Arial, sans-serif;
+  background: white;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list .search-input:focus {
+  border-bottom-color: #3d0566;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list .country-option {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: Arial, sans-serif;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list .country-option:hover {
+  background: #f0e8f0;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list .country-option.selected {
+  background: #e8dce8;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list::-webkit-scrollbar {
+  width: 6px;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+.lightbox-field .phone-wrapper .country-dropdown .dropdown-list::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+.lightbox-field .phone-wrapper input {
+  border: 2px solid #e8dee8;
+  border-radius: 8px;
+  padding: 10px 14px;
+  width: 100%;
+  font-size: 16px;
+  background: #fcf7fb;
+  font-family: Arial, sans-serif;
+  transition: border-color 0.2s;
+  height: 48px;
+  box-sizing: border-box;
+}
+.lightbox-field .phone-wrapper input:focus {
+  outline: none;
+  border-color: #3d0566;
+}
+.lightbox-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #fcf7fb;
+}
+.lightbox-actions .btn-primary,
+.lightbox-actions .btn-secondary {
+  flex: 1;
+  text-align: center;
+}
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: Arial, sans-serif;
+  max-width: 400px;
+}
+.toast {
+  padding: 14px 24px;
+  border-radius: 10px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  animation: slideDown 0.4s ease, fadeOutTop 0.4s ease 3s forwards;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.toast.success { background: #28a745; }
+.toast.error { background: #dc3545; }
+.toast.info { background: #3d0566; }
+.toast .toast-icon { font-size: 18px; }
+.toast .toast-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 4px;
+}
+.toast .toast-close:hover { color: white; }
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fadeOutTop {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-20px); }
+}
+@media (max-width: 768px) {
+  .profile-header { padding: 18px 20px; flex-direction: column; text-align: center; gap: 8px; }
+  .profile-body { padding: 18px 20px 25px 20px; }
+  .profile-body .section-edit-icon { top: 8px; right: 12px; font-size: 16px; }
+  .profile-body .section-edit-icon span { font-size: 11px; }
+  .profile-grid { grid-template-columns: 1fr; gap: 10px; }
+  .profile-header h1 { font-size: 18px; }
+  .lightbox { padding: 20px; margin: 10px; }
+  .lightbox-field .phone-wrapper .country-dropdown { width: 150px; }
+  .lightbox-field .name-row { flex-direction: column; gap: 12px; }
+  .toast-container { top: 10px; right: 10px; max-width: calc(100% - 20px); }
+  .profile-actions { flex-direction: column; align-items: stretch; }
+  .profile-actions .btn { text-align: center; }
+}
+
+/* Documents section styles */
+.documents-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid #f0e8ee;
+}
+.documents-section h2 {
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: #212529;
+}
+.document-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #fcf7fb;
+  border-radius: 8px;
+  border: 1px solid #f0e8ee;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.document-item .doc-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 200px;
+}
+.document-item .doc-info .doc-name {
+  font-weight: 500;
+  color: #212529;
+  font-size: 14px;
+}
+.document-item .doc-status {
+  font-size: 12px;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.document-item .doc-status.signed {
+  background: #d4edda;
+  color: #155724;
+}
+.document-item .doc-status.pending {
+  background: #fff3cd;
+  color: #856404;
+}
+.document-item .doc-date-signed {
+  font-size: 12px;
+  color: #6c757d;
+}
+.document-item .doc-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.document-item .doc-actions .btn-sign {
+  background: #3d0566;
+  color: white;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: opacity 0.2s;
+}
+.document-item .doc-actions .btn-sign:hover {
+  opacity: 0.85;
+}
+.document-item .doc-actions .btn-sign:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.document-item .doc-actions .btn-info {
+  background: transparent;
+  border: none;
+  color: #3d0566;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  font-weight: bold;
+}
+.document-item .doc-actions .btn-info:hover {
+  color: #1a0233;
+}
+.doc-context-lightbox .lightbox {
+  max-width: 500px;
+}
+.doc-context-lightbox .lightbox p {
+  line-height: 1.6;
+  color: #495057;
+}
+</style>
+
+<script>
+function showToast(message, type, duration) {
+  type = type || 'info';
+  duration = duration || 3000;
+  var container = document.getElementById('toast-container');
+  if (!container) {
+    var newContainer = document.createElement('div');
+    newContainer.id = 'toast-container';
+    newContainer.className = 'toast-container';
+    document.body.appendChild(newContainer);
+    container = newContainer;
+  }
+  
+  var icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  var toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.innerHTML = `
+    <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+    <span>${message}</span>
+    <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+  `;
+  container.appendChild(toast);
+  
+  setTimeout(function() {
+    if (toast.parentElement) {
+      toast.remove();
+    }
+  }, duration);
+}
+
+(function() {
+  var isEditor = window.location.href.indexOf('systeme.io/dashboard') !== -1;
+  
+  if (isEditor) {
+    document.getElementById('accountContent').innerHTML = `
+      <div style="text-align:center;padding:60px 20px;color:#6c757d;font-size:14px;font-family:Arial,sans-serif;">
+        <p>👤 Account Page Preview</p>
+        <p style="font-size:12px;margin-top:10px;">(Content will load when published)</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // ============================================================
+  // Consolidated endpoints
+  // ============================================================
+  var VERIFY_ENDPOINT = 'https://project-qv4f9.vercel.app/api/sp-contact';
+  var CONTACT_ENDPOINT = 'https://project-qv4f9.vercel.app/api/sp-contact';
+  var UPDATE_ENDPOINT = 'https://project-qv4f9.vercel.app/api/sp-contact';
+  
+  var urlParams = new URLSearchParams(window.location.search);
+  var email = urlParams.get('email');
+  var token = urlParams.get('token');
+  var container = document.getElementById('accountContent');
+  var currentContactData = {};
+  
+  // ============================================================
+  // Country Data (sorted alphabetically by name)
+  // ============================================================
+  var allCountries = [
+    { code: '+54', name: 'Argentina', flag: '🇦🇷' },
+    { code: '+61', name: 'Australia', flag: '🇦🇺' },
+    { code: '+43', name: 'Austria', flag: '🇦🇹' },
+    { code: '+32', name: 'Belgium', flag: '🇧🇪' },
+    { code: '+591', name: 'Bolivia', flag: '🇧🇴' },
+    { code: '+55', name: 'Brazil', flag: '🇧🇷' },
+    { code: '+56', name: 'Chile', flag: '🇨🇱' },
+    { code: '+86', name: 'China', flag: '🇨🇳' },
+    { code: '+57', name: 'Colombia', flag: '🇨🇴' },
+    { code: '+506', name: 'Costa Rica', flag: '🇨🇷' },
+    { code: '+420', name: 'Czech Republic', flag: '🇨🇿' },
+    { code: '+45', name: 'Denmark', flag: '🇩🇰' },
+    { code: '+593', name: 'Ecuador', flag: '🇪🇨' },
+    { code: '+503', name: 'El Salvador', flag: '🇸🇻' },
+    { code: '+358', name: 'Finland', flag: '🇫🇮' },
+    { code: '+33', name: 'France', flag: '🇫🇷' },
+    { code: '+49', name: 'Germany', flag: '🇩🇪' },
+    { code: '+30', name: 'Greece', flag: '🇬🇷' },
+    { code: '+36', name: 'Hungary', flag: '🇭🇺' },
+    { code: '+91', name: 'India', flag: '🇮🇳' },
+    { code: '+62', name: 'Indonesia', flag: '🇮🇩' },
+    { code: '+353', name: 'Ireland', flag: '🇮🇪' },
+    { code: '+39', name: 'Italy', flag: '🇮🇹' },
+    { code: '+81', name: 'Japan', flag: '🇯🇵' },
+    { code: '+60', name: 'Malaysia', flag: '🇲🇾' },
+    { code: '+52', name: 'Mexico', flag: '🇲🇽' },
+    { code: '+31', name: 'Netherlands', flag: '🇳🇱' },
+    { code: '+64', name: 'New Zealand', flag: '🇳🇿' },
+    { code: '+505', name: 'Nicaragua', flag: '🇳🇮' },
+    { code: '+47', name: 'Norway', flag: '🇳🇴' },
+    { code: '+507', name: 'Panama', flag: '🇵🇦' },
+    { code: '+595', name: 'Paraguay', flag: '🇵🇾' },
+    { code: '+51', name: 'Peru', flag: '🇵🇪' },
+    { code: '+63', name: 'Philippines', flag: '🇵🇭' },
+    { code: '+48', name: 'Poland', flag: '🇵🇱' },
+    { code: '+351', name: 'Portugal', flag: '🇵🇹' },
+    { code: '+40', name: 'Romania', flag: '🇷🇴' },
+    { code: '+7', name: 'Russia', flag: '🇷🇺' },
+    { code: '+966', name: 'Saudi Arabia', flag: '🇸🇦' },
+    { code: '+65', name: 'Singapore', flag: '🇸🇬' },
+    { code: '+27', name: 'South Africa', flag: '🇿🇦' },
+    { code: '+82', name: 'South Korea', flag: '🇰🇷' },
+    { code: '+34', name: 'Spain', flag: '🇪🇸' },
+    { code: '+46', name: 'Sweden', flag: '🇸🇪' },
+    { code: '+41', name: 'Switzerland', flag: '🇨🇭' },
+    { code: '+90', name: 'Turkey', flag: '🇹🇷' },
+    { code: '+971', name: 'UAE', flag: '🇦🇪' },
+    { code: '+44', name: 'United Kingdom', flag: '🇬🇧' },
+    { code: '+1', name: 'United States', flag: '🇺🇸' },
+    { code: '+598', name: 'Uruguay', flag: '🇺🇾' },
+    { code: '+58', name: 'Venezuela', flag: '🇻🇪' }
+  ];
+  var countries = allCountries.sort(function(a, b) {
+    return a.name.localeCompare(b.name);
+  });
+  
+  function renderCountries(filter) {
+    filter = filter || '';
+    var search = filter.toLowerCase().trim();
+    var filtered = countries.filter(function(c) {
+      return c.name.toLowerCase().includes(search) ||
+             c.code.includes(search) ||
+             c.flag.includes(search);
+    });
+    
+    var list = document.getElementById('country-list');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    filtered.forEach(function(country) {
+      var div = document.createElement('div');
+      div.className = 'country-option';
+      if (country.code === currentContactData.mobileCountryCode) {
+        div.classList.add('selected');
+      }
+      div.textContent = country.flag + ' ' + country.code + ' ' + country.name;
+      div.dataset.code = country.code;
+      div.onclick = function() {
+        selectCountry(country);
+      };
+      list.appendChild(div);
+    });
+  }
+  
+  function selectCountry(country) {
+    var display = document.getElementById('selected-country-display');
+    var hidden = document.getElementById('selected-country-code');
+    if (display) {
+      display.innerHTML = country.flag + ' ' + country.code + ' ' + country.name;
+    }
+    if (hidden) {
+      hidden.value = country.code;
+    }
+    currentContactData.mobileCountryCode = country.code;
+    var list = document.getElementById('country-list');
+    if (list) {
+      list.parentElement.classList.remove('open');
+    }
+    var searchInput = document.getElementById('country-search');
+    renderCountries(searchInput ? searchInput.value : '');
+  }
+  
+  function toggleDropdown() {
+    var list = document.getElementById('country-list');
+    if (list) {
+      var parent = list.parentElement;
+      parent.classList.toggle('open');
+      if (parent.classList.contains('open')) {
+        var search = document.getElementById('country-search');
+        if (search) {
+          search.value = '';
+          renderCountries('');
+          setTimeout(function() { search.focus(); }, 100);
+        }
+      }
+    }
+  }
+  
+  window.toggleDropdown = toggleDropdown;
+  window.renderCountries = renderCountries;
+  window.selectCountry = selectCountry;
+  
+  container.innerHTML = `
+    <div style="text-align:center;padding:60px 20px;">
+      <div style="display:inline-block;width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #3d0566;border-radius:50%;animation:spinLoad 0.8s linear infinite;"></div>
+      <p style="margin-top:16px;color:#6c757d;font-size:14px;">Verifying your account...</p>
+    </div>
+  `;
+  
+  if (!document.getElementById('spinStyle')) {
+    var style = document.createElement('style');
+    style.id = 'spinStyle';
+    style.textContent = '@keyframes spinLoad { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  }
+  
+  if (!email || !token) {
+    container.innerHTML = `
+      <div style="background:#f8f9fa;border-radius:12px;padding:30px;text-align:center;border:1px solid #dee2e6;max-width:600px;margin:40px auto;">
+        <h2 style="color:#dc3545;">Authentication Failed</h2>
+        <p>Missing login credentials. Please request a new login link.</p>
+        <button onclick="window.location.href='https://www.turnkii.es/'" class="btn-primary">Return to Home</button>
+      </div>
+    `;
+    return;
+  }
+  
+  window.openLightbox = function() {
+    var overlay = document.getElementById('lightbox-overlay');
+    if (!overlay) return;
+    
+    document.getElementById('lb-email').value = currentContactData.email || '';
+    document.getElementById('lb-email').disabled = true;
+    document.getElementById('lb-first-name').value = currentContactData.firstName || '';
+    document.getElementById('lb-last-name').value = currentContactData.lastName || '';
+    document.getElementById('lb-phone').value = currentContactData.mobileNumber || '';
+    
+    var selectedDisplay = document.getElementById('selected-country-display');
+    if (selectedDisplay) {
+      var countryCode = currentContactData.mobileCountryCode || '+34';
+      var country = countries.find(function(c) { return c.code === countryCode; });
+      if (country) {
+        selectedDisplay.innerHTML = country.flag + ' ' + country.code + ' ' + country.name;
+      } else {
+        selectedDisplay.innerHTML = '🇪🇸 +34 Spain';
+      }
+    }
+    var hidden = document.getElementById('selected-country-code');
+    if (hidden) {
+      hidden.value = currentContactData.mobileCountryCode || '+34';
+    }
+    var searchInput = document.getElementById('country-search');
+    renderCountries(searchInput ? searchInput.value : '');
+    
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  };
+  
+  window.closeLightbox = function() {
+    var overlay = document.getElementById('lightbox-overlay');
+    if (overlay) {
+      overlay.classList.remove('active');
+    }
+    document.body.style.overflow = '';
+  };
+  
+  window.saveProfile = function() {
+    var firstName = document.getElementById('lb-first-name').value.trim();
+    var lastName = document.getElementById('lb-last-name').value.trim();
+    var mobileNumber = document.getElementById('lb-phone').value.trim();
+    var mobileCountryCode = document.getElementById('selected-country-code').value;
+    
+    if (!firstName) { showToast('First name is required', 'error'); return; }
+    if (!lastName) { showToast('Last name is required', 'error'); return; }
+    if (mobileNumber && mobileNumber.length < 6) { showToast('Phone number must be at least 6 digits', 'error'); return; }
+    
+    var saveBtn = document.getElementById('lb-save-btn');
+    var originalText = saveBtn.textContent;
+    saveBtn.textContent = 'Saving...';
+    saveBtn.disabled = true;
+    
+    var payload = {
+      action: 'update',
+      email: currentContactData.email,
+      firstName: firstName,
+      lastName: lastName,
+      mobileNumber: mobileNumber,
+      mobileCountryCode: mobileCountryCode
+    };
+    
+    fetch(UPDATE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+      if (data.success) {
+        currentContactData.firstName = firstName;
+        currentContactData.lastName = lastName;
+        currentContactData.mobileNumber = mobileNumber;
+        currentContactData.mobileCountryCode = mobileCountryCode;
+        currentContactData.fullName = (firstName + ' ' + lastName).trim();
+        renderProfile();
+        window.closeLightbox();
+        showToast('Profile updated successfully!', 'success');
+      } else {
+        showToast(data.error || 'Failed to update profile', 'error');
+      }
+    })
+    .catch(function(err) {
+      showToast('Network error: ' + err.message, 'error');
+    })
+    .finally(function() {
+      saveBtn.textContent = originalText;
+      saveBtn.disabled = false;
+    });
+  };
+  
+  // ============================================================
+  // DOCUMENT FUNCTIONS (Dynamic)
+  // ============================================================
+  
+  var SIGNING_TYPE_MAP = {
+    'NIE_APODERADO': 'nie',
+    'DATA_POLICY': 'privacy'
+  };
+  
+  async function fetchUserDocuments(email) {
+    try {
+      var response = await fetch(CONTACT_ENDPOINT + '?action=get_documents&email=' + encodeURIComponent(email), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      var data = await response.json();
+      if (data.success) {
+        return data.documents || [];
+      } else {
+        console.error('Failed to fetch documents:', data.error);
+        return [];
+      }
+    } catch (err) {
+      console.error('Error fetching documents:', err);
+      return [];
+    }
+  }
+  
+  window.signDocument = async function(doc) {
+    var data = currentContactData;
+    var docType = doc.document_type;
+    var displayName = doc.display_name || docType;
+    
+    var internalType = SIGNING_TYPE_MAP[docType];
+    if (!internalType) {
+      showToast('This document type is not configured for signing: ' + docType, 'error');
+      return;
+    }
+    
+    if (!data.email || !data.firstName) {
+      showToast('Please ensure your account has a first name and email.', 'error');
+      return;
+    }
+    
+    showToast('Creating signing request for ' + displayName + '...', 'info');
+    
+    try {
+      var response = await fetch('https://project-qv4f9.vercel.app/api/signforge/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          documentType: doc.document_type
+        })
+      });
+      
+      var result = await response.json();
+      
+      if (response.ok && result.signingUrl) {
+        var popup = window.open(
+          result.signingUrl,
+          '_blank',
+          'width=800,height=700,scrollbars=yes,resizable=yes'
+        );
+        
+        if (!popup) {
+          if (confirm('Please allow popups for this site, or click OK to open in a new tab.')) {
+            window.location.href = result.signingUrl;
+          }
+          return;
+        }
+        
+        showToast('Document sent for signing! Complete the signing in the popup window.', 'success');
+        
+        var interval = setInterval(function() {
+          if (popup.closed) {
+            clearInterval(interval);
+            showToast('Signing completed. Refreshing status...', 'info');
+            setTimeout(function() {
+              fetchUserDocuments(data.email).then(function(docs) {
+                renderDocuments(docs);
+                showToast('Documents updated.', 'success');
+              });
+            }, 5000);
+          }
+        }, 1000);
+      } else {
+        showToast(result.error || 'Failed to create signing request.', 'error');
+      }
+    } catch (err) {
+      showToast('Network error: ' + err.message, 'error');
+    }
+  };
+  
+  window.uploadDocument = function(doc) {
+    var data = currentContactData;
+    var docType = doc.document_type;
+    var displayName = doc.display_name || docType;
+    
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,image/*';
+    input.onchange = function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      
+      var formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentType', docType);
+      formData.append('email', data.email);
+      
+      showToast('Uploading ' + displayName + '...', 'info');
+      
+      fetch('https://project-qv4f9.vercel.app/api/documents/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        if (data.success) {
+          showToast('Upload successful!', 'success');
+          fetchUserDocuments(currentContactData.email).then(function(docs) {
+            renderDocuments(docs);
+          });
+        } else {
+          showToast('Upload failed: ' + (data.error || 'Unknown error'), 'error');
+        }
+      })
+      .catch(function(err) {
+        showToast('Network error: ' + err.message, 'error');
+      });
+    };
+    input.click();
+  };
+  
+  window.showDocumentContext = function(doc) {
+    var title = doc.display_name || doc.document_type;
+    var text = 'Information about ' + title + '. (Placeholder text – you can customize this per document type.)';
+    
+    var overlay = document.createElement('div');
+    overlay.className = 'lightbox-overlay doc-context-lightbox';
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+      <div class="lightbox">
+        <div class="lightbox-header">
+          <h2>ℹ️ ${title}</h2>
+          <button class="lightbox-close" onclick="this.closest('.lightbox-overlay').remove()">×</button>
+        </div>
+        <div style="padding: 10px 0;">
+          <p>${text}</p>
+        </div>
+        <div class="lightbox-actions">
+          <button class="btn-secondary" onclick="this.closest('.lightbox-overlay').remove()">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  };
+  
+  window.refreshDocumentStatus = function() {
+    var data = currentContactData;
+    if (!data.email) {
+      showToast('Email not found.', 'error');
+      return;
+    }
+    showToast('Refreshing document status...', 'info');
+    fetchUserDocuments(data.email).then(function(docs) {
+      renderDocuments(docs);
+      showToast('Documents updated.', 'success');
+    }).catch(function() {
+      showToast('Failed to refresh documents.', 'error');
+    });
+  };
+  
+  function renderDocuments(documents) {
+    var container = document.getElementById('documents-container');
+    if (!container) return;
+    
+    if (!documents || documents.length === 0) {
+      container.innerHTML = '<div class="documents-section"><h2>📄 Your Documents</h2><p style="color:#6c757d;">No documents found.</p></div>';
+      return;
+    }
+    
+    documents.sort(function(a, b) {
+      return (a.display_name || a.document_type).localeCompare(b.display_name || b.document_type);
+    });
+    
+    var html = '<div class="documents-section"><h2>📄 Your Documents</h2>';
+    
+    documents.forEach(function(doc) {
+      var status = doc.status || 'pending';
+      var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+      var isCompleted = (status === 'completed' || status === 'signed' || status === 'delivered');
+      var signedDate = doc.signed_at ? new Date(doc.signed_at).toLocaleDateString() : null;
+      var displayName = doc.display_name || doc.document_type;
+      
+      var actionButton = '';
+      if (!isCompleted) {
+        if (doc.requires_signing === true) {
+          actionButton = '<button class="btn-sign" onclick="window.signDocument(window._doc_'+doc.id+')">Sign</button>';
+        } else {
+          actionButton = '<button class="btn-sign" onclick="window.uploadDocument(window._doc_'+doc.id+')">Upload</button>';
+        }
+      }
+      
+      window['_doc_'+doc.id] = doc;
+      
+      html += `
+        <div class="document-item">
+          <div class="doc-info">
+            <span class="doc-name">${displayName}</span>
+            <span class="doc-status ${isCompleted ? 'signed' : 'pending'}">${statusLabel}</span>
+            ${signedDate ? '<span class="doc-date-signed">Signed: ' + signedDate + '</span>' : ''}
+          </div>
+          <div class="doc-actions">
+            <button class="btn-info" onclick="window.showDocumentContext(window._doc_'+doc.id+')" title="More info">?</button>
+            ${actionButton}
+          </div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+  }
+  
+  // ============================================================
+  // Logout Function
+  // ============================================================
+  window.logout = function() {
+    if (!email || !token) {
+      window.location.href = 'https://www.turnkii.es/';
+      return;
+    }
+    fetch(UPDATE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'logout',
+        email: decodeURIComponent(email),
+        token: token
+      })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+      console.log('Logout response:', data);
+      window.location.href = 'https://www.turnkii.es/';
+    })
+    .catch(function() {
+      window.location.href = 'https://www.turnkii.es/';
+    });
+  };
+  
+  // ============================================================
+  // Render Profile
+  // ============================================================
+  function renderProfile() {
+    var data = currentContactData;
+    var displayName = data.fullName || data.firstName || data.email;
+    var selectedCountry = countries.find(function(c) { return c.code === data.mobileCountryCode; });
+    var selectedDisplayText = selectedCountry ? selectedCountry.flag + ' ' + selectedCountry.code + ' ' + selectedCountry.name : '🇪🇸 +34 Spain';
+    
+    container.innerHTML = `
+      <div class="profile-container">
+        <div class="profile-header">
+          <div>
+            <h1>👤 My Account</h1>
+            <p>Welcome back, ${displayName}</p>
+          </div>
+          <div class="status-badge">✓ Active</div>
+        </div>
+        <div class="profile-body">
+          <button class="section-edit-icon" onclick="window.openLightbox()" title="Edit Profile">
+            ✎ <span>Edit</span>
+          </button>
+          
+          <div class="profile-grid">
+            <div class="profile-field">
+              <label>First Name</label>
+              <div class="field-value">${data.firstName || 'Not provided'}</div>
+            </div>
+            <div class="profile-field">
+              <label>Last Name</label>
+              <div class="field-value">${data.lastName || 'Not provided'}</div>
+            </div>
+            <div class="profile-field">
+              <label>Email Address</label>
+              <div class="field-value readonly">${data.email || 'Not provided'}</div>
+            </div>
+            <div class="profile-field">
+              <label>Phone Number</label>
+              <div class="field-value">${data.mobileNumber ? data.mobileCountryCode + ' ' + data.mobileNumber : 'Not provided'}</div>
+            </div>
+          </div>
+          
+          <div id="documents-container"></div>
+          
+          <div class="profile-actions">
+            <button class="btn btn-refresh" onclick="window.refreshDocumentStatus()">🔄 Refresh Status</button>
+            <button class="btn btn-logout" onclick="window.logout()">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+      
+      <div id="lightbox-overlay" class="lightbox-overlay">
+        <div class="lightbox">
+          <div class="lightbox-header">
+            <h2>✎ Edit Profile</h2>
+            <button class="lightbox-close" onclick="window.closeLightbox()">×</button>
+          </div>
+          <div class="lightbox-field">
+            <label>Email Address</label>
+            <input type="email" id="lb-email" disabled>
+          </div>
+          <div class="lightbox-field">
+            <label>First Name &amp; Last Name</label>
+            <div class="name-row">
+              <div class="name-field">
+                <input type="text" id="lb-first-name" placeholder="First Name *">
+              </div>
+              <div class="name-field">
+                <input type="text" id="lb-last-name" placeholder="Last Name *">
+              </div>
+            </div>
+          </div>
+          <div class="lightbox-field">
+            <label>Phone Number</label>
+            <div class="phone-wrapper">
+              <div class="country-dropdown">
+                <div class="selected-display" onclick="window.toggleDropdown()">
+                  <span id="selected-country-display">${selectedDisplayText}</span>
+                  <span class="arrow">▼</span>
+                </div>
+                <div class="dropdown-list">
+                  <input type="text" class="search-input" id="country-search" placeholder="Search country..." oninput="window.renderCountries(this.value)">
+                  <div id="country-list"></div>
+                </div>
+                <input type="hidden" id="selected-country-code" value="${data.mobileCountryCode || '+34'}">
+              </div>
+              <input type="tel" id="lb-phone" placeholder="Phone number" maxlength="20" value="${data.mobileNumber || ''}">
+            </div>
+          </div>
+          <div class="lightbox-actions">
+            <button class="btn-secondary" onclick="window.closeLightbox()">Cancel</button>
+            <button class="btn-primary" id="lb-save-btn" onclick="window.saveProfile()">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    var searchInput = document.getElementById('country-search');
+    renderCountries(searchInput ? searchInput.value : '');
+    
+    document.addEventListener('click', function(e) {
+      var dropdown = document.querySelector('.country-dropdown');
+      if (dropdown && !dropdown.contains(e.target)) {
+        var list = document.getElementById('country-list');
+        if (list) {
+          list.parentElement.classList.remove('open');
+        }
+      }
+    });
+    
+    fetchUserDocuments(currentContactData.email).then(function(docs) {
+      renderDocuments(docs);
+    });
+  }
+  
+  // ============================================================
+  // Verify token and load profile using consolidated endpoint
+  // ============================================================
+  var decodedEmail = decodeURIComponent(email);
+  
+  // Call sp-contact with action=verify_token
+  fetch(VERIFY_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'verify_token',
+      email: decodedEmail,
+      token: token
+    })
+  })
+  .then(function(response) {
+    if (!response.ok) {
+      return response.json().then(function(data) {
+        throw new Error(data.message || data.error || 'Verification failed');
+      });
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    if (!data.success) {
+      throw new Error(data.message || data.error || 'Invalid session');
+    }
+    
+    // Populate currentContactData from the response
+    currentContactData = {
+      email: data.email || decodedEmail,
+      firstName: data.firstName || '',
+      lastName: data.lastName || '',
+      fullName: data.fullName || (data.firstName || '' + ' ' + data.lastName || '').trim(),
+      mobileNumber: data.mobileNumber || '',
+      mobileCountryCode: data.mobileCountryCode || '+34'
+    };
+    
+    renderProfile();
+  })
+  .catch(function(error) {
+    console.error('❌ Error:', error);
+    container.innerHTML = `
+      <div style="background:#f8f9fa;border-radius:12px;padding:30px;text-align:center;border:1px solid #dee2e6;max-width:600px;margin:40px auto;">
+        <h2 style="color:#dc3545;">Authentication Failed</h2>
+        <p>${error.message || 'Unable to verify your account. Please request a new login link.'}</p>
+        <button onclick="window.location.href='https://www.turnkii.es/'" class="btn-primary">Return to Home</button>
+      </div>
+    `;
+  });
+})();
+</script>
