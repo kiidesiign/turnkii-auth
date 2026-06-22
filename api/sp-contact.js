@@ -675,15 +675,15 @@ export default async function handler(req, res) {
         }
         const contact = findData[0];
 
-         // Verify OTP
+        // Verify OTP
         if (contact.otp !== otp) {
           return res.status(401).json({ success: false, error: 'Invalid OTP' });
         }
         if (contact.link_expiry && new Date(contact.link_expiry) < new Date()) {
           return res.status(401).json({ success: false, error: 'OTP has expired' });
         }
-        
-        // Mark email as verified (if not already)
+
+        // Single update: clear OTP, mark email as verified
         const updatePayload = {
           otp: null,
           email_verified: true,
@@ -691,7 +691,7 @@ export default async function handler(req, res) {
         };
 
         const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
-        await fetch(updateUrl, {
+        const updateResponse = await fetch(updateUrl, {
           method: 'PATCH',
           headers: {
             'apikey': supabaseKey,
@@ -701,24 +701,15 @@ export default async function handler(req, res) {
           body: JSON.stringify(updatePayload)
         });
 
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text();
+          console.error('[VERIFY_OTP] Failed to update contact:', errorText);
+          // Continue anyway – non‑critical
+        }
+
         // Ensure account and documents exist (safety net)
         await ensureAccount(contact.id, supabaseUrl, supabaseKey);
         await ensureDocuments(contact.id, supabaseUrl, supabaseKey);
-
-        // Clear OTP
-        const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
-        await fetch(updateUrl, {
-          method: 'PATCH',
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            otp: null,
-            updated_at: new Date().toISOString()
-          })
-        });
 
         return res.status(200).json({
           success: true,
@@ -727,7 +718,7 @@ export default async function handler(req, res) {
           email: contact.email,
         });
       }
-
+      
       // ----------------------------------------------------------
       // VERIFY_TOKEN
       // ----------------------------------------------------------
