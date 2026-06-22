@@ -12,34 +12,45 @@ export default async function handler(req, res) {
 
   try {
     const payload = req.body;
-    const { event, envelope_id } = payload;
+    const { event } = payload;
 
-    console.log(`📥 SignForge webhook: ${event} for envelope ${envelope_id}`);
+    // --- Determine envelope_id from query or body ---
+    const envelopeIdFromQuery = req.query.envelope_id;
+    const envelopeIdFromBody = payload.envelope_id || payload.id;
+    const envelopeId = envelopeIdFromQuery || envelopeIdFromBody;
+
+    console.log(`📥 SignForge webhook: ${event} for envelope ${envelopeId}`);
     console.log(`📥 Full payload:`, JSON.stringify(payload, null, 2));
+    console.log(`📥 Query:`, req.query);
+
+    if (!envelopeId) {
+      console.error('❌ No envelope ID found in request');
+      return res.status(400).json({ error: 'Missing envelope_id' });
+    }
 
     if (event !== 'envelope.completed') {
       return res.status(200).json({ received: true });
     }
 
     // 1. Find the document in Supabase
-    console.log(`🔍 Looking for document with provider_request_id = "${envelope_id}"`);
+    console.log(`🔍 Looking for document with provider_request_id = "${envelopeId}"`);
     const { data: doc, error: findError } = await supabase
       .from('documents')
       .select('*')
-      .eq('provider_request_id', envelope_id)
-      .maybeSingle(); // Use maybeSingle to avoid 406 if no rows
+      .eq('provider_request_id', envelopeId)
+      .maybeSingle();
 
     if (findError) {
-      console.error('❌ Error querying documents:', findError);
-      return res.status(500).json({ error: 'Database query error' });
+      console.error('❌ Database error:', findError);
+      return res.status(500).json({ error: 'Database error' });
     }
 
     let foundDoc = doc;
 
     if (!foundDoc) {
-      console.warn(`⚠️ No document found with provider_request_id = "${envelope_id}"`);
-      // Fallback: try using the `id` field from the payload (if present)
-      if (payload.id) {
+      console.warn(`⚠️ No document found with provider_request_id = "${envelopeId}"`);
+      // Fallback: try using the id field from the payload (if present and different)
+      if (payload.id && payload.id !== envelopeId) {
         console.log(`🔄 Fallback: trying to find document with id = ${payload.id}`);
         const { data: fallbackDoc, error: fallbackError } = await supabase
           .from('documents')
@@ -56,7 +67,8 @@ export default async function handler(req, res) {
 
       if (!foundDoc) {
         console.error('❌ Document not found after all attempts.');
-        return res.status(404).json({ error: 'Document not found' });
+        // Return 200 to avoid SignForge retrying (we've already logged the error)
+        return res.status(200).json({ received: true, error: 'Document not found' });
       }
     }
 
@@ -64,7 +76,7 @@ export default async function handler(req, res) {
 
     // 2. Download signed PDF from SignForge
     console.log(`📥 Downloading signed PDF from SignForge...`);
-    const downloadResponse = await fetch(`${SIGNFORGE_API_BASE}/envelopes/${envelope_id}/pdf`, {
+    const downloadResponse = await fetch(`${SIGNFORGE_API_BASE}/envelopes/${envelopeId}/pdf`, {
       headers: { 'Authorization': `Bearer ${SIGNFORGE_API_KEY}` },
     });
 
@@ -85,9 +97,9 @@ export default async function handler(req, res) {
       .single();
 
     // 4. Upload to OneDrive
-    console.log(`📤 Uploading to OneDrive...`);
+    console.log(`📤 Uploading signed PDF to OneDrive...`);
     const oneDriveToken = await getOneDriveToken();
-    const fileName = `signed_${foundDoc.file_name}`;
+    const fileName = `signed_${foundDoc.file_name || 'document.pdf'}`;
     const uploadResult = await uploadToOneDrive(
       oneDriveToken,
       contact?.email || 'unknown',
@@ -101,7 +113,7 @@ export default async function handler(req, res) {
       .from('documents')
       .update({
         signed_url: uploadResult.webUrl,
-        file_url: uploadResult.webUrl,
+        file_url: uploadResult.webUrl,   // also store the signed PDF as the main file (optional)
         file_id: uploadResult.id,
         status: 'signed',
         signed_at: new Date().toISOString(),
