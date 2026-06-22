@@ -2,7 +2,8 @@
 // Handles file uploads for documents (e.g., PASSPORT) using OneDrive storage,
 // with validation, security scan, and Supabase document update.
 
-import { getOneDriveToken, uploadToOneDrive } from '../lib/onedrive.js';
+// ✅ Fixed import paths: ../../lib/... (two levels up)
+import { getOneDriveToken, uploadToOneDrive } from '../../lib/onedrive.js';
 import multer from 'multer';
 import { promisify } from 'util';
 import {
@@ -10,7 +11,7 @@ import {
   basicSecurityScan,
   compressImage,
   validatePDF,
-} from '../lib/file-validator.js';
+} from '../../lib/file-validator.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
