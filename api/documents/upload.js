@@ -233,8 +233,24 @@ export default async function handler(req, res) {
       const filename = `${documentType.toLowerCase()}_${timestamp}.${fileExtension}`;
       const accessToken = await getOneDriveToken();
       const uploadResult = await uploadToOneDrive(accessToken, email, filename, processedBuffer);
+      console.log('✅ Uploaded to OneDrive. File ID:', uploadResult.id);
 
-      // ---- Update Supabase ----
+      // ---- 🔥 NEW: Fetch direct download URL ----
+      const itemUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadResult.id}?select=id,name,webUrl,@microsoft.graph.downloadUrl`;
+      const itemRes = await fetch(itemUrl, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      if (!itemRes.ok) {
+        const errorText = await itemRes.text();
+        console.error('Failed to fetch item metadata:', errorText);
+        throw new Error('Failed to get download URL');
+      }
+      const itemData = await itemRes.json();
+      const directDownloadUrl = itemData['@microsoft.graph.downloadUrl'];
+      const fileUrl = directDownloadUrl || uploadResult.webUrl; // fallback to webUrl if downloadUrl not available
+      console.log('✅ Direct download URL:', fileUrl);
+
+      // ---- Update Supabase with the direct URL ----
       const docUpdateUrl = `${SUPABASE_URL}/rest/v1/documents?contact_id=eq.${contactId}&document_type=eq.${encodeURIComponent(documentType)}`;
       const updateRes = await fetch(docUpdateUrl, {
         method: 'PATCH',
@@ -246,7 +262,7 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           file_name: file.originalname,
-          file_url: uploadResult.webUrl,
+          file_url: fileUrl, // <-- store the direct download URL
           file_id: uploadResult.id,
           status: 'completed',
           updated_at: new Date().toISOString(),
@@ -262,7 +278,7 @@ export default async function handler(req, res) {
         success: true,
         message: 'File uploaded and document updated successfully',
         filename: filename,
-        fileUrl: uploadResult.webUrl,
+        fileUrl: fileUrl,
         fileId: uploadResult.id,
         document: updatedDoc[0] || updatedDoc,
         validation: {
