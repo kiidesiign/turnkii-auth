@@ -158,8 +158,38 @@ export default async function handler(req, res) {
       console.log(`[SP_GenerateMagicLink] Found existing contact: ${contact.id}`);
     } else {
       console.log(`[SP_GenerateMagicLink] Creating new contact: ${email}`);
-      const createUrl = `${supabaseUrl}/rest/v1/contacts`;
-      const createResponse = await fetch(createUrl, {
+      
+      // ============================================================
+      // 🔧 FIX: Create account first, then contact with account_id
+      // ============================================================
+      
+      // 1a. Create account
+      const createAccountUrl = `${supabaseUrl}/rest/v1/accounts`;
+      const accountRes = await fetch(createAccountUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({}),
+      });
+      if (!accountRes.ok) {
+        const errorText = await accountRes.text();
+        console.error('Error creating account:', errorText);
+        throw new Error(`Failed to create account: ${accountRes.status}`);
+      }
+      const accountData = await accountRes.json();
+      const accountId = accountData[0]?.id;
+      if (!accountId) {
+        throw new Error('Account created but no ID returned');
+      }
+      console.log(`[SP_GenerateMagicLink] Account created with ID: ${accountId}`);
+
+      // 1b. Create contact with account_id
+      const createContactUrl = `${supabaseUrl}/rest/v1/contacts`;
+      const createResponse = await fetch(createContactUrl, {
         method: 'POST',
         headers: {
           'apikey': supabaseKey,
@@ -170,7 +200,11 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           email: email,
           first_name: firstName || email.split('@')[0],
-          last_name: lastName || ''
+          last_name: lastName || '',
+          account_id: accountId,
+          role: 'primary',
+          mobile_country_code: '+34',
+          mobile_number: '',
         })
       });
 
@@ -183,7 +217,7 @@ export default async function handler(req, res) {
       const createData = await createResponse.json();
       contact = createData[0] || createData;
       isNewContact = true;
-      console.log(`[SP_GenerateMagicLink] Created new contact: ${contact.id}`);
+      console.log(`[SP_GenerateMagicLink] Created new contact: ${contact.id} with account ${accountId}`);
     }
 
     // 2. Generate OTP and Token
@@ -301,8 +335,8 @@ export default async function handler(req, res) {
         }
       },
       
-      apiCallsUsed: isNewContact ? 3 : 2,
-      apiCallsDetails: isNewContact ? 'Find + Create + Update' : 'Find + Update',
+      apiCallsUsed: isNewContact ? 4 : 2, // increased because of account creation
+      apiCallsDetails: isNewContact ? 'Find + Create Account + Create Contact + Update' : 'Find + Update',
       remainingRequests: rateCheck.remaining,
       emailSent: emailSent,
       
