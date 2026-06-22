@@ -208,8 +208,11 @@ export default async function handler(req, res) {
     const envelopeId = data.id || data.envelope_id;
     const signingUrl = data.embedded_signing_url || data.signing_url || data.url;
 
-    // ============================================================
+        // ============================================================
     // 4. Upsert document record – using PUT with on_conflict
+    // ============================================================
+    // ============================================================
+    // 4. Upsert document record – PATCH then INSERT
     // ============================================================
     console.log('📝 Upserting document record for contact:', contact.id);
     console.log('📝 Document data:', {
@@ -226,12 +229,12 @@ export default async function handler(req, res) {
 
     if (envelopeId) {
       try {
-        // ✅ Use PUT with on_conflict for reliable upsert
-        const docUpsertUrl = `${SUPABASE_URL}/rest/v1/documents?on_conflict=contact_id,document_type`;
-        console.log('📝 Upsert URL:', docUpsertUrl);
+        // --- Step 1: Try to update existing record ---
+        const updateUrl = `${SUPABASE_URL}/rest/v1/documents?contact_id=eq.${contact.id}&document_type=eq.${encodeURIComponent(dbType)}`;
+        console.log('📝 Update URL:', updateUrl);
 
-        const upsertResponse = await fetch(docUpsertUrl, {
-          method: 'PUT',  // 👈 must be PUT, not POST
+        const updateResponse = await fetch(updateUrl, {
+          method: 'PATCH',
           headers: {
             'apikey': SUPABASE_SERVICE_KEY,
             'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
@@ -239,9 +242,7 @@ export default async function handler(req, res) {
             'Prefer': 'return=representation',
           },
           body: JSON.stringify({
-            contact_id: contact.id,
             file_name: fileName,
-            document_type: dbType,
             provider_request_id: envelopeId,
             provider: 'signforge',
             status: 'sent',
@@ -249,22 +250,53 @@ export default async function handler(req, res) {
           }),
         });
 
-        console.log('📝 Upsert response status:', upsertResponse.status);
+        console.log('📝 PATCH response status:', updateResponse.status);
 
-        if (!upsertResponse.ok) {
-          const errorText = await upsertResponse.text();
-          console.error('❌ Failed to upsert document:', upsertResponse.status, errorText);
-        } else {
-          const upsertedDoc = await upsertResponse.json();
-          const docRecord = Array.isArray(upsertedDoc) ? upsertedDoc[0] : upsertedDoc;
+        if (updateResponse.ok) {
+          const updatedDoc = await updateResponse.json();
+          const docRecord = Array.isArray(updatedDoc) ? updatedDoc[0] : updatedDoc;
           documentId = docRecord?.id || null;
-          console.log('✅ Document record upserted successfully:', docRecord);
-          // Confirm provider_request_id is set
+          console.log('✅ Document updated successfully:', docRecord);
+          // Check if provider_request_id was set
           if (docRecord?.provider_request_id === envelopeId) {
-            console.log('✅ provider_request_id is correctly set to:', envelopeId);
+            console.log('✅ provider_request_id confirmed:', envelopeId);
           } else {
-            console.warn('⚠️ provider_request_id mismatch!');
+            console.warn('⚠️ provider_request_id not set correctly');
           }
+        } else if (updateResponse.status === 404 || updateResponse.status === 400) {
+          // No record found – insert a new one
+          console.log('📝 No existing record, inserting new document...');
+          const insertUrl = `${SUPABASE_URL}/rest/v1/documents`;
+          const insertResponse = await fetch(insertUrl, {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_SERVICE_KEY,
+              'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            body: JSON.stringify({
+              contact_id: contact.id,
+              file_name: fileName,
+              document_type: dbType,
+              provider_request_id: envelopeId,
+              provider: 'signforge',
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+            }),
+          });
+          if (!insertResponse.ok) {
+            const errorText = await insertResponse.text();
+            console.error('❌ Failed to insert document:', insertResponse.status, errorText);
+          } else {
+            const insertedDoc = await insertResponse.json();
+            const docRecord = Array.isArray(insertedDoc) ? insertedDoc[0] : insertedDoc;
+            documentId = docRecord?.id || null;
+            console.log('✅ Document inserted successfully:', docRecord);
+          }
+        } else {
+          const errorText = await updateResponse.text();
+          console.error('❌ PATCH failed with status:', updateResponse.status, errorText);
         }
       } catch (docError) {
         console.error('⚠️ Exception during document upsert:', docError);
