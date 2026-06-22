@@ -208,7 +208,7 @@ export default async function handler(req, res) {
     const envelopeId = data.id || data.envelope_id;
     const signingUrl = data.embedded_signing_url || data.signing_url || data.url;
 
-        // ============================================================
+    // ============================================================
     // 4. Upsert document record – using PUT with on_conflict
     // ============================================================
     console.log('📝 Upserting document record for contact:', contact.id);
@@ -226,15 +226,12 @@ export default async function handler(req, res) {
 
     if (envelopeId) {
       try {
-        // 🔥 Use PUT with on_conflict for reliable upsert
+        // ✅ Use PUT with on_conflict for reliable upsert
         const docUpsertUrl = `${SUPABASE_URL}/rest/v1/documents?on_conflict=contact_id,document_type`;
         console.log('📝 Upsert URL:', docUpsertUrl);
 
-        // Optionally fetch requires_signing from document_types (if needed)
-        // but we don't need it for update; it's already set for pending rows.
-
         const upsertResponse = await fetch(docUpsertUrl, {
-          method: 'PUT',  // <-- Use PUT, not POST
+          method: 'PUT',  // 👈 must be PUT, not POST
           headers: {
             'apikey': SUPABASE_SERVICE_KEY,
             'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
@@ -262,6 +259,12 @@ export default async function handler(req, res) {
           const docRecord = Array.isArray(upsertedDoc) ? upsertedDoc[0] : upsertedDoc;
           documentId = docRecord?.id || null;
           console.log('✅ Document record upserted successfully:', docRecord);
+          // Confirm provider_request_id is set
+          if (docRecord?.provider_request_id === envelopeId) {
+            console.log('✅ provider_request_id is correctly set to:', envelopeId);
+          } else {
+            console.warn('⚠️ provider_request_id mismatch!');
+          }
         }
       } catch (docError) {
         console.error('⚠️ Exception during document upsert:', docError);
