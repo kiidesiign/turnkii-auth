@@ -1,30 +1,172 @@
 // api/sp-contact.js
-// Consolidated Supabase contact operations - handles GET, CREATE, UPDATE
-// Extended to support fetching user documents with enriched type info
+// Consolidated Supabase contact operations - handles GET, CREATE, UPDATE, MAGIC_LINK, VERIFY_OTP, VERIFY_TOKEN, LOGOUT
+// Includes rate limiting, email sending, account creation, and document management
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://www.turnkii.es';
+const APP_URL = process.env.APP_URL || 'https://project-qv4f9.vercel.app';
+
+// ============================================================
+// RATE LIMITING (per email for magic_link)
+// ============================================================
+
+const rateLimits = new Map();
+
+function checkRateLimit(email, limitMinutes = 5, maxRequests = 3) {
+  const now = Date.now();
+  const key = `sp_magic_${email}`;
+  const windowMs = limitMinutes * 60 * 1000;
+  
+  if (!rateLimits.has(key)) {
+    rateLimits.set(key, { count: 1, firstRequest: now });
+    return { allowed: true, remaining: maxRequests - 1 };
+  }
+  
+  const record = rateLimits.get(key);
+  
+  if (now - record.firstRequest > windowMs) {
+    rateLimits.set(key, { count: 1, firstRequest: now });
+    return { allowed: true, remaining: maxRequests - 1 };
+  }
+  
+  if (record.count >= maxRequests) {
+    const waitMinutes = Math.ceil((windowMs - (now - record.firstRequest)) / 60000);
+    return { allowed: false, remaining: 0, waitMinutes };
+  }
+  
+  record.count++;
+  rateLimits.set(key, record);
+  return { allowed: true, remaining: maxRequests - record.count };
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function generateToken() {
+  return [...Array(32)]
+    .map(() => Math.floor(Math.random() * 16).toString(16))
+    .join("");
+}
+
+// Ensure contact has an account (create if missing)
+async function ensureAccount(contactId, supabaseUrl, supabaseKey) {
+  const findUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contactId}&select=account_id,role`;
+  const findRes = await fetch(findUrl, {
+    headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+  });
+  if (!findRes.ok) return false;
+  const data = await findRes.json();
+  const contact = data[0];
+  if (!contact) return false;
+  if (contact.account_id) return true;
+
+  const createAccountUrl = `${supabaseUrl}/rest/v1/accounts`;
+  const accountRes = await fetch(createAccountUrl, {
+    method: 'POST',
+    headers: {
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+    },
+    body: JSON.stringify({}),
+  });
+  if (!accountRes.ok) return false;
+  const accountData = await accountRes.json();
+  const accountId = accountData[0]?.id;
+  if (!accountId) return false;
+
+  const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contactId}`;
+  const updateRes = await fetch(updateUrl, {
+    method: 'PATCH',
+    headers: {
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      account_id: accountId,
+      role: 'primary',
+      updated_at: new Date().toISOString()
+    })
+  });
+  return updateRes.ok;
+}
+
+// Ensure documents exist for a contact (trigger will handle this for new contacts,
+// but this is a safety net)
+async function ensureDocuments(contactId, supabaseUrl, supabaseKey) {
+  const typesUrl = `${supabaseUrl}/rest/v1/document_types?created_on_signup=eq.true&select=name`;
+  const typesRes = await fetch(typesUrl, {
+    headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+  });
+  if (!typesRes.ok) return false;
+  const types = await typesRes.json();
+  if (!types || types.length === 0) return true;
+
+  const docsUrl = `${supabaseUrl}/rest/v1/documents?contact_id=eq.${contactId}&select=document_type`;
+  const docsRes = await fetch(docsUrl, {
+    headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
+  });
+  if (!docsRes.ok) return false;
+  const existingDocs = await docsRes.json();
+  const existingTypes = existingDocs.map(d => d.document_type);
+
+  const missing = types.filter(t => !existingTypes.includes(t.name));
+  if (missing.length === 0) return true;
+
+  const insertPromises = missing.map(t => {
+    return fetch(`${supabaseUrl}/rest/v1/documents`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contact_id: contactId,
+        document_type: t.name,
+        status: 'pending',
+        provider: null,
+      })
+    });
+  });
+  await Promise.all(insertPromises);
+  return true;
+}
+
+// ============================================================
+// MAIN HANDLER
+// ============================================================
 
 export default async function handler(req, res) {
-  const CORS_ORIGIN = 'https://www.turnkii.es';
+  // CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(204).end();
+  }
 
-  // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  // Parse request body for POST
+  // Parse body for POST
   let body = '';
   await new Promise((resolve) => {
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
-      try {
-        req.body = body ? JSON.parse(body) : {};
-      } catch (e) {
-        req.body = {};
-      }
+      try { req.body = body ? JSON.parse(body) : {}; } catch (e) { req.body = {}; }
       resolve();
     });
   });
@@ -39,105 +181,6 @@ export default async function handler(req, res) {
     });
   }
 
-  // ============================================================
-  // HELPER: Ensure contact has an account (create if missing)
-  // ============================================================
-  async function ensureAccount(contactId) {
-    // Fetch current contact to check account_id
-    const findUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contactId}&select=account_id,role`;
-    const findRes = await fetch(findUrl, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-    });
-    if (!findRes.ok) return;
-    const data = await findRes.json();
-    const contact = data[0];
-    if (!contact) return;
-    if (contact.account_id) return; // already has account
-
-    // Create account
-    const createAccountUrl = `${supabaseUrl}/rest/v1/accounts`;
-    const accountRes = await fetch(createAccountUrl, {
-      method: 'POST',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
-      body: JSON.stringify({}),
-    });
-    if (!accountRes.ok) {
-      console.error('❌ Failed to create account for contact', contactId);
-      return;
-    }
-    const accountData = await accountRes.json();
-    const accountId = accountData[0]?.id;
-    if (!accountId) return;
-
-    // Update contact with account_id and set role = 'primary'
-    const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contactId}`;
-    await fetch(updateUrl, {
-      method: 'PATCH',
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        account_id: accountId,
-        role: 'primary',
-        updated_at: new Date().toISOString()
-      })
-    });
-    console.log(`✅ Account ${accountId} assigned to contact ${contactId}`);
-  }
-
-  // ============================================================
-  // HELPER: Ensure the three document types exist for a contact
-  // ============================================================
-  async function ensureDocuments(contactId) {
-    // Get document types that should be created on signup
-    const typesUrl = `${supabaseUrl}/rest/v1/document_types?created_on_signup=eq.true&select=name`;
-    const typesRes = await fetch(typesUrl, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-    });
-    if (!typesRes.ok) return;
-    const types = await typesRes.json();
-    if (!types || types.length === 0) return;
-
-    // Get existing documents for this contact
-    const docsUrl = `${supabaseUrl}/rest/v1/documents?contact_id=eq.${contactId}&select=document_type`;
-    const docsRes = await fetch(docsUrl, {
-      headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
-    });
-    if (!docsRes.ok) return;
-    const existingDocs = await docsRes.json();
-    const existingTypes = existingDocs.map(d => d.document_type);
-
-    // Insert missing types
-    const missing = types.filter(t => !existingTypes.includes(t.name));
-    if (missing.length === 0) return;
-
-    const insertPromises = missing.map(t => {
-      return fetch(`${supabaseUrl}/rest/v1/documents`, {
-        method: 'POST',
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contact_id: contactId,
-          document_type: t.name,
-          status: 'pending',
-          provider: null,
-        })
-      });
-    });
-    await Promise.all(insertPromises);
-    console.log(`✅ Inserted missing documents for contact ${contactId}: ${missing.map(t => t.name).join(', ')}`);
-  }
-
   try {
     // ============================================================
     // GET: Fetch contact by email OR fetch documents for a user
@@ -149,17 +192,12 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Email is required' });
       }
 
-      // GET action: 'get_documents' - fetch documents enriched with type metadata
       if (action === 'get_documents') {
-        // 1. Find contact id
+        // Find contact
         const findContactUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=id`;
         const contactResponse = await fetch(findContactUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
         });
-
         if (!contactResponse.ok) {
           const errorText = await contactResponse.text();
           return res.status(contactResponse.status).json({
@@ -168,23 +206,17 @@ export default async function handler(req, res) {
             details: errorText
           });
         }
-
         const contactData = await contactResponse.json();
         if (!contactData || contactData.length === 0) {
           return res.status(404).json({ success: false, error: 'Contact not found' });
         }
-
         const contactId = contactData[0].id;
 
-        // 2. Fetch documents
+        // Fetch documents
         const docsUrl = `${supabaseUrl}/rest/v1/documents?contact_id=eq.${contactId}&select=*`;
         const docsResponse = await fetch(docsUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
         });
-
         if (!docsResponse.ok) {
           const errorText = await docsResponse.text();
           return res.status(docsResponse.status).json({
@@ -193,26 +225,18 @@ export default async function handler(req, res) {
             details: errorText
           });
         }
-
         let documents = await docsResponse.json();
 
-        // 3. Fetch document types to enrich the documents
+        // Enrich with document types
         try {
           const typesUrl = `${supabaseUrl}/rest/v1/document_types?select=*`;
           const typesResponse = await fetch(typesUrl, {
-            headers: {
-              'apikey': supabaseKey,
-              'Authorization': `Bearer ${supabaseKey}`,
-            },
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
           });
-
           if (typesResponse.ok) {
             const types = await typesResponse.json();
             const typeMap = {};
-            types.forEach(t => {
-              typeMap[t.name] = t;
-            });
-
+            types.forEach(t => { typeMap[t.name] = t; });
             documents = documents.map(doc => {
               const type = typeMap[doc.document_type] || {};
               return {
@@ -223,8 +247,6 @@ export default async function handler(req, res) {
                 file_template: type.file_template || null,
               };
             });
-          } else {
-            console.warn('Could not fetch document types; returning raw documents');
           }
         } catch (typeError) {
           console.error('Error fetching document types:', typeError);
@@ -236,12 +258,8 @@ export default async function handler(req, res) {
       // Default GET: Fetch contact by email
       const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
       const response = await fetch(findUrl, {
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
+        headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
       });
-
       if (!response.ok) {
         const errorText = await response.text();
         return res.status(response.status).json({
@@ -250,13 +268,10 @@ export default async function handler(req, res) {
           details: errorText
         });
       }
-
       const data = await response.json();
-
       if (!data || data.length === 0) {
         return res.status(404).json({ success: false, error: 'Contact not found' });
       }
-
       const contact = data[0];
 
       return res.status(200).json({
@@ -268,19 +283,16 @@ export default async function handler(req, res) {
           lastName: contact.last_name || '',
           mobileNumber: contact.mobile_number || '',
           mobileCountryCode: contact.mobile_country_code || '+34',
-          mobile: contact.mobile || '',
           fullName: (contact.first_name || '' + ' ' + contact.last_name || '').trim(),
           otp: contact.otp || '',
           magicLink: contact.magic_link || '',
           linkExpiry: contact.link_expiry || '',
-          createdAt: contact.created_at || '',
-          updatedAt: contact.updated_at || '',
         }
       });
     }
 
     // ============================================================
-    // POST: Create or Update contact
+    // POST: Actions
     // ============================================================
     if (req.method === 'POST') {
       const { action, email, firstName, lastName, mobileNumber, mobileCountryCode, otp, token, expiry } = req.body;
@@ -289,7 +301,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Email is required' });
       }
 
+      // ----------------------------------------------------------
       // UPDATE
+      // ----------------------------------------------------------
       if (action === 'update') {
         if (!firstName) {
           return res.status(400).json({ success: false, error: 'First name is required' });
@@ -300,12 +314,8 @@ export default async function handler(req, res) {
 
         const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
         const findResponse = await fetch(findUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
         });
-
         if (!findResponse.ok) {
           const errorText = await findResponse.text();
           return res.status(findResponse.status).json({
@@ -314,16 +324,16 @@ export default async function handler(req, res) {
             details: errorText
           });
         }
-
         const findData = await findResponse.json();
-
         if (!findData || findData.length === 0) {
           return res.status(404).json({ success: false, error: 'Contact not found' });
         }
-
         const contact = findData[0];
 
-        const finalCountryCode = mobileCountryCode || contact.mobile_country_code || '+34';
+        // Only set country code if mobileNumber is provided and not empty
+        const finalCountryCode = (mobileNumber && mobileNumber.trim() !== '') 
+          ? (mobileCountryCode || contact.mobile_country_code || '+34')
+          : contact.mobile_country_code;
         const finalMobileNumber = mobileNumber || contact.mobile_number || '';
 
         const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
@@ -343,7 +353,6 @@ export default async function handler(req, res) {
             updated_at: new Date().toISOString()
           })
         });
-
         if (!updateResponse.ok) {
           const errorText = await updateResponse.text();
           return res.status(updateResponse.status).json({
@@ -352,7 +361,6 @@ export default async function handler(req, res) {
             details: errorText
           });
         }
-
         const updateData = await updateResponse.json();
         const updatedContact = updateData[0] || updateData;
 
@@ -366,13 +374,14 @@ export default async function handler(req, res) {
             lastName: updatedContact.last_name || '',
             mobileNumber: updatedContact.mobile_number || '',
             mobileCountryCode: updatedContact.mobile_country_code || '+34',
-            mobile: updatedContact.mobile || '',
             fullName: (updatedContact.first_name || '' + ' ' + updatedContact.last_name || '').trim(),
           }
         });
       }
 
+      // ----------------------------------------------------------
       // CREATE
+      // ----------------------------------------------------------
       if (action === 'create') {
         if (!firstName) {
           return res.status(400).json({ success: false, error: 'First name is required' });
@@ -384,12 +393,8 @@ export default async function handler(req, res) {
         // Check if contact already exists
         const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
         const findResponse = await fetch(findUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
         });
-
         if (findResponse.ok) {
           const findData = await findResponse.json();
           if (findData && findData.length > 0) {
@@ -456,29 +461,41 @@ export default async function handler(req, res) {
             lastName: newContact.last_name || '',
             mobileNumber: newContact.mobile_number || '',
             mobileCountryCode: newContact.mobile_country_code || '+34',
-            mobile: newContact.mobile || '',
           }
         });
       }
 
-      // MAGIC_LINK
+      // ----------------------------------------------------------
+      // MAGIC_LINK (generate OTP and send email)
+      // ----------------------------------------------------------
       if (action === 'magic_link') {
-        console.log('[MAGIC_LINK] Starting for email:', email);
-        const otpCode = otp || Math.floor(100000 + Math.random() * 900000).toString();
-        const tokenCode = token || [...Array(32)].map(() => Math.floor(Math.random() * 16).toString(16)).join("");
-        const expiryTime = expiry || new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return res.status(400).json({ success: false, error: 'Invalid email format' });
+        }
+
+        // Rate limiting
+        const rateCheck = checkRateLimit(email, 5, 3);
+        if (!rateCheck.allowed) {
+          return res.status(429).json({
+            success: false,
+            error: `Too many requests. Please wait ${rateCheck.waitMinutes} minute(s) before requesting another code.`
+          });
+        }
+
+        console.log(`[MAGIC_LINK] Starting for email:`, email);
+
+        const otpCode = generateOTP();
+        const tokenCode = generateToken();
+        const expiryTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
         try {
           // Check if contact exists
           const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
-          console.log('[MAGIC_LINK] Finding contact:', findUrl);
           const findResponse = await fetch(findUrl, {
-            headers: {
-              'apikey': supabaseKey,
-              'Authorization': `Bearer ${supabaseKey}`,
-            },
+            headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
           });
-
           if (!findResponse.ok) {
             const errorText = await findResponse.text();
             console.error('[MAGIC_LINK] Failed to find contact:', errorText);
@@ -488,9 +505,9 @@ export default async function handler(req, res) {
               details: errorText
             });
           }
-
           const findData = await findResponse.json();
           let contact = findData[0];
+          let isNewContact = false;
 
           // If contact does not exist, create one (and an account)
           if (!contact) {
@@ -498,7 +515,6 @@ export default async function handler(req, res) {
             try {
               // Create account
               const createAccountUrl = `${supabaseUrl}/rest/v1/accounts`;
-              console.log('[MAGIC_LINK] Creating account:', createAccountUrl);
               const accountRes = await fetch(createAccountUrl, {
                 method: 'POST',
                 headers: {
@@ -520,7 +536,6 @@ export default async function handler(req, res) {
 
               // Create contact
               const createContactUrl = `${supabaseUrl}/rest/v1/contacts`;
-              console.log('[MAGIC_LINK] Creating contact:', createContactUrl);
               const contactRes = await fetch(createContactUrl, {
                 method: 'POST',
                 headers: {
@@ -531,7 +546,7 @@ export default async function handler(req, res) {
                 },
                 body: JSON.stringify({
                   email,
-                  first_name: firstName || '',
+                  first_name: firstName || email.split('@')[0],
                   last_name: lastName || '',
                   account_id: accountId,
                   role: 'primary',
@@ -546,6 +561,7 @@ export default async function handler(req, res) {
               }
               const contactData = await contactRes.json();
               contact = contactData[0] || contactData;
+              isNewContact = true;
               console.log('[MAGIC_LINK] Contact created with id:', contact.id);
             } catch (createError) {
               console.error('[MAGIC_LINK] Error during account/contact creation:', createError);
@@ -561,7 +577,6 @@ export default async function handler(req, res) {
 
           // Update contact with OTP and magic link
           const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
-          console.log('[MAGIC_LINK] Updating contact with OTP:', updateUrl);
           const updateResponse = await fetch(updateUrl, {
             method: 'PATCH',
             headers: {
@@ -577,7 +592,6 @@ export default async function handler(req, res) {
               updated_at: new Date().toISOString()
             })
           });
-
           if (!updateResponse.ok) {
             const errorText = await updateResponse.text();
             console.error('[MAGIC_LINK] Failed to update contact:', errorText);
@@ -587,22 +601,43 @@ export default async function handler(req, res) {
               details: errorText
             });
           }
-
           const updateData = await updateResponse.json();
           const updatedContact = updateData[0] || updateData;
           console.log('[MAGIC_LINK] Contact updated successfully');
 
+          // Send OTP email
+          let emailSent = false;
+          try {
+            const emailRes = await fetch(`${APP_URL}/api/send-otp-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, otp: otpCode })
+            });
+            const emailResult = await emailRes.json();
+            if (emailResult.success) {
+              emailSent = true;
+              console.log(`[MAGIC_LINK] Email sent to ${email}`);
+            } else {
+              console.error('[MAGIC_LINK] Email sending failed:', emailResult.error);
+            }
+          } catch (emailError) {
+            console.error('[MAGIC_LINK] Email error:', emailError);
+          }
+
+          // Return success (token is included for compatibility, but frontend shouldn't rely on it)
           return res.status(200).json({
             success: true,
             otp: otpCode,
             token: tokenCode,
             expiry: expiryTime,
-            contact: {
-              id: updatedContact.id,
-              email: updatedContact.email || '',
-              firstName: updatedContact.first_name || '',
-              lastName: updatedContact.last_name || '',
-            }
+            contactId: contact.id,
+            email: email,
+            firstName: updatedContact.first_name || '',
+            lastName: updatedContact.last_name || '',
+            isNewContact: isNewContact,
+            emailSent: emailSent,
+            remainingRequests: rateCheck.remaining,
+            redirect: `https://www.turnkii.es/otp?email=${encodeURIComponent(email)}`
           });
         } catch (error) {
           console.error('[MAGIC_LINK] Unhandled error:', error);
@@ -614,22 +649,18 @@ export default async function handler(req, res) {
         }
       }
 
+      // ----------------------------------------------------------
       // VERIFY_OTP
+      // ----------------------------------------------------------
       if (action === 'verify_otp') {
-        const { otp } = req.body;
-
         if (!otp) {
           return res.status(400).json({ success: false, error: 'OTP is required' });
         }
 
         const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
         const findResponse = await fetch(findUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
         });
-
         if (!findResponse.ok) {
           const errorText = await findResponse.text();
           return res.status(findResponse.status).json({
@@ -638,27 +669,24 @@ export default async function handler(req, res) {
             details: errorText
           });
         }
-
         const findData = await findResponse.json();
-
         if (!findData || findData.length === 0) {
           return res.status(404).json({ success: false, error: 'Contact not found' });
         }
-
         const contact = findData[0];
 
         if (contact.otp !== otp) {
           return res.status(401).json({ success: false, error: 'Invalid OTP' });
         }
-
         if (contact.link_expiry && new Date(contact.link_expiry) < new Date()) {
           return res.status(401).json({ success: false, error: 'OTP has expired' });
         }
 
-        // Ensure account and documents exist for this contact (fix missing account)
-        await ensureAccount(contact.id);
-        await ensureDocuments(contact.id);
+        // Ensure account and documents exist (safety net)
+        await ensureAccount(contact.id, supabaseUrl, supabaseKey);
+        await ensureDocuments(contact.id, supabaseUrl, supabaseKey);
 
+        // Clear OTP
         const updateUrl = `${supabaseUrl}/rest/v1/contacts?id=eq.${contact.id}`;
         await fetch(updateUrl, {
           method: 'PATCH',
@@ -681,22 +709,18 @@ export default async function handler(req, res) {
         });
       }
 
-      // LOGOUT
-      if (action === 'logout') {
-        const { token } = req.body;
-
+      // ----------------------------------------------------------
+      // VERIFY_TOKEN
+      // ----------------------------------------------------------
+      if (action === 'verify_token') {
         if (!token) {
           return res.status(400).json({ success: false, error: 'Token is required' });
         }
 
         const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
         const findResponse = await fetch(findUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
         });
-
         if (!findResponse.ok) {
           const errorText = await findResponse.text();
           return res.status(findResponse.status).json({
@@ -705,13 +729,59 @@ export default async function handler(req, res) {
             details: errorText
           });
         }
-
         const findData = await findResponse.json();
-
         if (!findData || findData.length === 0) {
           return res.status(404).json({ success: false, error: 'Contact not found' });
         }
+        const contact = findData[0];
 
+        if (contact.magic_link !== token) {
+          return res.status(401).json({ success: false, error: 'Invalid token' });
+        }
+        if (contact.link_expiry && new Date(contact.link_expiry) < new Date()) {
+          return res.status(401).json({ success: false, error: 'Token has expired' });
+        }
+
+        // Ensure account and documents exist (safety net)
+        await ensureAccount(contact.id, supabaseUrl, supabaseKey);
+        await ensureDocuments(contact.id, supabaseUrl, supabaseKey);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Token verified successfully',
+          email: contact.email,
+          firstName: contact.first_name || '',
+          lastName: contact.last_name || '',
+          fullName: (contact.first_name || '' + ' ' + contact.last_name || '').trim(),
+          mobileNumber: contact.mobile_number || '',
+          mobileCountryCode: contact.mobile_country_code || '+34',
+        });
+      }
+
+      // ----------------------------------------------------------
+      // LOGOUT
+      // ----------------------------------------------------------
+      if (action === 'logout') {
+        if (!token) {
+          return res.status(400).json({ success: false, error: 'Token is required' });
+        }
+
+        const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
+        const findResponse = await fetch(findUrl, {
+          headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
+        });
+        if (!findResponse.ok) {
+          const errorText = await findResponse.text();
+          return res.status(findResponse.status).json({
+            success: false,
+            error: 'Failed to find contact',
+            details: errorText
+          });
+        }
+        const findData = await findResponse.json();
+        if (!findData || findData.length === 0) {
+          return res.status(404).json({ success: false, error: 'Contact not found' });
+        }
         const contact = findData[0];
 
         if (contact.magic_link !== token) {
@@ -732,7 +802,6 @@ export default async function handler(req, res) {
             updated_at: new Date().toISOString()
           })
         });
-
         if (!updateResponse.ok) {
           const errorText = await updateResponse.text();
           return res.status(updateResponse.status).json({
@@ -741,69 +810,7 @@ export default async function handler(req, res) {
             details: errorText
           });
         }
-
-        return res.status(200).json({
-          success: true,
-          message: 'Logged out successfully'
-        });
-      }
-
-      // VERIFY_TOKEN
-      if (action === 'verify_token') {
-        const { token } = req.body;
-
-        if (!token) {
-          return res.status(400).json({ success: false, error: 'Token is required' });
-        }
-
-        const findUrl = `${supabaseUrl}/rest/v1/contacts?email=eq.${encodeURIComponent(email)}&select=*`;
-        const findResponse = await fetch(findUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
-        });
-
-        if (!findResponse.ok) {
-          const errorText = await findResponse.text();
-          return res.status(findResponse.status).json({
-            success: false,
-            error: 'Failed to find contact',
-            details: errorText
-          });
-        }
-
-        const findData = await findResponse.json();
-
-        if (!findData || findData.length === 0) {
-          return res.status(404).json({ success: false, error: 'Contact not found' });
-        }
-
-        const contact = findData[0];
-
-        if (contact.magic_link !== token) {
-          return res.status(401).json({ success: false, error: 'Invalid token' });
-        }
-
-        if (contact.link_expiry && new Date(contact.link_expiry) < new Date()) {
-          return res.status(401).json({ success: false, error: 'Token has expired' });
-        }
-
-        // Ensure account and documents exist for this contact (fix missing account)
-        await ensureAccount(contact.id);
-        await ensureDocuments(contact.id);
-
-        return res.status(200).json({
-          success: true,
-          message: 'Token verified successfully',
-          email: contact.email,
-          firstName: contact.first_name || '',
-          lastName: contact.last_name || '',
-          fullName: (contact.first_name || '' + ' ' + contact.last_name || '').trim(),
-          mobileNumber: contact.mobile_number || '',
-          mobileCountryCode: contact.mobile_country_code || '+34',
-          mobile: contact.mobile || '',
-        });
+        return res.status(200).json({ success: true, message: 'Logged out successfully' });
       }
 
       // Unrecognized action
