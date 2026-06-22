@@ -103,7 +103,8 @@ async function ensureAccount(contactId, supabaseUrl, supabaseKey) {
 
 // Ensure documents exist for a contact (safety net)
 async function ensureDocuments(contactId, supabaseUrl, supabaseKey) {
-  const typesUrl = `${supabaseUrl}/rest/v1/document_types?created_on_signup=eq.true&select=name`;
+  // Get document types that should be created on signup
+  const typesUrl = `${supabaseUrl}/rest/v1/document_types?created_on_signup=eq.true&select=name,requires_signing,store_file_1d,display_name,file_template`;
   const typesRes = await fetch(typesUrl, {
     headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
   });
@@ -111,6 +112,7 @@ async function ensureDocuments(contactId, supabaseUrl, supabaseKey) {
   const types = await typesRes.json();
   if (!types || types.length === 0) return true;
 
+  // Get existing documents for this contact
   const docsUrl = `${supabaseUrl}/rest/v1/documents?contact_id=eq.${contactId}&select=document_type`;
   const docsRes = await fetch(docsUrl, {
     headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
@@ -119,9 +121,11 @@ async function ensureDocuments(contactId, supabaseUrl, supabaseKey) {
   const existingDocs = await docsRes.json();
   const existingTypes = existingDocs.map(d => d.document_type);
 
+  // Find missing types
   const missing = types.filter(t => !existingTypes.includes(t.name));
   if (missing.length === 0) return true;
 
+  // Insert each missing document with all fields from document_types
   const insertPromises = missing.map(t => {
     return fetch(`${supabaseUrl}/rest/v1/documents`, {
       method: 'POST',
@@ -135,6 +139,10 @@ async function ensureDocuments(contactId, supabaseUrl, supabaseKey) {
         document_type: t.name,
         status: 'pending',
         provider: null,
+        requires_signing: t.requires_signing || false,
+        store_file_1d: t.store_file_1d || false,
+        display_name: t.display_name || t.name,
+        file_template: t.file_template || null,
       })
     });
   });
