@@ -2,6 +2,40 @@
 import { getOneDriveToken, uploadToOneDrive } from '../../lib/onedrive.js';
 import { supabase } from '../../lib/supabase.js';
 
+const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY;
+
+// Helper: download with retry
+async function downloadWithRetry(url, maxRetries = 3, delay = 1000) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📥 Download attempt ${attempt}/${maxRetries}...`);
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${SIGNFORGE_API_KEY}` },
+      });
+      if (response.ok) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        console.log(`✅ Downloaded PDF (${buffer.length} bytes)`);
+        return buffer;
+      }
+      const errorText = await response.text();
+      console.warn(`⚠️ Attempt ${attempt} failed: ${response.status} - ${errorText}`);
+      lastError = new Error(`Download failed: ${response.status}`);
+      if (attempt < maxRetries) {
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    } catch (err) {
+      console.warn(`⚠️ Attempt ${attempt} error: ${err.message}`);
+      lastError = err;
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError || new Error('Download failed after retries');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -71,7 +105,6 @@ export default async function handler(req, res) {
     console.log(`✅ Found document: ${foundDoc.id} (${foundDoc.document_type})`);
 
     // 2. Get signed PDF URL from the webhook payload directly
-    // The payload already contains data.download_urls.signed
     const signedUrl = payload.data?.download_urls?.signed || payload.download_urls?.signed;
     if (!signedUrl) {
       console.error('❌ No signed PDF URL in payload');
@@ -94,22 +127,12 @@ export default async function handler(req, res) {
 
     console.log(`✅ Found signed PDF URL: ${signedUrl}`);
 
-    // 3. Download signed PDF from SignForge using the URL from payload
+    // 3. Download signed PDF with retry
     let pdfBuffer = null;
     try {
-      console.log(`📥 Downloading signed PDF from SignForge...`);
-      const downloadResponse = await fetch(signedUrl);
-
-      if (!downloadResponse.ok) {
-        const errorText = await downloadResponse.text();
-        console.error('❌ Failed to download PDF:', downloadResponse.status, errorText);
-        throw new Error(`PDF download failed: ${downloadResponse.status} - ${errorText}`);
-      }
-
-      pdfBuffer = Buffer.from(await downloadResponse.arrayBuffer());
-      console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
+      pdfBuffer = await downloadWithRetry(signedUrl, 3, 1000);
     } catch (downloadErr) {
-      console.error('❌ PDF download error:', downloadErr.message);
+      console.error('❌ PDF download error after retries:', downloadErr.message);
       // Update status without file
       const updateResult = await supabase
         .from('documents')
