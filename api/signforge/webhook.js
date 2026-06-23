@@ -105,7 +105,10 @@ export default async function handler(req, res) {
     console.log(`✅ Found document: ${foundDoc.id} (${foundDoc.document_type})`);
 
     // 2. Get signed PDF URL from the webhook payload directly
-    const signedUrl = payload.data?.download_urls?.signed || payload.download_urls?.signed;
+    // const signedUrl = payload.data?.download_urls?.signed || payload.download_urls?.signed;
+    const downloadResponse = await fetch(signedUrl, {
+      headers: { 'X-API-Key': SIGNFORGE_API_KEY },
+    });
     if (!signedUrl) {
       console.error('❌ No signed PDF URL in payload');
       // Still update status to 'signed' without file

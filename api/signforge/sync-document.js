@@ -1,7 +1,7 @@
 // api/signforge/sync-document.js
 // Manually sync a document's signed PDF URL from SignForge
 
-import { getOneDriveToken, uploadToOneDrive, uploadToOneDriveById } from '../../lib/onedrive.js';
+import { getOneDriveToken, uploadToOneDriveById } from '../../lib/onedrive.js';
 import { supabase } from '../../lib/supabase.js';
 
 const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY;
@@ -82,13 +82,13 @@ export default async function handler(req, res) {
     const doc = docs[0];
     console.log(`✅ Found document: ${doc.id}, status: ${doc.status}, provider_request_id: ${doc.provider_request_id}`);
 
-    // If already signed and has signed_url, return it
-    if (doc.status === 'signed' && doc.signed_url && doc.signed_url.includes('download')) {
-      console.log(`✅ Document already has direct signed_url`);
+    // If already has a OneDrive URL (not the SignForge API endpoint), return it
+    if (doc.signed_url && doc.signed_url.includes('onedrive.live.com')) {
+      console.log(`✅ Document already has OneDrive signed_url: ${doc.signed_url}`);
       return res.status(200).json({
         success: true,
         document: doc,
-        message: 'Document already has signed URL',
+        message: 'Document already has OneDrive signed URL',
       });
     }
 
@@ -134,6 +134,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // Find the signed document in the envelope response
     const signedDoc = envData.documents?.find(d => d.kind === 'signed');
     if (!signedDoc || !signedDoc.download_url) {
       console.error('❌ No signed document found in envelope');
@@ -144,62 +145,131 @@ export default async function handler(req, res) {
       });
     }
 
-    const signedUrl = signedDoc.download_url;
-    console.log(`✅ Found signed URL: ${signedUrl}`);
+    // The download_url from the envelope should be a pre-authenticated URL
+    // If it's an API endpoint, we need to add the API key
+    let signedPdfUrl = signedDoc.download_url;
+    console.log(`✅ Found signed PDF URL: ${signedPdfUrl}`);
 
-    // 5. Try to download and upload to OneDrive
+    // 5. Try to download the signed PDF
+    let pdfBuffer = null;
+    let downloadSuccess = false;
+
+    try {
+      console.log(`📥 Downloading signed PDF...`);
+      
+      // If the URL is an API endpoint, add the API key header
+      let downloadHeaders = {};
+      if (signedPdfUrl.includes('/api/v1/')) {
+        downloadHeaders = { 'X-API-Key': SIGNFORGE_API_KEY };
+        console.log(`🔑 Adding API key header for API endpoint`);
+      }
+      
+      const downloadRes = await fetch(signedPdfUrl, {
+        headers: downloadHeaders,
+      });
+
+      if (downloadRes.ok) {
+        pdfBuffer = Buffer.from(await downloadRes.arrayBuffer());
+        downloadSuccess = true;
+        console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
+      } else {
+        const errorText = await downloadRes.text();
+        console.warn(`⚠️ Download failed: ${downloadRes.status} - ${errorText}`);
+        
+        // If it's an API endpoint and we get a 401, the API key might be invalid
+        if (downloadRes.status === 401) {
+          console.error('❌ API key authentication failed. Please check SIGNFORGE_API_KEY');
+        }
+      }
+    } catch (err) {
+      console.error('❌ Download error:', err.message);
+    }
+
+    // If download failed, try the direct API endpoint with the envelope ID
+    if (!downloadSuccess && pdfBuffer === null) {
+      try {
+        const apiUrl = `${SIGNFORGE_API_BASE}/envelopes/${doc.provider_request_id}/documents/signed`;
+        console.log(`🔄 Trying alternative download from: ${apiUrl}`);
+        const downloadRes = await fetch(apiUrl, {
+          headers: { 'X-API-Key': SIGNFORGE_API_KEY },
+        });
+        if (downloadRes.ok) {
+          pdfBuffer = Buffer.from(await downloadRes.arrayBuffer());
+          downloadSuccess = true;
+          console.log(`✅ Downloaded PDF from alternative URL (${pdfBuffer.length} bytes)`);
+        } else {
+          console.warn(`⚠️ Alternative download failed: ${downloadRes.status}`);
+        }
+      } catch (err) {
+        console.error('❌ Alternative download error:', err.message);
+      }
+    }
+
+    // If download still failed, update status and return
+    if (!downloadSuccess || pdfBuffer === null) {
+      console.error('❌ PDF download failed after all attempts');
+      const updateResult = await supabase
+        .from('documents')
+        .update({
+          status: 'signed',
+          signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', doc.id);
+      if (updateResult.error) {
+        console.error('❌ Failed to update document:', updateResult.error);
+        return res.status(500).json({ error: 'Update failed' });
+      }
+      return res.status(200).json({ 
+        success: true, 
+        document: doc, 
+        message: 'Signed status updated, but PDF download failed' 
+      });
+    }
+
+    // 6. Upload to OneDrive
     let uploadResult = null;
-    let oneDriveToken = null;
     let directUrl = null;
     let webUrl = null;
 
     try {
-      console.log(`📥 Downloading signed PDF...`);
-      const downloadRes = await fetch(signedUrl, {
-        headers: { 'X-API-Key': SIGNFORGE_API_KEY },
-      });
-      if (downloadRes.ok) {
-        const pdfBuffer = Buffer.from(await downloadRes.arrayBuffer());
-        console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
+      console.log(`📤 Uploading signed PDF to OneDrive...`);
+      const oneDriveToken = await getOneDriveToken();
+      if (!oneDriveToken) {
+        throw new Error('Failed to get OneDrive token');
+      }
+      
+      const fileName = `signed_${doc.file_name || 'document.pdf'}`;
+      uploadResult = await uploadToOneDriveById(
+        oneDriveToken,
+        contactId,
+        fileName,
+        pdfBuffer
+      );
+      webUrl = uploadResult.webUrl;
+      console.log(`✅ Uploaded to OneDrive: ${webUrl}`);
 
-        oneDriveToken = await getOneDriveToken();
-        if (oneDriveToken) {
-          const fileName = `signed_${doc.file_name || 'document.pdf'}`;
-          // 🔥 FIX: Use contact ID for folder structure
-          uploadResult = await uploadToOneDriveById(
-            oneDriveToken,
-            contactId,
-            fileName,
-            pdfBuffer
-          );
-          webUrl = uploadResult.webUrl;
-          console.log(`✅ Uploaded to OneDrive: ${webUrl}`);
-
-          // Get the direct download URL from OneDrive
-          try {
-            const itemUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadResult.id}?select=@microsoft.graph.downloadUrl`;
-            const itemRes = await fetch(itemUrl, {
-              headers: { 'Authorization': `Bearer ${oneDriveToken}` }
-            });
-            if (itemRes.ok) {
-              const itemData = await itemRes.json();
-              directUrl = itemData['@microsoft.graph.downloadUrl'];
-              if (directUrl) {
-                console.log(`✅ Got direct download URL: ${directUrl}`);
-              }
-            }
-          } catch (err) {
-            console.warn('⚠️ Could not fetch direct download URL:', err.message);
+      // Get the direct download URL from OneDrive
+      try {
+        const itemUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadResult.id}?select=@microsoft.graph.downloadUrl`;
+        const itemRes = await fetch(itemUrl, {
+          headers: { 'Authorization': `Bearer ${oneDriveToken}` }
+        });
+        if (itemRes.ok) {
+          const itemData = await itemRes.json();
+          directUrl = itemData['@microsoft.graph.downloadUrl'];
+          if (directUrl) {
+            console.log(`✅ Got direct download URL: ${directUrl}`);
           }
         }
-      } else {
-        console.warn(`⚠️ Download failed: ${downloadRes.status} - ${await downloadRes.text()}`);
+      } catch (err) {
+        console.warn('⚠️ Could not fetch direct download URL:', err.message);
       }
-    } catch (err) {
-      console.error('❌ Download/upload error:', err.message);
+    } catch (uploadErr) {
+      console.error('❌ OneDrive upload error:', uploadErr.message);
     }
 
-    // 6. Update the document
+    // 7. Update the document
     const updateData = {
       status: 'signed',
       signed_at: new Date().toISOString(),
@@ -210,7 +280,7 @@ export default async function handler(req, res) {
       // Use direct download URL for viewing (opens in browser)
       updateData.signed_url = directUrl;
       updateData.file_url = directUrl;
-      updateData.file_web_url = webUrl; // Store the web UI link separately
+      updateData.file_web_url = webUrl;
       updateData.file_id = uploadResult.id;
       console.log(`✅ Storing direct URL: ${directUrl}`);
     } else if (uploadResult) {
@@ -218,11 +288,11 @@ export default async function handler(req, res) {
       updateData.signed_url = uploadResult.webUrl;
       updateData.file_url = uploadResult.webUrl;
       updateData.file_id = uploadResult.id;
-      console.log(`⚠️ Storing OneDrive web URL (no direct URL): ${uploadResult.webUrl}`);
+      console.log(`⚠️ Storing OneDrive web URL: ${uploadResult.webUrl}`);
     } else {
-      // Ultimate fallback: store the SignForge URL (short-lived but better than nothing)
-      updateData.signed_url = signedUrl;
-      console.log(`⚠️ Storing SignForge URL as fallback: ${signedUrl}`);
+      // If we can't upload to OneDrive, store the SignForge URL but with a warning
+      updateData.signed_url = signedPdfUrl;
+      console.log(`⚠️ Storing SignForge URL as fallback: ${signedPdfUrl}`);
     }
 
     const updateRes = await supabase
