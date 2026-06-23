@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const payload = req.body;
     const { event } = payload;
 
-    // --- Determine envelope_id from query or body ---
+    // Determine envelope_id from query or body
     const envelopeIdFromQuery = req.query.envelope_id;
     const envelopeIdFromBody = payload.envelope_id || payload.id;
     const envelopeId = envelopeIdFromQuery || envelopeIdFromBody;
@@ -70,7 +70,6 @@ export default async function handler(req, res) {
 
       if (!foundDoc) {
         console.error('❌ Document not found after all attempts.');
-        // Return 200 to avoid SignForge retrying (we've already logged the error)
         return res.status(200).json({ received: true, error: 'Document not found' });
       }
     }
@@ -78,10 +77,10 @@ export default async function handler(req, res) {
     console.log(`✅ Found document: ${foundDoc.id} (${foundDoc.document_type})`);
 
     // ============================================================
-    // 2. Download signed PDF from SignForge (temporarily disabled)
+    // 2. Download signed PDF from SignForge (re-enabled)
     // ============================================================
-    /*
     let pdfBuffer = null;
+    let downloadSucceeded = false;
     try {
       console.log(`📥 Downloading signed PDF from SignForge...`);
       const downloadUrl = `${SIGNFORGE_API_BASE}/envelopes/${envelopeId}/pdf`;
@@ -101,72 +100,82 @@ export default async function handler(req, res) {
 
       pdfBuffer = Buffer.from(await downloadResponse.arrayBuffer());
       console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
+      downloadSucceeded = true;
     } catch (downloadErr) {
       console.error('❌ PDF download error:', downloadErr.message);
-      return res.status(500).json({ error: 'PDF download failed' });
+      // We'll still update status later, but without signed_url
     }
-    */
 
     // ============================================================
-    // 3. Get contact email for folder structure (temporarily disabled)
+    // 3. Get contact email for folder structure (if download succeeded)
     // ============================================================
-    /*
     let contactEmail = 'unknown';
-    try {
-      const { data: contact, error: contactErr } = await supabase
-        .from('contacts')
-        .select('email')
-        .eq('id', foundDoc.contact_id)
-        .single();
-      if (contactErr) {
-        console.warn('⚠️ Could not fetch contact email:', contactErr.message);
-      } else if (contact?.email) {
-        contactEmail = contact.email;
+    if (downloadSucceeded) {
+      try {
+        const { data: contact, error: contactErr } = await supabase
+          .from('contacts')
+          .select('email')
+          .eq('id', foundDoc.contact_id)
+          .single();
+        if (contactErr) {
+          console.warn('⚠️ Could not fetch contact email:', contactErr.message);
+        } else if (contact?.email) {
+          contactEmail = contact.email;
+        }
+      } catch (contactErr) {
+        console.warn('⚠️ Contact fetch error:', contactErr.message);
       }
-    } catch (contactErr) {
-      console.warn('⚠️ Contact fetch error:', contactErr.message);
     }
-    */
 
     // ============================================================
-    // 4. Upload to OneDrive (temporarily disabled)
+    // 4. Upload to OneDrive (if download succeeded)
     // ============================================================
-    /*
     let uploadResult = null;
-    try {
-      console.log(`📤 Uploading signed PDF to OneDrive...`);
-      const oneDriveToken = await getOneDriveToken();
-      if (!oneDriveToken) {
-        throw new Error('Failed to get OneDrive token');
+    if (downloadSucceeded) {
+      try {
+        console.log(`📤 Uploading signed PDF to OneDrive...`);
+        const oneDriveToken = await getOneDriveToken();
+        if (!oneDriveToken) {
+          throw new Error('Failed to get OneDrive token');
+        }
+        const fileName = `signed_${foundDoc.file_name || 'document.pdf'}`;
+        uploadResult = await uploadToOneDrive(
+          oneDriveToken,
+          contactEmail,
+          fileName,
+          pdfBuffer
+        );
+        console.log(`✅ Uploaded to OneDrive: ${uploadResult.webUrl}`);
+      } catch (uploadErr) {
+        console.error('❌ OneDrive upload error:', uploadErr.message);
+        // We'll still update status, but without signed_url/file_url
+        uploadResult = null;
       }
-      const fileName = `signed_${foundDoc.file_name || 'document.pdf'}`;
-      uploadResult = await uploadToOneDrive(
-        oneDriveToken,
-        contactEmail,
-        fileName,
-        pdfBuffer
-      );
-      console.log(`✅ Uploaded to OneDrive: ${uploadResult.webUrl}`);
-    } catch (uploadErr) {
-      console.error('❌ OneDrive upload error:', uploadErr.message);
-      return res.status(500).json({ error: 'OneDrive upload failed' });
     }
-    */
 
     // ============================================================
-    // 5. Update document record – status only (PDF download/upload skipped)
+    // 5. Update document record – always update status, and add signed_url if available
     // ============================================================
     try {
+      const updateData = {
+        status: 'signed',
+        signed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (uploadResult) {
+        updateData.signed_url = uploadResult.webUrl;
+        updateData.file_url = uploadResult.webUrl;
+        updateData.file_id = uploadResult.id;
+      } else if (downloadSucceeded) {
+        // Download worked but upload failed – we could store the download URL temporarily
+        // For now, we just log it
+        console.warn('⚠️ Upload failed, but download succeeded – signed_url not stored');
+      }
+
       const updateResult = await supabase
         .from('documents')
-        .update({
-          // signed_url: uploadResult.webUrl,  // temporarily disabled
-          // file_url: uploadResult.webUrl,    // temporarily disabled
-          // file_id: uploadResult.id,         // temporarily disabled
-          status: 'signed',
-          signed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', foundDoc.id);
 
       if (updateResult.error) {
