@@ -493,6 +493,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 .document-item .doc-actions .btn-sign {
   background: #3d0566;
@@ -523,6 +524,66 @@
 }
 .document-item .doc-actions .btn-info:hover {
   color: #1a0233;
+}
+/* View button (green) */
+.document-item .doc-actions .btn-view {
+  background: #28a745;
+  color: white;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: opacity 0.2s;
+}
+.document-item .doc-actions .btn-view:hover {
+  opacity: 0.85;
+}
+/* Download button (blue) */
+.document-item .doc-actions .btn-download {
+  background: #0066cc;
+  color: white;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: opacity 0.2s;
+}
+.document-item .doc-actions .btn-download:hover {
+  opacity: 0.85;
+}
+/* Delete button (red) */
+.document-item .doc-actions .btn-delete {
+  background: #dc3545;
+  color: white;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: opacity 0.2s;
+}
+.document-item .doc-actions .btn-delete:hover {
+  opacity: 0.85;
+}
+/* Sync button (purple) */
+.document-item .doc-actions .btn-sync {
+  background: #7c3aed;
+  color: white;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: opacity 0.2s;
+}
+.document-item .doc-actions .btn-sync:hover {
+  opacity: 0.85;
 }
 .doc-context-lightbox .lightbox {
   max-width: 500px;
@@ -582,6 +643,8 @@ function showToast(message, type, duration) {
   var VERIFY_ENDPOINT = 'https://project-qv4f9.vercel.app/api/sp-contact';
   var CONTACT_ENDPOINT = 'https://project-qv4f9.vercel.app/api/sp-contact';
   var UPDATE_ENDPOINT = 'https://project-qv4f9.vercel.app/api/sp-contact';
+  var DOCUMENT_ENDPOINT = 'https://project-qv4f9.vercel.app/api/documents/upload';
+  var SYNC_ENDPOINT = 'https://project-qv4f9.vercel.app/api/signforge/sync-document';
   
   var urlParams = new URLSearchParams(window.location.search);
   var email = urlParams.get('email');
@@ -833,13 +896,16 @@ function showToast(message, type, duration) {
   };
   
   // ============================================================
-  // DOCUMENT FUNCTIONS (Dynamic)
+  // DOCUMENT FUNCTIONS
   // ============================================================
   
   var SIGNING_TYPE_MAP = {
     'NIE_APODERADO': 'nie',
     'DATA_POLICY': 'privacy'
   };
+  
+  // Global document store (keyed by document ID)
+  window._docs = {};
   
   async function fetchUserDocuments(email) {
     try {
@@ -849,6 +915,10 @@ function showToast(message, type, duration) {
       });
       var data = await response.json();
       if (data.success) {
+        // Store documents globally
+        data.documents.forEach(function(doc) {
+          window._docs[doc.id] = doc;
+        });
         return data.documents || [];
       } else {
         console.error('Failed to fetch documents:', data.error);
@@ -860,6 +930,41 @@ function showToast(message, type, duration) {
     }
   }
   
+  // ---- Sync with SignForge ----
+  window.syncWithSignForge = function(doc) {
+    var data = currentContactData;
+    if (!data.email) {
+      showToast('Email not found.', 'error');
+      return;
+    }
+    
+    showToast('Syncing with SignForge...', 'info');
+    
+    fetch(SYNC_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: data.email,
+        documentType: doc.document_type
+      })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(result) {
+      if (result.success) {
+        showToast('Sync successful!', 'success');
+        fetchUserDocuments(data.email).then(function(docs) {
+          renderDocuments(docs);
+        });
+      } else {
+        showToast('Sync failed: ' + (result.error || 'Unknown error'), 'error');
+      }
+    })
+    .catch(function(err) {
+      showToast('Network error: ' + err.message, 'error');
+    });
+  };
+  
+  // ---- Sign document ----
   window.signDocument = async function(doc) {
     var data = currentContactData;
     var docType = doc.document_type;
@@ -928,6 +1033,7 @@ function showToast(message, type, duration) {
     }
   };
   
+  // ---- Upload document ----
   window.uploadDocument = function(doc) {
     var data = currentContactData;
     var docType = doc.document_type;
@@ -947,7 +1053,7 @@ function showToast(message, type, duration) {
       
       showToast('Uploading ' + displayName + '...', 'info');
       
-      fetch('https://project-qv4f9.vercel.app/api/documents/upload', {
+      fetch(DOCUMENT_ENDPOINT, {
         method: 'POST',
         body: formData
       })
@@ -967,6 +1073,107 @@ function showToast(message, type, duration) {
       });
     };
     input.click();
+  };
+  
+// ---- View document ----
+window.viewDocument = function(doc) {
+  var data = currentContactData;
+  if (!data.email) {
+    showToast('Email not found.', 'error');
+    return;
+  }
+
+  // Use the direct download URL (raw file)
+  var fileUrl = doc.file_url || doc.signed_url;
+  if (!fileUrl) {
+    showToast('No file available to view.', 'error');
+    return;
+  }
+
+  showToast('Opening file...', 'info');
+  // Fetch the file and create a blob URL to render natively
+  fetch(fileUrl)
+    .then(function(response) {
+      if (!response.ok) throw new Error('Failed to fetch file');
+      return response.blob();
+    })
+    .then(function(blob) {
+      var blobUrl = URL.createObjectURL(blob);
+      // Open in a new tab
+      var newWindow = window.open(blobUrl, '_blank');
+      if (!newWindow) {
+        // Popup blocked – fallback to direct URL (may download)
+        window.open(fileUrl, '_blank');
+      }
+      // Revoke the blob URL after a delay (not critical)
+      setTimeout(function() {
+        URL.revokeObjectURL(blobUrl);
+      }, 60000);
+    })
+    .catch(function(err) {
+      console.error('View error:', err);
+      // Fallback: try opening the direct URL (may download or show OneDrive)
+      window.open(fileUrl, '_blank');
+    });
+};
+
+// ---- Download document (direct download) ----
+window.downloadDocument = function(doc) {
+  var data = currentContactData;
+  if (!data.email) {
+    showToast('Email not found.', 'error');
+    return;
+  }
+  if (!doc.file_url && !doc.signed_url) {
+    showToast('No file available to download.', 'error');
+    return;
+  }
+  var url = doc.file_url || doc.signed_url;
+  showToast('Downloading file...', 'info');
+  window.open(url, '_blank');
+};
+  
+  // ---- Delete document ----
+  window.deleteDocument = function(doc) {
+    var data = currentContactData;
+    if (!data.email) {
+      showToast('Email not found.', 'error');
+      return;
+    }
+    if (!doc.file_id) {
+      showToast('No file to delete.', 'error');
+      return;
+    }
+    
+    var displayName = doc.display_name || doc.document_type;
+    if (!confirm('Delete uploaded file for "' + displayName + '"? You can upload a new one later.')) {
+      return;
+    }
+    
+    showToast('Deleting file...', 'info');
+    
+    fetch(DOCUMENT_ENDPOINT, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: data.email,
+        documentType: doc.document_type
+      })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(result) {
+      if (result.success) {
+        showToast('File deleted. You can now upload a new one.', 'success');
+        fetchUserDocuments(data.email).then(function(docs) {
+          renderDocuments(docs);
+        });
+      } else {
+        showToast('Delete failed: ' + (result.error || 'Unknown error'), 'error');
+      }
+    })
+    .catch(function(err) {
+      showToast('Network error: ' + err.message, 'error');
+    });
   };
   
   window.showDocumentContext = function(doc) {
@@ -1008,19 +1215,25 @@ function showToast(message, type, duration) {
     });
   };
   
+  // ---- Render documents (with Sync button) ----
   function renderDocuments(documents) {
     var container = document.getElementById('documents-container');
     if (!container) return;
-    
+
     if (!documents || documents.length === 0) {
       container.innerHTML = '<div class="documents-section"><h2>📄 Your Documents</h2><p style="color:#6c757d;">No documents found.</p></div>';
       return;
     }
-    
+
+    // Store in global store
+    documents.forEach(function(doc) {
+      window._docs[doc.id] = doc;
+    });
+
     documents.sort(function(a, b) {
       return (a.display_name || a.document_type).localeCompare(b.display_name || b.document_type);
     });
-    
+
     var html = '<div class="documents-section"><h2>📄 Your Documents</h2>';
     
     documents.forEach(function(doc) {
@@ -1030,38 +1243,91 @@ function showToast(message, type, duration) {
       var signedDate = doc.signed_at ? new Date(doc.signed_at).toLocaleDateString() : null;
       var displayName = doc.display_name || doc.document_type;
       
-      // 🔥 FIX: Force PASSPORT to always use Upload
-      var shouldSign = (doc.requires_signing === true) && (doc.document_type !== 'PASSPORT');
-      var actionButton = '';
-      if (!isCompleted) {
+      var actionButtonsHtml = '';
+      
+      if (status === 'signed' && doc.signed_url) {
+        // Use the same view function as uploaded documents
+        actionButtonsHtml = `<button class="btn-view" data-action="view-signed" data-doc-id="${doc.id}">View Signed</button>`;
+      } else if (isCompleted && doc.file_url && doc.status === 'completed') {
+        actionButtonsHtml = `
+          <button class="btn-view" data-action="view" data-doc-id="${doc.id}">View</button>
+          <button class="btn-download" data-action="download" data-doc-id="${doc.id}">Download</button>
+          <button class="btn-delete" data-action="delete" data-doc-id="${doc.id}">Delete</button>
+        `;
+      } else if (status === 'sent' || (status === 'signed' && !doc.signed_url)) {
+        actionButtonsHtml = `
+          <button class="btn-sync" data-action="sync" data-doc-id="${doc.id}">Sync</button>
+        `;
+      } else if (!isCompleted) {
+        var shouldSign = (doc.requires_signing === true) && (doc.document_type !== 'PASSPORT');
         if (shouldSign) {
-          actionButton = '<button class="btn-sign" onclick="window.signDocument(window._doc_'+doc.id+')">Sign</button>';
+          actionButtonsHtml = `<button class="btn-sign" data-action="sign" data-doc-id="${doc.id}">Sign</button>`;
         } else {
-          actionButton = '<button class="btn-sign" onclick="window.uploadDocument(window._doc_'+doc.id+')">Upload</button>';
+          actionButtonsHtml = `<button class="btn-sign" data-action="upload" data-doc-id="${doc.id}">Upload</button>`;
         }
       }
       
-      window['_doc_'+doc.id] = doc;
-      
       html += `
-        <div class="document-item">
+        <div class="document-item" data-doc-id="${doc.id}">
           <div class="doc-info">
             <span class="doc-name">${displayName}</span>
             <span class="doc-status ${isCompleted ? 'signed' : 'pending'}">${statusLabel}</span>
             ${signedDate ? '<span class="doc-date-signed">Signed: ' + signedDate + '</span>' : ''}
           </div>
           <div class="doc-actions">
-            <button class="btn-info" onclick="window.showDocumentContext(window._doc_'+doc.id+')" title="More info">?</button>
-            ${actionButton}
+            <button class="btn-info" data-action="info" data-doc-id="${doc.id}">?</button>
+            ${actionButtonsHtml}
           </div>
         </div>
       `;
     });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    // ---- Attach event listeners using delegation ----
+    container.querySelectorAll('.document-item').forEach(function(item) {
+      item.addEventListener('click', function(e) {
+        var target = e.target.closest('button');
+        if (!target) return;
+        var action = target.dataset.action;
+        var docId = parseInt(target.dataset.docId);
+        var doc = window._docs[docId];
+        if (!doc) return;
+        
+        switch (action) {
+          case 'view':
+            window.viewDocument(doc);
+            break;
+          case 'view-signed':
+            // Use the same viewDocument function for signed documents
+            window.viewDocument(doc);
+            break;
+          case 'download':
+            window.downloadDocument(doc);
+            break;
+          case 'delete':
+            window.deleteDocument(doc);
+            break;
+          case 'sign':
+            window.signDocument(doc);
+            break;
+          case 'upload':
+            window.uploadDocument(doc);
+            break;
+          case 'sync':
+            window.syncWithSignForge(doc);
+            break;
+          case 'info':
+            window.showDocumentContext(doc);
+            break;
+          default:
+            break;
+        }
+      });
+    });
+  }
   
-  html += '</div>';
-  container.innerHTML = html;
-}
-
   // ============================================================
   // Logout Function
   // ============================================================
@@ -1209,7 +1475,6 @@ function showToast(message, type, duration) {
   // ============================================================
   var decodedEmail = decodeURIComponent(email);
   
-  // Call sp-contact with action=verify_token
   fetch(VERIFY_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1232,7 +1497,6 @@ function showToast(message, type, duration) {
       throw new Error(data.message || data.error || 'Invalid session');
     }
     
-    // Populate currentContactData from the response
     currentContactData = {
       email: data.email || decodedEmail,
       firstName: data.firstName || '',

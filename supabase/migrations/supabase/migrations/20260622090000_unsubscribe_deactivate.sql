@@ -96,3 +96,5 @@ COMMIT;
 
 DROP TRIGGER IF EXISTS after_contact_insert ON contacts;
 DROP FUNCTION IF EXISTS create_initial_documents() CASCADE;
+
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_web_url TEXT;
