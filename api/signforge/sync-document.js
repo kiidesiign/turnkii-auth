@@ -83,8 +83,8 @@ export default async function handler(req, res) {
     console.log(`✅ Found document: ${doc.id}, status: ${doc.status}, provider_request_id: ${doc.provider_request_id}`);
 
     // If already signed and has signed_url, return it
-    if (doc.status === 'signed' && doc.signed_url) {
-      console.log(`✅ Document already has signed_url: ${doc.signed_url}`);
+    if (doc.status === 'signed' && doc.signed_url && doc.signed_url.includes('download')) {
+      console.log(`✅ Document already has direct signed_url`);
       return res.status(200).json({
         success: true,
         document: doc,
@@ -149,11 +149,15 @@ export default async function handler(req, res) {
 
     // 5. Try to download and upload to OneDrive
     let uploadResult = null;
+    let oneDriveToken = null;
+    let directUrl = null;
+    let webUrl = null;
+
     try {
       console.log(`📥 Downloading signed PDF...`);
-    const downloadRes = await fetch(signedUrl, {
-      headers: { 'X-API-Key': SIGNFORGE_API_KEY },
-    });
+      const downloadRes = await fetch(signedUrl, {
+        headers: { 'X-API-Key': SIGNFORGE_API_KEY },
+      });
       if (downloadRes.ok) {
         const pdfBuffer = Buffer.from(await downloadRes.arrayBuffer());
         console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
@@ -165,7 +169,7 @@ export default async function handler(req, res) {
           .eq('id', doc.contact_id)
           .single();
 
-        const oneDriveToken = await getOneDriveToken();
+        oneDriveToken = await getOneDriveToken();
         if (oneDriveToken) {
           const fileName = `signed_${doc.file_name || 'document.pdf'}`;
           uploadResult = await uploadToOneDrive(
@@ -174,7 +178,25 @@ export default async function handler(req, res) {
             fileName,
             pdfBuffer
           );
-          console.log(`✅ Uploaded to OneDrive: ${uploadResult.webUrl}`);
+          webUrl = uploadResult.webUrl;
+          console.log(`✅ Uploaded to OneDrive: ${webUrl}`);
+
+          // Get the direct download URL from OneDrive
+          try {
+            const itemUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${uploadResult.id}?select=@microsoft.graph.downloadUrl`;
+            const itemRes = await fetch(itemUrl, {
+              headers: { 'Authorization': `Bearer ${oneDriveToken}` }
+            });
+            if (itemRes.ok) {
+              const itemData = await itemRes.json();
+              directUrl = itemData['@microsoft.graph.downloadUrl'];
+              if (directUrl) {
+                console.log(`✅ Got direct download URL: ${directUrl}`);
+              }
+            }
+          } catch (err) {
+            console.warn('⚠️ Could not fetch direct download URL:', err.message);
+          }
         }
       } else {
         console.warn(`⚠️ Download failed: ${downloadRes.status} - ${await downloadRes.text()}`);
@@ -190,13 +212,21 @@ export default async function handler(req, res) {
       updated_at: new Date().toISOString(),
     };
 
-    if (uploadResult) {
+    if (directUrl) {
+      // Use direct download URL for viewing (opens in browser)
+      updateData.signed_url = directUrl;
+      updateData.file_url = directUrl;
+      updateData.file_web_url = webUrl; // Store the web UI link separately
+      updateData.file_id = uploadResult.id;
+      console.log(`✅ Storing direct URL: ${directUrl}`);
+    } else if (uploadResult) {
+      // Fallback to OneDrive web URL
       updateData.signed_url = uploadResult.webUrl;
       updateData.file_url = uploadResult.webUrl;
       updateData.file_id = uploadResult.id;
-      console.log(`✅ Storing OneDrive URL: ${uploadResult.webUrl}`);
+      console.log(`⚠️ Storing OneDrive web URL (no direct URL): ${uploadResult.webUrl}`);
     } else {
-      // Fallback: store the SignForge URL
+      // Ultimate fallback: store the SignForge URL (short-lived but better than nothing)
       updateData.signed_url = signedUrl;
       console.log(`⚠️ Storing SignForge URL as fallback: ${signedUrl}`);
     }
