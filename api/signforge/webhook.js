@@ -78,8 +78,9 @@ export default async function handler(req, res) {
     console.log(`✅ Found document: ${foundDoc.id} (${foundDoc.document_type})`);
 
     // ============================================================
-    // 2. Download signed PDF from SignForge
+    // 2. Download signed PDF from SignForge (temporarily disabled)
     // ============================================================
+    /*
     let pdfBuffer = null;
     try {
       console.log(`📥 Downloading signed PDF from SignForge...`);
@@ -95,7 +96,6 @@ export default async function handler(req, res) {
       if (!downloadResponse.ok) {
         const errorText = await downloadResponse.text();
         console.error('❌ Failed to download PDF:', downloadResponse.status, errorText);
-        // If PDF is not ready (e.g., 404 or 400), we can retry later – but we'll log and fail.
         throw new Error(`PDF download failed: ${downloadResponse.status} - ${errorText}`);
       }
 
@@ -103,13 +103,14 @@ export default async function handler(req, res) {
       console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
     } catch (downloadErr) {
       console.error('❌ PDF download error:', downloadErr.message);
-      // Return 500 so SignForge retries later
       return res.status(500).json({ error: 'PDF download failed' });
     }
+    */
 
     // ============================================================
-    // 3. Get contact email for folder structure
+    // 3. Get contact email for folder structure (temporarily disabled)
     // ============================================================
+    /*
     let contactEmail = 'unknown';
     try {
       const { data: contact, error: contactErr } = await supabase
@@ -125,10 +126,12 @@ export default async function handler(req, res) {
     } catch (contactErr) {
       console.warn('⚠️ Contact fetch error:', contactErr.message);
     }
+    */
 
     // ============================================================
-    // 4. Upload to OneDrive
+    // 4. Upload to OneDrive (temporarily disabled)
     // ============================================================
+    /*
     let uploadResult = null;
     try {
       console.log(`📤 Uploading signed PDF to OneDrive...`);
@@ -146,20 +149,20 @@ export default async function handler(req, res) {
       console.log(`✅ Uploaded to OneDrive: ${uploadResult.webUrl}`);
     } catch (uploadErr) {
       console.error('❌ OneDrive upload error:', uploadErr.message);
-      // Return 500 so SignForge retries
       return res.status(500).json({ error: 'OneDrive upload failed' });
     }
+    */
 
     // ============================================================
-    // 5. Update document record
+    // 5. Update document record – status only (PDF download/upload skipped)
     // ============================================================
     try {
       const updateResult = await supabase
         .from('documents')
         .update({
-          signed_url: uploadResult.webUrl,
-          file_url: uploadResult.webUrl,   // also store the signed PDF as the main file (optional)
-          file_id: uploadResult.id,
+          // signed_url: uploadResult.webUrl,  // temporarily disabled
+          // file_url: uploadResult.webUrl,    // temporarily disabled
+          // file_id: uploadResult.id,         // temporarily disabled
           status: 'signed',
           signed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -181,7 +184,6 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('❌ Webhook processing error:', error);
-    // Log the full stack trace
     console.error('Stack:', error.stack);
     return res.status(500).json({ error: error.message });
   }
