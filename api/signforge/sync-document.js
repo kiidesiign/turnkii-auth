@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase.js';
 const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY;
 const SIGNFORGE_API_BASE = 'https://signforge.io/api/v1';
 
-// Helper: Create an anonymous sharing link
+// Helper: Create an anonymous sharing link (1drv.ms)
 async function createSharingLink(accessToken, fileId) {
   const url = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/createLink`;
   const response = await fetch(url, {
@@ -169,6 +169,7 @@ export default async function handler(req, res) {
     }
 
     // The download_url from the envelope should be a pre-authenticated URL
+    // If it's an API endpoint, we need to add the API key
     let signedPdfUrl = signedDoc.download_url;
     console.log(`✅ Found signed PDF URL: ${signedPdfUrl}`);
 
@@ -197,6 +198,11 @@ export default async function handler(req, res) {
       } else {
         const errorText = await downloadRes.text();
         console.warn(`⚠️ Download failed: ${downloadRes.status} - ${errorText}`);
+        
+        // If it's an API endpoint and we get a 401, the API key might be invalid
+        if (downloadRes.status === 401) {
+          console.error('❌ API key authentication failed. Please check SIGNFORGE_API_KEY');
+        }
       }
     } catch (err) {
       console.error('❌ Download error:', err.message);
@@ -284,7 +290,7 @@ export default async function handler(req, res) {
         console.warn('⚠️ Could not fetch direct download URL:', err.message);
       }
 
-      // Create anonymous sharing link (like Passport upload)
+      // Create anonymous sharing link (1drv.ms) like Passport upload
       try {
         shareLink = await createSharingLink(oneDriveToken, uploadResult.id);
         if (shareLink) {
