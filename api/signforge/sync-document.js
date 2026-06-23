@@ -107,7 +107,7 @@ export default async function handler(req, res) {
     console.log(`🔍 Fetching envelope from SignForge: ${doc.provider_request_id}`);
     const envUrl = `${SIGNFORGE_API_BASE}/envelopes/${doc.provider_request_id}`;
     const envResponse = await fetch(envUrl, {
-      headers: { 'Authorization': `Bearer ${SIGNFORGE_API_KEY}` },
+      headers: { 'X-API-Key': SIGNFORGE_API_KEY },
     });
 
     if (!envResponse.ok) {
@@ -151,9 +151,9 @@ export default async function handler(req, res) {
     let uploadResult = null;
     try {
       console.log(`📥 Downloading signed PDF...`);
-      const downloadRes = await fetch(signedUrl, {
-        headers: { 'Authorization': `Bearer ${SIGNFORGE_API_KEY}` },
-      });
+    const downloadRes = await fetch(signedUrl, {
+      headers: { 'X-API-Key': SIGNFORGE_API_KEY },
+    });
       if (downloadRes.ok) {
         const pdfBuffer = Buffer.from(await downloadRes.arrayBuffer());
         console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
