@@ -138,8 +138,9 @@ export default async function handler(req, res) {
       // We'll still try to store the signed URL as a fallback
     }
 
-    // 4. Get contact email for folder structure (only if download succeeded)
+    // 4. Get contact info (keep email for reference, but use contact_id for folder)
     let contactEmail = 'unknown';
+    let contactId = foundDoc.contact_id; // Use this for folder structure
     if (downloadSuccess) {
       try {
         const { data: contact, error: contactErr } = await supabase
@@ -157,7 +158,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 5. Upload to OneDrive (only if download succeeded)
+    // 5. Upload to OneDrive using contact ID (only if download succeeded)
     let uploadResult = null;
     if (downloadSuccess && pdfBuffer) {
       try {
@@ -167,9 +168,10 @@ export default async function handler(req, res) {
           throw new Error('Failed to get OneDrive token');
         }
         const fileName = `signed_${foundDoc.file_name || 'document.pdf'}`;
-        uploadResult = await uploadToOneDrive(
+        // 🔥 FIX: Use contact ID for folder structure
+        uploadResult = await uploadToOneDriveById(
           oneDriveToken,
-          contactEmail,
+          contactId,
           fileName,
           pdfBuffer
         );

@@ -256,7 +256,12 @@ export default async function handler(req, res) {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `${documentType.toLowerCase()}_${timestamp}.${fileExtension}`;
       const accessToken = await getOneDriveToken();
-      const uploadResult = await uploadToOneDrive(accessToken, email, filename, processedBuffer);
+      const uploadResult = await uploadToOneDriveById(
+        accessToken,
+        contactId,  // <-- new way using contact ID
+        filename,
+        processedBuffer
+      );
       console.log('✅ Uploaded to OneDrive. File ID:', uploadResult.id);
 
       // ---- Fetch direct download URL ----

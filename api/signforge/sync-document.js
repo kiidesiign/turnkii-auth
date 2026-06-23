@@ -1,7 +1,7 @@
 // api/signforge/sync-document.js
 // Manually sync a document's signed PDF URL from SignForge
 
-import { getOneDriveToken, uploadToOneDrive } from '../../lib/onedrive.js';
+import { getOneDriveToken, uploadToOneDriveById } from '../../lib/onedrive.js';
 import { supabase } from '../../lib/supabase.js';
 
 const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY;
@@ -162,19 +162,13 @@ export default async function handler(req, res) {
         const pdfBuffer = Buffer.from(await downloadRes.arrayBuffer());
         console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
 
-        // Get contact email for folder
-        const { data: contact } = await supabase
-          .from('contacts')
-          .select('email')
-          .eq('id', doc.contact_id)
-          .single();
-
         oneDriveToken = await getOneDriveToken();
         if (oneDriveToken) {
           const fileName = `signed_${doc.file_name || 'document.pdf'}`;
-          uploadResult = await uploadToOneDrive(
+          // 🔥 FIX: Use contact ID for folder structure
+          uploadResult = await uploadToOneDriveById(
             oneDriveToken,
-            contact?.email || 'unknown',
+            contactId,
             fileName,
             pdfBuffer
           );
