@@ -1,7 +1,7 @@
 // api/documents/upload.js
 // Consolidated endpoint for document operations: upload (POST), view (GET), delete (DELETE)
 
-import { getOneDriveToken, uploadToOneDrive, deleteOneDriveFile } from '../../lib/onedrive.js';
+import { getOneDriveToken, uploadToOneDrive, uploadToOneDriveById, deleteOneDriveFile } from '../../lib/onedrive.js';
 import multer from 'multer';
 import { promisify } from 'util';
 import {

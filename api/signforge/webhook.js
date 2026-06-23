@@ -1,5 +1,5 @@
 // api/signforge/webhook.js
-import { getOneDriveToken, uploadToOneDrive } from '../../lib/onedrive.js';
+import { getOneDriveToken, uploadToOneDrive, uploadToOneDriveById } from '../../lib/onedrive.js';
 import { supabase } from '../../lib/supabase.js';
 
 const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY;
