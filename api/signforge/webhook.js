@@ -129,61 +129,55 @@ export default async function handler(req, res) {
 
     // 3. Download signed PDF with retry
     let pdfBuffer = null;
+    let downloadSuccess = false;
     try {
       pdfBuffer = await downloadWithRetry(signedUrl, 3, 1000);
+      downloadSuccess = true;
     } catch (downloadErr) {
       console.error('❌ PDF download error after retries:', downloadErr.message);
-      // Update status without file
-      const updateResult = await supabase
-        .from('documents')
-        .update({
-          status: 'signed',
-          signed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', foundDoc.id);
-      if (updateResult.error) {
-        console.error('❌ Failed to update document:', updateResult.error);
-        return res.status(500).json({ error: 'Update failed' });
-      }
-      return res.status(200).json({ received: true });
+      // We'll still try to store the signed URL as a fallback
     }
 
-    // 4. Get contact email for folder structure
+    // 4. Get contact email for folder structure (only if download succeeded)
     let contactEmail = 'unknown';
-    try {
-      const { data: contact, error: contactErr } = await supabase
-        .from('contacts')
-        .select('email')
-        .eq('id', foundDoc.contact_id)
-        .single();
-      if (contactErr) {
-        console.warn('⚠️ Could not fetch contact email:', contactErr.message);
-      } else if (contact?.email) {
-        contactEmail = contact.email;
+    if (downloadSuccess) {
+      try {
+        const { data: contact, error: contactErr } = await supabase
+          .from('contacts')
+          .select('email')
+          .eq('id', foundDoc.contact_id)
+          .single();
+        if (contactErr) {
+          console.warn('⚠️ Could not fetch contact email:', contactErr.message);
+        } else if (contact?.email) {
+          contactEmail = contact.email;
+        }
+      } catch (contactErr) {
+        console.warn('⚠️ Contact fetch error:', contactErr.message);
       }
-    } catch (contactErr) {
-      console.warn('⚠️ Contact fetch error:', contactErr.message);
     }
 
-    // 5. Upload to OneDrive
+    // 5. Upload to OneDrive (only if download succeeded)
     let uploadResult = null;
-    try {
-      console.log(`📤 Uploading signed PDF to OneDrive...`);
-      const oneDriveToken = await getOneDriveToken();
-      if (!oneDriveToken) {
-        throw new Error('Failed to get OneDrive token');
+    if (downloadSuccess && pdfBuffer) {
+      try {
+        console.log(`📤 Uploading signed PDF to OneDrive...`);
+        const oneDriveToken = await getOneDriveToken();
+        if (!oneDriveToken) {
+          throw new Error('Failed to get OneDrive token');
+        }
+        const fileName = `signed_${foundDoc.file_name || 'document.pdf'}`;
+        uploadResult = await uploadToOneDrive(
+          oneDriveToken,
+          contactEmail,
+          fileName,
+          pdfBuffer
+        );
+        console.log(`✅ Uploaded to OneDrive: ${uploadResult.webUrl}`);
+      } catch (uploadErr) {
+        console.error('❌ OneDrive upload error:', uploadErr.message);
+        uploadResult = null;
       }
-      const fileName = `signed_${foundDoc.file_name || 'document.pdf'}`;
-      uploadResult = await uploadToOneDrive(
-        oneDriveToken,
-        contactEmail,
-        fileName,
-        pdfBuffer
-      );
-      console.log(`✅ Uploaded to OneDrive: ${uploadResult.webUrl}`);
-    } catch (uploadErr) {
-      console.error('❌ OneDrive upload error:', uploadErr.message);
     }
 
     // 6. Update document record
@@ -194,12 +188,19 @@ export default async function handler(req, res) {
         updated_at: new Date().toISOString(),
       };
 
+      // If OneDrive upload succeeded, store those URLs
       if (uploadResult) {
         updateData.signed_url = uploadResult.webUrl;
         updateData.file_url = uploadResult.webUrl;
         updateData.file_id = uploadResult.id;
+        console.log(`✅ Storing OneDrive URL: ${uploadResult.webUrl}`);
+      } else if (signedUrl) {
+        // If upload failed but we have the signed URL, store it as signed_url
+        // (this is a fallback so the user can at least view the signed PDF)
+        updateData.signed_url = signedUrl;
+        console.log(`⚠️ Storing SignForge signed URL as fallback: ${signedUrl}`);
       } else {
-        console.warn('⚠️ OneDrive upload failed, not storing signed_url');
+        console.warn('⚠️ No URL to store');
       }
 
       const updateResult = await supabase
