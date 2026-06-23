@@ -7,6 +7,29 @@ import { supabase } from '../../lib/supabase.js';
 const SIGNFORGE_API_KEY = process.env.SIGNFORGE_API_KEY;
 const SIGNFORGE_API_BASE = 'https://signforge.io/api/v1';
 
+// Helper: Create an anonymous sharing link
+async function createSharingLink(accessToken, fileId) {
+  const url = `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/createLink`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'view',
+      scope: 'anonymous',
+    }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.warn(`Failed to create sharing link: ${errorText}`);
+    return null;
+  }
+  const data = await response.json();
+  return data.link?.webUrl || null;
+}
+
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -146,7 +169,6 @@ export default async function handler(req, res) {
     }
 
     // The download_url from the envelope should be a pre-authenticated URL
-    // If it's an API endpoint, we need to add the API key
     let signedPdfUrl = signedDoc.download_url;
     console.log(`✅ Found signed PDF URL: ${signedPdfUrl}`);
 
@@ -175,11 +197,6 @@ export default async function handler(req, res) {
       } else {
         const errorText = await downloadRes.text();
         console.warn(`⚠️ Download failed: ${downloadRes.status} - ${errorText}`);
-        
-        // If it's an API endpoint and we get a 401, the API key might be invalid
-        if (downloadRes.status === 401) {
-          console.error('❌ API key authentication failed. Please check SIGNFORGE_API_KEY');
-        }
       }
     } catch (err) {
       console.error('❌ Download error:', err.message);
@@ -231,6 +248,7 @@ export default async function handler(req, res) {
     let uploadResult = null;
     let directUrl = null;
     let webUrl = null;
+    let shareLink = null;
 
     try {
       console.log(`📤 Uploading signed PDF to OneDrive...`);
@@ -265,6 +283,16 @@ export default async function handler(req, res) {
       } catch (err) {
         console.warn('⚠️ Could not fetch direct download URL:', err.message);
       }
+
+      // Create anonymous sharing link (like Passport upload)
+      try {
+        shareLink = await createSharingLink(oneDriveToken, uploadResult.id);
+        if (shareLink) {
+          console.log(`✅ Created anonymous sharing link: ${shareLink}`);
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not create sharing link:', err.message);
+      }
     } catch (uploadErr) {
       console.error('❌ OneDrive upload error:', uploadErr.message);
     }
@@ -280,17 +308,22 @@ export default async function handler(req, res) {
       // Use direct download URL for viewing (opens in browser)
       updateData.signed_url = directUrl;
       updateData.file_url = directUrl;
-      updateData.file_web_url = webUrl;
       updateData.file_id = uploadResult.id;
+      // Store sharing link as file_web_url (prefer sharing link over webUrl)
+      updateData.file_web_url = shareLink || webUrl;
       console.log(`✅ Storing direct URL: ${directUrl}`);
+      if (shareLink) {
+        console.log(`✅ Storing sharing link: ${shareLink}`);
+      }
     } else if (uploadResult) {
       // Fallback to OneDrive web URL
       updateData.signed_url = uploadResult.webUrl;
       updateData.file_url = uploadResult.webUrl;
       updateData.file_id = uploadResult.id;
+      updateData.file_web_url = shareLink || uploadResult.webUrl;
       console.log(`⚠️ Storing OneDrive web URL: ${uploadResult.webUrl}`);
     } else {
-      // If we can't upload to OneDrive, store the SignForge URL but with a warning
+      // If we can't upload to OneDrive, store the SignForge URL as fallback
       updateData.signed_url = signedPdfUrl;
       console.log(`⚠️ Storing SignForge URL as fallback: ${signedPdfUrl}`);
     }
