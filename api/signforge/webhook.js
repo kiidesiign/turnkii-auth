@@ -21,21 +21,18 @@ export default async function handler(req, res) {
 
     console.log(`📥 SignForge webhook: ${event} for envelope ${envelopeId}`);
     console.log(`📥 Full payload:`, JSON.stringify(payload, null, 2));
-    console.log(`📥 Query:`, req.query);
 
     if (!envelopeId) {
       console.error('❌ No envelope ID found in request');
       return res.status(400).json({ error: 'Missing envelope_id' });
     }
 
-    // For non-completed events, just acknowledge
+    // Only process completed events
     if (event !== 'envelope.completed') {
       return res.status(200).json({ received: true });
     }
 
-    // ============================================================
     // 1. Find the document in Supabase
-    // ============================================================
     console.log(`🔍 Looking for document with provider_request_id = "${envelopeId}"`);
     const { data: doc, error: findError } = await supabase
       .from('documents')
@@ -52,7 +49,7 @@ export default async function handler(req, res) {
 
     if (!foundDoc) {
       console.warn(`⚠️ No document found with provider_request_id = "${envelopeId}"`);
-      // Fallback: try using the id field from the payload (if present and different)
+      // Fallback: try using the id field from the payload
       if (payload.id && payload.id !== envelopeId) {
         console.log(`🔄 Fallback: trying to find document with id = ${payload.id}`);
         const { data: fallbackDoc, error: fallbackError } = await supabase
@@ -76,21 +73,50 @@ export default async function handler(req, res) {
 
     console.log(`✅ Found document: ${foundDoc.id} (${foundDoc.document_type})`);
 
-    // ============================================================
-    // 2. Download signed PDF from SignForge (re-enabled)
-    // ============================================================
+    // 2. Fetch envelope details to get the signed document download URL
+    console.log(`📦 Fetching envelope details from SignForge...`);
+    const envUrl = `${SIGNFORGE_API_BASE}/envelopes/${envelopeId}`;
+    const envResponse = await fetch(envUrl, {
+      headers: { 'Authorization': `Bearer ${SIGNFORGE_API_KEY}` },
+    });
+
+    if (!envResponse.ok) {
+      const errorText = await envResponse.text();
+      console.error('❌ Failed to fetch envelope details:', errorText);
+      throw new Error('Failed to fetch envelope details');
+    }
+
+    const envData = await envResponse.json();
+    console.log(`✅ Envelope details retrieved. Documents:`, envData.documents?.length || 0);
+
+    // Find the signed document
+    const signedDoc = envData.documents?.find(d => d.kind === 'signed');
+    if (!signedDoc || !signedDoc.download_url) {
+      console.error('❌ Signed document not found or missing download_url');
+      // Still update status to 'signed' but without file
+      const updateResult = await supabase
+        .from('documents')
+        .update({
+          status: 'signed',
+          signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', foundDoc.id);
+      if (updateResult.error) {
+        console.error('❌ Failed to update document:', updateResult.error);
+        return res.status(500).json({ error: 'Update failed' });
+      }
+      return res.status(200).json({ received: true, error: 'Signed PDF not available' });
+    }
+
+    const signedPdfUrl = signedDoc.download_url;
+    console.log(`✅ Found signed PDF URL: ${signedPdfUrl}`);
+
+    // 3. Download signed PDF from SignForge
     let pdfBuffer = null;
-    let downloadSucceeded = false;
     try {
       console.log(`📥 Downloading signed PDF from SignForge...`);
-      const downloadUrl = `${SIGNFORGE_API_BASE}/envelopes/${envelopeId}/pdf`;
-      console.log(`   URL: ${downloadUrl}`);
-      
-      const downloadResponse = await fetch(downloadUrl, {
-        headers: { 'Authorization': `Bearer ${SIGNFORGE_API_KEY}` },
-      });
-
-      console.log(`   Download response status: ${downloadResponse.status}`);
+      const downloadResponse = await fetch(signedPdfUrl);
 
       if (!downloadResponse.ok) {
         const errorText = await downloadResponse.text();
@@ -100,62 +126,63 @@ export default async function handler(req, res) {
 
       pdfBuffer = Buffer.from(await downloadResponse.arrayBuffer());
       console.log(`✅ Downloaded PDF (${pdfBuffer.length} bytes)`);
-      downloadSucceeded = true;
     } catch (downloadErr) {
       console.error('❌ PDF download error:', downloadErr.message);
-      // We'll still update status later, but without signed_url
+      // Still update status without file
+      const updateResult = await supabase
+        .from('documents')
+        .update({
+          status: 'signed',
+          signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', foundDoc.id);
+      if (updateResult.error) {
+        console.error('❌ Failed to update document:', updateResult.error);
+        return res.status(500).json({ error: 'Update failed' });
+      }
+      return res.status(200).json({ received: true, error: 'PDF download failed' });
     }
 
-    // ============================================================
-    // 3. Get contact email for folder structure (if download succeeded)
-    // ============================================================
+    // 4. Get contact email for folder structure
     let contactEmail = 'unknown';
-    if (downloadSucceeded) {
-      try {
-        const { data: contact, error: contactErr } = await supabase
-          .from('contacts')
-          .select('email')
-          .eq('id', foundDoc.contact_id)
-          .single();
-        if (contactErr) {
-          console.warn('⚠️ Could not fetch contact email:', contactErr.message);
-        } else if (contact?.email) {
-          contactEmail = contact.email;
-        }
-      } catch (contactErr) {
-        console.warn('⚠️ Contact fetch error:', contactErr.message);
+    try {
+      const { data: contact, error: contactErr } = await supabase
+        .from('contacts')
+        .select('email')
+        .eq('id', foundDoc.contact_id)
+        .single();
+      if (contactErr) {
+        console.warn('⚠️ Could not fetch contact email:', contactErr.message);
+      } else if (contact?.email) {
+        contactEmail = contact.email;
       }
+    } catch (contactErr) {
+      console.warn('⚠️ Contact fetch error:', contactErr.message);
     }
 
-    // ============================================================
-    // 4. Upload to OneDrive (if download succeeded)
-    // ============================================================
+    // 5. Upload to OneDrive
     let uploadResult = null;
-    if (downloadSucceeded) {
-      try {
-        console.log(`📤 Uploading signed PDF to OneDrive...`);
-        const oneDriveToken = await getOneDriveToken();
-        if (!oneDriveToken) {
-          throw new Error('Failed to get OneDrive token');
-        }
-        const fileName = `signed_${foundDoc.file_name || 'document.pdf'}`;
-        uploadResult = await uploadToOneDrive(
-          oneDriveToken,
-          contactEmail,
-          fileName,
-          pdfBuffer
-        );
-        console.log(`✅ Uploaded to OneDrive: ${uploadResult.webUrl}`);
-      } catch (uploadErr) {
-        console.error('❌ OneDrive upload error:', uploadErr.message);
-        // We'll still update status, but without signed_url/file_url
-        uploadResult = null;
+    try {
+      console.log(`📤 Uploading signed PDF to OneDrive...`);
+      const oneDriveToken = await getOneDriveToken();
+      if (!oneDriveToken) {
+        throw new Error('Failed to get OneDrive token');
       }
+      const fileName = `signed_${foundDoc.file_name || 'document.pdf'}`;
+      uploadResult = await uploadToOneDrive(
+        oneDriveToken,
+        contactEmail,
+        fileName,
+        pdfBuffer
+      );
+      console.log(`✅ Uploaded to OneDrive: ${uploadResult.webUrl}`);
+    } catch (uploadErr) {
+      console.error('❌ OneDrive upload error:', uploadErr.message);
+      // We'll still update status, but without signed_url/file_url
     }
 
-    // ============================================================
-    // 5. Update document record – always update status, and add signed_url if available
-    // ============================================================
+    // 6. Update document record
     try {
       const updateData = {
         status: 'signed',
@@ -167,10 +194,10 @@ export default async function handler(req, res) {
         updateData.signed_url = uploadResult.webUrl;
         updateData.file_url = uploadResult.webUrl;
         updateData.file_id = uploadResult.id;
-      } else if (downloadSucceeded) {
-        // Download worked but upload failed – we could store the download URL temporarily
-        // For now, we just log it
-        console.warn('⚠️ Upload failed, but download succeeded – signed_url not stored');
+      } else {
+        // If upload failed but we have the signed PDF URL, we could store that temporarily
+        // but it's short-lived. We'll just log.
+        console.warn('⚠️ OneDrive upload failed, not storing signed_url');
       }
 
       const updateResult = await supabase
