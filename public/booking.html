@@ -86,7 +86,7 @@
 
     .slots-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
       gap: 10px;
       margin-top: 8px;
     }
@@ -193,7 +193,7 @@
 <body>
   <div class="container" id="app">
     <h1>📅 Book a Meeting</h1>
-    <p class="subtitle">15-minute consultation</p>
+    <p class="subtitle">30-minute consultation</p>
     
     <div class="availability-info">
       ⏰ Available: Mon-Thu 14:00-17:00 · Fri 14:00-16:00
@@ -207,7 +207,7 @@
 
     <!-- Available Slots -->
     <div class="form-group">
-      <label>Available Times</label>
+      <label>Available Times (30-minute slots)</label>
       <div id="slotsContainer">
         <div class="loading">Loading available slots...</div>
       </div>
