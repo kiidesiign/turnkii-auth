@@ -48,7 +48,7 @@ if (RESEND_API_KEY) {
   console.log('⚠️ Resend not configured - emails will be skipped');
 }
 
-// Availability in UTC (London is UTC+1 during BST)
+// Availability in UTC
 const AVAILABILITY_SCHEDULE = {
   monday:    { start: 13, end: 16 },
   tuesday:   { start: 13, end: 16 },
@@ -59,7 +59,7 @@ const AVAILABILITY_SCHEDULE = {
   sunday:    null
 };
 
-// API: Get available slots (FIXED)
+// API: Get available slots (with dual time display)
 app.get('/api/slots', async (req, res) => {
   try {
     const { date } = req.query;
@@ -68,7 +68,7 @@ app.get('/api/slots', async (req, res) => {
     }
 
     const slots = getManualSlots(new Date(date));
-    console.log(`📅 Slots for ${date}:`, slots.map(s => `${s.display} (${s.start})`));
+    console.log(`📅 Slots for ${date}:`, slots.map(s => s.display));
     res.json({ slots });
   } catch (error) {
     console.error('Error getting slots:', error);
@@ -89,7 +89,6 @@ app.post('/api/book', async (req, res) => {
       });
     }
 
-    // Parse and validate the time
     const bookingDate = new Date(startTime);
     const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const hour = bookingDate.getUTCHours();
@@ -102,7 +101,6 @@ app.post('/api/book', async (req, res) => {
       });
     }
 
-    // Allow 0 or 30 minutes only
     if (minute !== 0 && minute !== 30) {
       return res.status(400).json({ 
         error: 'Bookings must start on the hour or half-hour' 
@@ -117,13 +115,11 @@ app.post('/api/book', async (req, res) => {
       });
     }
 
-    // Ensure UTC format
     let start = startTime;
     if (!start.endsWith('Z')) {
       start = new Date(startTime).toISOString();
     }
 
-    // 1. Create booking in Cal.com
     console.log('📤 Creating booking in Cal.eu...');
     const response = await fetch('https://api.cal.eu/v2/bookings', {
       method: 'POST',
@@ -159,12 +155,15 @@ app.post('/api/book', async (req, res) => {
 
     const booking = data.data;
 
-    // 2. Send confirmation email via Resend
+    // Send email
     if (resend) {
       console.log('📧 Sending confirmation email via Resend...');
       try {
         const meetingTime = new Date(booking.start);
         const meetingEnd = new Date(booking.end);
+        
+        // Calculate European time (CEST = UTC+2)
+        const europeTime = new Date(meetingTime.getTime() + 60 * 60 * 1000); // London + 1 hour
         
         const emailData = {
           from: FROM_EMAIL,
@@ -178,7 +177,7 @@ app.post('/api/book', async (req, res) => {
                 
                 <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
                   <p style="margin: 4px 0;"><strong>📅 Date:</strong> ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p style="margin: 4px 0;"><strong>⏰ Time:</strong> ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${meetingEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London time)</p>
+                  <p style="margin: 4px 0;"><strong>⏰ Time:</strong> ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London) / ${europeTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (CEST)</p>
                   <p style="margin: 4px 0;"><strong>👤 Attendee:</strong> ${name}</p>
                   <p style="margin: 4px 0;"><strong>📧 Email:</strong> ${email}</p>
                   ${notes ? `<p style="margin: 4px 0;"><strong>📝 Notes:</strong> ${notes}</p>` : ''}
@@ -201,7 +200,7 @@ app.post('/api/book', async (req, res) => {
           text: `
             Meeting Confirmed!
             Date: ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            Time: ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${meetingEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London time)
+            Time: ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London) / ${europeTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (CEST)
             Attendee: ${name}
             Email: ${email}
             ${notes ? `Notes: ${notes}` : ''}
@@ -214,11 +213,8 @@ app.post('/api/book', async (req, res) => {
       } catch (emailError) {
         console.error('❌ Email sending failed:', emailError.message);
       }
-    } else {
-      console.log('⚠️ Resend not configured - skipping email');
     }
 
-    // 3. Return success response
     res.json({
       success: true,
       booking: {
@@ -238,7 +234,7 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// 🔥 FIXED: Generate 30-min slots
+// 🔥 UPDATED: Generate slots with dual time display
 function getManualSlots(date) {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[date.getDay()];
@@ -249,32 +245,31 @@ function getManualSlots(date) {
   const slots = [];
   const dateStr = date.toISOString().split('T')[0];
   
-  for (let hour = schedule.start; hour < schedule.end; hour++) {
-    // On the hour
-    const timeStr1 = `${dateStr}T${String(hour).padStart(2, '0')}:00:00Z`;
-    const dateObj1 = new Date(timeStr1);
-    const londonTime1 = new Date(dateObj1.getTime() + 60 * 60 * 1000);
+  let currentHour = schedule.start;
+  let currentMinute = 0;
+  
+  while (currentHour < schedule.end) {
+    const timeStr = `${dateStr}T${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}:00Z`;
+    const utcTime = new Date(timeStr);
+    
+    // London time (UTC+1 during BST)
+    const londonTime = new Date(utcTime.getTime() + 60 * 60 * 1000);
+    
+    // European time (CEST = UTC+2 during summer)
+    const europeTime = new Date(utcTime.getTime() + 2 * 60 * 60 * 1000);
+    
     slots.push({
-      start: timeStr1,
-      display: londonTime1.toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      })
+      start: timeStr,
+      display: `${londonTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} UK / ${europeTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} EU`
     });
-
-    // 30 minutes past the hour (if not at the end)
-    const timeStr2 = `${dateStr}T${String(hour).padStart(2, '0')}:30:00Z`;
-    const dateObj2 = new Date(timeStr2);
-    const londonTime2 = new Date(dateObj2.getTime() + 60 * 60 * 1000);
-    slots.push({
-      start: timeStr2,
-      display: londonTime2.toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      })
-    });
+    
+    // Move to next 30-minute slot
+    if (currentMinute === 0) {
+      currentMinute = 30;
+    } else {
+      currentMinute = 0;
+      currentHour++;
+    }
   }
 
   return slots;
