@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Resend } from 'resend';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,18 +23,23 @@ app.use(express.static('public'));
 const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || process.env.NEXT_PUBLIC_CAL_EVENT_TYPE_ID || '344929', 10);
 const CAL_API_KEY = process.env.CAL_API_KEY || '';
 
+// Resend Configuration
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@yourdomain.com';
+const NOTIFY_EMAIL = process.env.RESEND_TO_EMAIL || 'gavin911@proton.me';
+
 console.log(`📅 Event Type ID: ${EVENT_TYPE_ID}`);
 console.log(`🔑 CAL_API_KEY exists: ${CAL_API_KEY ? 'Yes' : 'No'}`);
+console.log(`📧 Resend configured: ${process.env.RESEND_API_KEY ? 'Yes' : 'No'}`);
+console.log(`📧 From email: ${FROM_EMAIL}`);
 
-// 🔥 AVAILABILITY IN UTC (London is UTC+1 during BST)
-// London 14:00-17:00 = UTC 13:00-16:00
-// London 14:00-16:00 (Fri) = UTC 13:00-15:00
+// Availability in UTC (London is UTC+1 during BST)
 const AVAILABILITY_SCHEDULE = {
-  monday:    { start: 13, end: 16 }, // 14:00-17:00 London
+  monday:    { start: 13, end: 16 },
   tuesday:   { start: 13, end: 16 },
   wednesday: { start: 13, end: 16 },
   thursday:  { start: 13, end: 16 },
-  friday:    { start: 13, end: 15 }, // 14:00-16:00 London
+  friday:    { start: 13, end: 15 },
   saturday:  null,
   sunday:    null
 };
@@ -47,7 +53,6 @@ app.get('/api/slots', async (req, res) => {
     }
 
     const slots = getManualSlots(new Date(date));
-    console.log(`📅 Slots for ${date}:`, slots.map(s => s.display));
     res.json({ slots });
   } catch (error) {
     console.error('Error getting slots:', error);
@@ -68,13 +73,12 @@ app.post('/api/book', async (req, res) => {
       });
     }
 
-    // Parse the time
+    // Parse and validate the time
     const bookingDate = new Date(startTime);
     const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const hour = bookingDate.getUTCHours();
     const minute = bookingDate.getUTCMinutes();
 
-    // Check if it's a valid day
     const schedule = AVAILABILITY_SCHEDULE[dayOfWeek];
     if (!schedule) {
       return res.status(400).json({ 
@@ -82,7 +86,6 @@ app.post('/api/book', async (req, res) => {
       });
     }
 
-    // Check if within hours (UTC)
     if (hour < schedule.start || hour > schedule.end || (hour === schedule.end && minute > 0)) {
       const startLondon = schedule.start + 1;
       const endLondon = schedule.end + 1;
@@ -97,8 +100,8 @@ app.post('/api/book', async (req, res) => {
       start = new Date(startTime).toISOString();
     }
 
-    console.log('📤 Sending to Cal.eu:', { eventTypeId: EVENT_TYPE_ID, start });
-
+    // 1. Create booking in Cal.com
+    console.log('📤 Creating booking in Cal.eu...');
     const response = await fetch('https://api.cal.eu/v2/bookings', {
       method: 'POST',
       headers: {
@@ -131,14 +134,78 @@ app.post('/api/book', async (req, res) => {
       throw new Error(data.error?.message || 'Booking failed');
     }
 
+    const booking = data.data;
+
+    // 2. Send confirmation email via Resend
+    console.log('📧 Sending confirmation email via Resend...');
+    const meetingTime = new Date(booking.start);
+    const meetingEnd = new Date(booking.end);
+    
+    const emailData = {
+      from: FROM_EMAIL,
+      to: [email, NOTIFY_EMAIL],
+      subject: `Meeting Confirmed: ${meetingTime.toLocaleDateString()} at ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb; border-radius: 12px;">
+          <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+            <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">✅ Meeting Confirmed</h1>
+            <p style="color: #666; margin-bottom: 24px;">Your meeting has been scheduled successfully.</p>
+            
+            <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+              <p style="margin: 4px 0;"><strong>📅 Date:</strong> ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p style="margin: 4px 0;"><strong>⏰ Time:</strong> ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${meetingEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London time)</p>
+              <p style="margin: 4px 0;"><strong>👤 Attendee:</strong> ${name}</p>
+              <p style="margin: 4px 0;"><strong>📧 Email:</strong> ${email}</p>
+              ${notes ? `<p style="margin: 4px 0;"><strong>📝 Notes:</strong> ${notes}</p>` : ''}
+            </div>
+
+            ${booking.meetingUrl ? `
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${booking.meetingUrl}" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 500;">
+                  🔗 Join Meeting
+                </a>
+              </div>
+            ` : ''}
+
+            <p style="color: #999; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 16px;">
+              This meeting was booked via Turnkii. Need to reschedule? <a href="mailto:${NOTIFY_EMAIL}" style="color: #3b82f6; text-decoration: underline;">Contact support</a>.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `
+        Meeting Confirmed!
+        Date: ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        Time: ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${meetingEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London time)
+        Attendee: ${name}
+        Email: ${email}
+        ${notes ? `Notes: ${notes}` : ''}
+        ${booking.meetingUrl ? `Meeting Link: ${booking.meetingUrl}` : ''}
+      `
+    };
+
+    // Only send email if Resend API key is configured
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const emailResult = await resend.emails.send(emailData);
+        console.log('✅ Email sent:', emailResult);
+      } catch (emailError) {
+        console.error('❌ Email sending failed:', emailError);
+        // Don't fail the booking if email fails
+      }
+    } else {
+      console.log('⚠️ Resend not configured - skipping email');
+    }
+
+    // 3. Return success response
     res.json({
       success: true,
       booking: {
-        uid: data.data.uid,
-        start: data.data.start,
-        end: data.data.end,
-        meetingUrl: data.data.meetingUrl,
-        attendee: data.data.attendees[0]
+        uid: booking.uid,
+        start: booking.start,
+        end: booking.end,
+        meetingUrl: booking.meetingUrl,
+        attendee: booking.attendees[0]
       }
     });
 
@@ -150,7 +217,7 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// 🔥 FIXED: Generate 30-min slots
+// Helper function: Generate 30-min slots
 function getManualSlots(date) {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[date.getDay()];
@@ -161,16 +228,11 @@ function getManualSlots(date) {
   const slots = [];
   const dateStr = date.toISOString().split('T')[0];
   
-  // Start and end in UTC
-  const startHour = schedule.start;
-  const endHour = schedule.end;
-  
-  for (let hour = startHour; hour < endHour; hour++) {
-    // On the hour
+  for (let hour = schedule.start; hour < schedule.end; hour++) {
     const timeStr = `${dateStr}T${String(hour).padStart(2, '0')}:00:00Z`;
     const dateObj = new Date(timeStr);
     
-    // Display in London time (UTC+1 during BST)
+    // Display in London time
     const londonTime = new Date(dateObj.getTime() + 60 * 60 * 1000);
     const display = londonTime.toLocaleTimeString('en-GB', {
       hour: '2-digit',
@@ -201,10 +263,6 @@ app.post('/api/cal-webhook', async (req, res) => {
     switch(triggerEvent) {
       case 'BOOKING_CREATED':
         console.log('✅ New booking:', payload.data.uid);
-        console.log('👤 Attendee:', payload.data.attendees?.[0]?.name);
-        console.log('📧 Email:', payload.data.attendees?.[0]?.email);
-        console.log('⏰ Time:', payload.data.start);
-        console.log('🔗 Meeting URL:', payload.data.meetingUrl);
         break;
       default:
         console.log(`Unhandled event: ${triggerEvent}`);
@@ -229,7 +287,8 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     eventTypeId: EVENT_TYPE_ID,
-    hasApiKey: !!CAL_API_KEY
+    hasApiKey: !!CAL_API_KEY,
+    hasResend: !!process.env.RESEND_API_KEY
   });
 });
 
