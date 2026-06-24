@@ -19,7 +19,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('public'));
 
-// Cal.com Configuration
+// Cal.EU Configuration
 const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || process.env.NEXT_PUBLIC_CAL_EVENT_TYPE_ID || '344929', 10);
 const CAL_API_KEY = process.env.CAL_API_KEY || 'cal_live_77bf74a698416a5dac2e9ff0bfef13f8';
 
@@ -67,7 +67,7 @@ app.post('/api/book', async (req, res) => {
     console.log('📤 Booking request:', { startTime, name, email });
 
     // 🔥 FIX: Add Authorization header
-    const response = await fetch('https://api.cal.com/v2/bookings', {
+    const response = await fetch('https://api.cal.eu/v2/bookings', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -89,8 +89,8 @@ app.post('/api/book', async (req, res) => {
     });
 
     const data = await response.json();
-    console.log('📥 Cal.com response status:', response.status);
-    console.log('📥 Cal.com response:', JSON.stringify(data, null, 2));
+    console.log('📥 Cal.eu response status:', response.status);
+    console.log('📥 Cal.eu response:', JSON.stringify(data, null, 2));
 
     if (data.status !== 'success') {
       throw new Error(data.error?.message || 'Booking failed');
