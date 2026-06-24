@@ -23,7 +23,7 @@ app.use(express.static('public'));
 const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || process.env.NEXT_PUBLIC_CAL_EVENT_TYPE_ID || '344929', 10);
 const CAL_API_KEY = process.env.CAL_API_KEY || '';
 
-// Resend Configuration - with fallbacks
+// Resend Configuration
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@turnkii.com';
 const NOTIFY_EMAIL = process.env.RESEND_TO_EMAIL || 'gavin911@proton.me';
@@ -35,7 +35,7 @@ console.log(`  RESEND_API_KEY exists: ${RESEND_API_KEY ? 'Yes' : 'No'}`);
 console.log(`  FROM_EMAIL: ${FROM_EMAIL}`);
 console.log(`  NOTIFY_EMAIL: ${NOTIFY_EMAIL}`);
 
-// Initialize Resend only if API key exists
+// Initialize Resend
 let resend = null;
 if (RESEND_API_KEY) {
   try {
@@ -59,7 +59,7 @@ const AVAILABILITY_SCHEDULE = {
   sunday:    null
 };
 
-// API: Get available slots
+// API: Get available slots (FIXED)
 app.get('/api/slots', async (req, res) => {
   try {
     const { date } = req.query;
@@ -68,6 +68,7 @@ app.get('/api/slots', async (req, res) => {
     }
 
     const slots = getManualSlots(new Date(date));
+    console.log(`📅 Slots for ${date}:`, slots.map(s => `${s.display} (${s.start})`));
     res.json({ slots });
   } catch (error) {
     console.error('Error getting slots:', error);
@@ -98,6 +99,13 @@ app.post('/api/book', async (req, res) => {
     if (!schedule) {
       return res.status(400).json({ 
         error: 'Bookings are only available Monday-Friday' 
+      });
+    }
+
+    // Allow 0 or 30 minutes only
+    if (minute !== 0 && minute !== 30) {
+      return res.status(400).json({ 
+        error: 'Bookings must start on the hour or half-hour' 
       });
     }
 
@@ -151,7 +159,7 @@ app.post('/api/book', async (req, res) => {
 
     const booking = data.data;
 
-    // 2. Send confirmation email via Resend (if configured)
+    // 2. Send confirmation email via Resend
     if (resend) {
       console.log('📧 Sending confirmation email via Resend...');
       try {
@@ -205,7 +213,6 @@ app.post('/api/book', async (req, res) => {
         console.log('✅ Email sent:', emailResult);
       } catch (emailError) {
         console.error('❌ Email sending failed:', emailError.message);
-        // Don't fail the booking if email fails
       }
     } else {
       console.log('⚠️ Resend not configured - skipping email');
@@ -231,7 +238,7 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// Helper function: Generate 30-min slots
+// 🔥 FIXED: Generate 30-min slots
 function getManualSlots(date) {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[date.getDay()];
@@ -243,20 +250,30 @@ function getManualSlots(date) {
   const dateStr = date.toISOString().split('T')[0];
   
   for (let hour = schedule.start; hour < schedule.end; hour++) {
-    const timeStr = `${dateStr}T${String(hour).padStart(2, '0')}:00:00Z`;
-    const dateObj = new Date(timeStr);
-    
-    // Display in London time
-    const londonTime = new Date(dateObj.getTime() + 60 * 60 * 1000);
-    const display = londonTime.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-    
+    // On the hour
+    const timeStr1 = `${dateStr}T${String(hour).padStart(2, '0')}:00:00Z`;
+    const dateObj1 = new Date(timeStr1);
+    const londonTime1 = new Date(dateObj1.getTime() + 60 * 60 * 1000);
     slots.push({
-      start: timeStr,
-      display: display
+      start: timeStr1,
+      display: londonTime1.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
+    });
+
+    // 30 minutes past the hour (if not at the end)
+    const timeStr2 = `${dateStr}T${String(hour).padStart(2, '0')}:30:00Z`;
+    const dateObj2 = new Date(timeStr2);
+    const londonTime2 = new Date(dateObj2.getTime() + 60 * 60 * 1000);
+    slots.push({
+      start: timeStr2,
+      display: londonTime2.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
     });
   }
 
