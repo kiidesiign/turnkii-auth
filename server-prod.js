@@ -19,9 +19,12 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('public'));
 
-// Cal.com Configuration
-const EVENT_TYPE_ID = process.env.EVENT_TYPE_ID || 344929;
+// Cal.com Configuration - FORCE as integer
+const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || '344929', 10);
 const CAL_API_KEY = process.env.CAL_API_KEY || 'cal_live_77bf74a698416a5dac2e9ff0bfef13f8';
+
+// Verify it's an integer
+console.log(`📅 Event Type ID: ${EVENT_TYPE_ID} (type: ${typeof EVENT_TYPE_ID})`);
 
 // Your availability schedule
 const AVAILABILITY_SCHEDULE = {
@@ -61,6 +64,12 @@ app.post('/api/book', async (req, res) => {
       });
     }
 
+    // Log what we're sending
+    console.log('📤 Sending booking request with:');
+    console.log(`  eventTypeId: ${EVENT_TYPE_ID} (${typeof EVENT_TYPE_ID})`);
+    console.log(`  start: ${startTime}`);
+    console.log(`  attendee: ${name} <${email}>`);
+
     const response = await fetch('https://api.cal.com/v2/bookings', {
       method: 'POST',
       headers: {
@@ -68,7 +77,7 @@ app.post('/api/book', async (req, res) => {
         'cal-api-version': '2024-08-13'
       },
       body: JSON.stringify({
-        eventTypeId: EVENT_TYPE_ID,
+        eventTypeId: EVENT_TYPE_ID, // This MUST be an integer
         start: startTime,
         attendee: {
           name: name,
@@ -84,9 +93,11 @@ app.post('/api/book', async (req, res) => {
     const data = await response.json();
 
     if (data.status !== 'success') {
+      console.error('❌ Booking error:', data.error);
       throw new Error(data.error?.message || 'Booking failed');
     }
 
+    console.log('✅ Booking successful:', data.data.uid);
     res.json({
       success: true,
       booking: {
@@ -106,7 +117,7 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// API: Webhook handler (for Cal.com webhooks)
+// API: Webhook handler
 app.post('/api/cal-webhook', async (req, res) => {
   try {
     const secret = req.headers['x-cal-secret'];
@@ -155,13 +166,11 @@ function getManualSlots(date) {
 
   let current = new Date(startTime);
   
-  // 30-minute slots
   while (current < endTime) {
     const slotEnd = new Date(current.getTime() + 30 * 60000);
     if (slotEnd <= endTime) {
       slots.push({
         start: current.toISOString(),
-        // 24-hour clock format
         display: current.toLocaleTimeString('en-GB', {
           hour: '2-digit',
           minute: '2-digit',
@@ -180,7 +189,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'booking.html'));
 });
 
-// Health check endpoint (for Vercel)
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
@@ -189,7 +198,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Start server (for local development)
+// Start server
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
@@ -198,5 +207,4 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Export for Vercel serverless functions
 export default app;
