@@ -48,18 +48,20 @@ if (RESEND_API_KEY) {
   console.log('⚠️ Resend not configured - emails will be skipped');
 }
 
-// Availability in UTC
+// 🔥 Availability in CEST (Central European Summer Time)
+// Your Cal.com availability: 14:00-17:00 CEST (Mon-Thu), 14:00-16:00 CEST (Fri)
+// UTC times: 12:00-15:00 (Mon-Thu), 12:00-14:00 (Fri)
 const AVAILABILITY_SCHEDULE = {
-  monday:    { start: 13, end: 16 },
-  tuesday:   { start: 13, end: 16 },
-  wednesday: { start: 13, end: 16 },
-  thursday:  { start: 13, end: 16 },
-  friday:    { start: 13, end: 15 },
+  monday:    { start: 12, end: 15 },
+  tuesday:   { start: 12, end: 15 },
+  wednesday: { start: 12, end: 15 },
+  thursday:  { start: 12, end: 15 },
+  friday:    { start: 12, end: 14 },
   saturday:  null,
   sunday:    null
 };
 
-// API: Get available slots (with dual time display)
+// API: Get available slots
 app.get('/api/slots', async (req, res) => {
   try {
     const { date } = req.query;
@@ -108,10 +110,10 @@ app.post('/api/book', async (req, res) => {
     }
 
     if (hour < schedule.start || hour > schedule.end || (hour === schedule.end && minute > 0)) {
-      const startLondon = schedule.start + 1;
-      const endLondon = schedule.end + 1;
+      const startCest = schedule.start + 2;
+      const endCest = schedule.end + 2;
       return res.status(400).json({ 
-        error: `Bookings are only available ${startLondon}:00-${endLondon}:00 London time on ${dayOfWeek}` 
+        error: `Bookings are only available ${startCest}:00-${endCest}:00 CEST on ${dayOfWeek}` 
       });
     }
 
@@ -134,7 +136,7 @@ app.post('/api/book', async (req, res) => {
         attendee: {
           name: name,
           email: email,
-          timeZone: 'Europe/London'
+          timeZone: 'Europe/Berlin'  // 🔥 Changed to Europe/Berlin for CEST
         },
         bookingFieldsResponses: {
           notes: notes || ''
@@ -162,13 +164,15 @@ app.post('/api/book', async (req, res) => {
         const meetingTime = new Date(booking.start);
         const meetingEnd = new Date(booking.end);
         
-        // Calculate European time (CEST = UTC+2)
-        const europeTime = new Date(meetingTime.getTime() + 60 * 60 * 1000); // London + 1 hour
+        // Calculate CEST time (UTC+2)
+        const cestTime = new Date(meetingTime.getTime() + 2 * 60 * 60 * 1000);
+        const cestEnd = new Date(meetingEnd.getTime() + 2 * 60 * 60 * 1000);
+        const ukTime = new Date(meetingTime.getTime() + 60 * 60 * 1000);
         
         const emailData = {
           from: FROM_EMAIL,
           to: [email, NOTIFY_EMAIL],
-          subject: `Meeting Confirmed: ${meetingTime.toLocaleDateString()} at ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})}`,
+          subject: `Meeting Confirmed: ${meetingTime.toLocaleDateString()} at ${cestTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} CEST`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb; border-radius: 12px;">
               <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
@@ -176,8 +180,8 @@ app.post('/api/book', async (req, res) => {
                 <p style="color: #666; margin-bottom: 24px;">Your meeting has been scheduled successfully.</p>
                 
                 <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
-                  <p style="margin: 4px 0;"><strong>📅 Date:</strong> ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p style="margin: 4px 0;"><strong>⏰ Time:</strong> ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London) / ${europeTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (CEST)</p>
+                  <p style="margin: 4px 0;"><strong>📅 Date:</strong> ${cestTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p style="margin: 4px 0;"><strong>⏰ Time:</strong> ${cestTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${cestEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} CEST (${ukTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} UK)</p>
                   <p style="margin: 4px 0;"><strong>👤 Attendee:</strong> ${name}</p>
                   <p style="margin: 4px 0;"><strong>📧 Email:</strong> ${email}</p>
                   ${notes ? `<p style="margin: 4px 0;"><strong>📝 Notes:</strong> ${notes}</p>` : ''}
@@ -199,8 +203,8 @@ app.post('/api/book', async (req, res) => {
           `,
           text: `
             Meeting Confirmed!
-            Date: ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            Time: ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London) / ${europeTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (CEST)
+            Date: ${cestTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            Time: ${cestTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${cestEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} CEST (${ukTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} UK)
             Attendee: ${name}
             Email: ${email}
             ${notes ? `Notes: ${notes}` : ''}
@@ -234,7 +238,7 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// 🔥 UPDATED: Generate slots with dual time display
+// 🔥 UPDATED: Generate slots with CEST as primary time
 function getManualSlots(date) {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[date.getDay()];
@@ -245,31 +249,27 @@ function getManualSlots(date) {
   const slots = [];
   const dateStr = date.toISOString().split('T')[0];
   
-  let currentHour = schedule.start;
-  let currentMinute = 0;
-  
-  while (currentHour < schedule.end) {
-    const timeStr = `${dateStr}T${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}:00Z`;
-    const utcTime = new Date(timeStr);
-    
-    // London time (UTC+1 during BST)
-    const londonTime = new Date(utcTime.getTime() + 60 * 60 * 1000);
-    
-    // European time (CEST = UTC+2 during summer)
-    const europeTime = new Date(utcTime.getTime() + 2 * 60 * 60 * 1000);
-    
+  // Generate slots in CEST (UTC+2)
+  for (let hour = schedule.start; hour < schedule.end; hour++) {
+    // On the hour (CEST time)
+    const timeStr1 = `${dateStr}T${String(hour).padStart(2, '0')}:00:00Z`;
+    const utc1 = new Date(timeStr1);
+    const cest1 = new Date(utc1.getTime() + 2 * 60 * 60 * 1000);
+    const uk1 = new Date(utc1.getTime() + 60 * 60 * 1000);
     slots.push({
-      start: timeStr,
-      display: `${londonTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} UK / ${europeTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} EU`
+      start: timeStr1,
+      display: `${cest1.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} CEST / ${uk1.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} UK`
     });
-    
-    // Move to next 30-minute slot
-    if (currentMinute === 0) {
-      currentMinute = 30;
-    } else {
-      currentMinute = 0;
-      currentHour++;
-    }
+
+    // 30 minutes past the hour (CEST time)
+    const timeStr2 = `${dateStr}T${String(hour).padStart(2, '0')}:30:00Z`;
+    const utc2 = new Date(timeStr2);
+    const cest2 = new Date(utc2.getTime() + 2 * 60 * 60 * 1000);
+    const uk2 = new Date(utc2.getTime() + 60 * 60 * 1000);
+    slots.push({
+      start: timeStr2,
+      display: `${cest2.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} CEST / ${uk2.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} UK`
+    });
   }
 
   return slots;
