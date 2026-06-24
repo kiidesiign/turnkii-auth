@@ -138,7 +138,7 @@ app.post('/api/cal-webhook', async (req, res) => {
   }
 });
 
-// Helper function: Generate manual slots
+// Helper function: Generate 30-min slots with 24-hour format
 function getManualSlots(date) {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[date.getDay()];
@@ -154,14 +154,18 @@ function getManualSlots(date) {
   const endTime = new Date(`${dateStr}T${daySchedule.end}:00Z`);
 
   let current = new Date(startTime);
+  
+  // 30-minute slots
   while (current < endTime) {
-    const slotEnd = new Date(current.getTime() + 15 * 60000);
+    const slotEnd = new Date(current.getTime() + 30 * 60000);
     if (slotEnd <= endTime) {
       slots.push({
         start: current.toISOString(),
-        display: current.toLocaleTimeString('en-US', {
+        // 24-hour clock format
+        display: current.toLocaleTimeString('en-GB', {
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
+          hour12: false
         })
       });
     }

@@ -1,4 +1,4 @@
-// server.js
+// server.js (updated with 24-hour clock and 30-min slots)
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -20,7 +20,7 @@ app.use(express.static('public'));
 const EVENT_TYPE_ID = 344929;
 const CAL_API_KEY = 'cal_live_77bf74a698416a5dac2e9ff0bfef13f8';
 
-// Your availability schedule
+// Your availability schedule (30-min slots)
 const AVAILABILITY_SCHEDULE = {
   monday: { start: '14:00', end: '17:00', available: true },
   tuesday: { start: '14:00', end: '17:00', available: true },
@@ -52,14 +52,12 @@ app.post('/api/book', async (req, res) => {
   try {
     const { startTime, name, email, notes } = req.body;
 
-    // Validate required fields
     if (!startTime || !name || !email) {
       return res.status(400).json({ 
         error: 'Missing required fields: startTime, name, email' 
       });
     }
 
-    // Call Cal.com API
     const response = await fetch('https://api.cal.com/v2/bookings', {
       method: 'POST',
       headers: {
@@ -86,7 +84,6 @@ app.post('/api/book', async (req, res) => {
       throw new Error(data.error?.message || 'Booking failed');
     }
 
-    // Success response
     res.json({
       success: true,
       booking: {
@@ -106,7 +103,7 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// Helper function: Generate manual slots
+// Helper function: Generate 30-min slots with 24-hour format
 function getManualSlots(date) {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[date.getDay()];
@@ -122,14 +119,18 @@ function getManualSlots(date) {
   const endTime = new Date(`${dateStr}T${daySchedule.end}:00Z`);
 
   let current = new Date(startTime);
+  
+  // 30-minute slots
   while (current < endTime) {
-    const slotEnd = new Date(current.getTime() + 15 * 60000);
+    const slotEnd = new Date(current.getTime() + 30 * 60000);
     if (slotEnd <= endTime) {
       slots.push({
         start: current.toISOString(),
-        display: current.toLocaleTimeString('en-US', {
+        // 24-hour clock format
+        display: current.toLocaleTimeString('en-GB', {
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
+          hour12: false  // This forces 24-hour format
         })
       });
     }
@@ -144,8 +145,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'booking.html'));
 });
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
-  console.log(`📅 Booking page: http://localhost:${PORT}/`);
+  console.log(`🚀 Server running at http://localhost:3000`);
+  console.log(`📅 Booking page: http://localhost:3000/`);
 });

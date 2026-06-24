@@ -100,6 +100,7 @@
       font-size: 14px;
       transition: all 0.2s;
       text-align: center;
+      font-variant-numeric: tabular-nums;
     }
 
     .slot-btn:hover:not(:disabled) {
@@ -179,10 +180,6 @@
       text-align: center;
       color: #666;
       padding: 20px 0;
-    }
-
-    .meeting-link {
-      margin-top: 8px;
     }
 
     .hidden {
@@ -355,9 +352,12 @@
         const result = await response.json();
 
         if (result.success) {
+          const startTime = new Date(result.booking.start);
+          const endTime = new Date(result.booking.end);
+          
           showMessage(`
             ✅ <strong>Booking Confirmed!</strong><br />
-            Meeting: ${new Date(result.booking.start).toLocaleString()}<br />
+            Meeting: ${startTime.toLocaleDateString()} ${startTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${endTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}<br />
             ${result.booking.meetingUrl ? `<a href="${result.booking.meetingUrl}" target="_blank">🔗 Join Meeting</a>` : ''}
           `, 'success');
           
