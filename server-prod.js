@@ -19,12 +19,12 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('public'));
 
-// Cal.com Configuration - FORCE as integer
-const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || '344929', 10);
+// Cal.com Configuration
+const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || process.env.NEXT_PUBLIC_CAL_EVENT_TYPE_ID || '344929', 10);
 const CAL_API_KEY = process.env.CAL_API_KEY || 'cal_live_77bf74a698416a5dac2e9ff0bfef13f8';
 
-// Verify it's an integer
-console.log(`📅 Event Type ID: ${EVENT_TYPE_ID} (type: ${typeof EVENT_TYPE_ID})`);
+console.log(`📅 Event Type ID: ${EVENT_TYPE_ID} (${typeof EVENT_TYPE_ID})`);
+console.log(`🔑 CAL_API_KEY exists: ${CAL_API_KEY ? 'Yes' : 'No'}`);
 
 // Your availability schedule
 const AVAILABILITY_SCHEDULE = {
@@ -64,20 +64,18 @@ app.post('/api/book', async (req, res) => {
       });
     }
 
-    // Log what we're sending
-    console.log('📤 Sending booking request with:');
-    console.log(`  eventTypeId: ${EVENT_TYPE_ID} (${typeof EVENT_TYPE_ID})`);
-    console.log(`  start: ${startTime}`);
-    console.log(`  attendee: ${name} <${email}>`);
+    console.log('📤 Booking request:', { startTime, name, email });
 
+    // 🔥 FIX: Add Authorization header
     const response = await fetch('https://api.cal.com/v2/bookings', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'cal-api-version': '2024-08-13'
+        'cal-api-version': '2024-08-13',
+        'Authorization': `Bearer ${CAL_API_KEY}`
       },
       body: JSON.stringify({
-        eventTypeId: EVENT_TYPE_ID, // This MUST be an integer
+        eventTypeId: EVENT_TYPE_ID,
         start: startTime,
         attendee: {
           name: name,
@@ -91,13 +89,13 @@ app.post('/api/book', async (req, res) => {
     });
 
     const data = await response.json();
+    console.log('📥 Cal.com response status:', response.status);
+    console.log('📥 Cal.com response:', JSON.stringify(data, null, 2));
 
     if (data.status !== 'success') {
-      console.error('❌ Booking error:', data.error);
       throw new Error(data.error?.message || 'Booking failed');
     }
 
-    console.log('✅ Booking successful:', data.data.uid);
     res.json({
       success: true,
       booking: {
@@ -194,7 +192,8 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    eventTypeId: EVENT_TYPE_ID
   });
 });
 
