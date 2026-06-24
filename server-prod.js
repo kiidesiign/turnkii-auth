@@ -3,7 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,20 +20,22 @@ app.use(express.static('public'));
 
 // Cal.EU Configuration
 const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || process.env.NEXT_PUBLIC_CAL_EVENT_TYPE_ID || '344929', 10);
-const CAL_API_KEY = process.env.CAL_API_KEY || 'cal_live_77bf74a698416a5dac2e9ff0bfef13f8';
+const CAL_API_KEY = process.env.CAL_API_KEY || '';
 
-console.log(`📅 Event Type ID: ${EVENT_TYPE_ID} (${typeof EVENT_TYPE_ID})`);
+console.log(`📅 Event Type ID: ${EVENT_TYPE_ID}`);
 console.log(`🔑 CAL_API_KEY exists: ${CAL_API_KEY ? 'Yes' : 'No'}`);
 
-// Your availability schedule
+// 🔥 AVAILABILITY IN UTC (London is UTC+1 during BST)
+// London 14:00-17:00 = UTC 13:00-16:00
+// London 14:00-16:00 (Fri) = UTC 13:00-15:00
 const AVAILABILITY_SCHEDULE = {
-  monday: { start: '14:00', end: '17:00', available: true },
-  tuesday: { start: '14:00', end: '17:00', available: true },
-  wednesday: { start: '14:00', end: '17:00', available: true },
-  thursday: { start: '14:00', end: '17:00', available: true },
-  friday: { start: '14:00', end: '16:00', available: true },
-  saturday: { available: false },
-  sunday: { available: false }
+  monday:    { start: 13, end: 16 }, // 14:00-17:00 London
+  tuesday:   { start: 13, end: 16 },
+  wednesday: { start: 13, end: 16 },
+  thursday:  { start: 13, end: 16 },
+  friday:    { start: 13, end: 15 }, // 14:00-16:00 London
+  saturday:  null,
+  sunday:    null
 };
 
 // API: Get available slots
@@ -46,6 +47,7 @@ app.get('/api/slots', async (req, res) => {
     }
 
     const slots = getManualSlots(new Date(date));
+    console.log(`📅 Slots for ${date}:`, slots.map(s => s.display));
     res.json({ slots });
   } catch (error) {
     console.error('Error getting slots:', error);
@@ -58,15 +60,45 @@ app.post('/api/book', async (req, res) => {
   try {
     const { startTime, name, email, notes } = req.body;
 
+    console.log('📤 Booking request:', { startTime, name, email });
+
     if (!startTime || !name || !email) {
       return res.status(400).json({ 
         error: 'Missing required fields: startTime, name, email' 
       });
     }
 
-    console.log('📤 Booking request:', { startTime, name, email });
+    // Parse the time
+    const bookingDate = new Date(startTime);
+    const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const hour = bookingDate.getUTCHours();
+    const minute = bookingDate.getUTCMinutes();
 
-    // 🔥 FIX: Add Authorization header
+    // Check if it's a valid day
+    const schedule = AVAILABILITY_SCHEDULE[dayOfWeek];
+    if (!schedule) {
+      return res.status(400).json({ 
+        error: 'Bookings are only available Monday-Friday' 
+      });
+    }
+
+    // Check if within hours (UTC)
+    if (hour < schedule.start || hour > schedule.end || (hour === schedule.end && minute > 0)) {
+      const startLondon = schedule.start + 1;
+      const endLondon = schedule.end + 1;
+      return res.status(400).json({ 
+        error: `Bookings are only available ${startLondon}:00-${endLondon}:00 London time on ${dayOfWeek}` 
+      });
+    }
+
+    // Ensure UTC format
+    let start = startTime;
+    if (!start.endsWith('Z')) {
+      start = new Date(startTime).toISOString();
+    }
+
+    console.log('📤 Sending to Cal.eu:', { eventTypeId: EVENT_TYPE_ID, start });
+
     const response = await fetch('https://api.cal.eu/v2/bookings', {
       method: 'POST',
       headers: {
@@ -76,7 +108,7 @@ app.post('/api/book', async (req, res) => {
       },
       body: JSON.stringify({
         eventTypeId: EVENT_TYPE_ID,
-        start: startTime,
+        start: start,
         attendee: {
           name: name,
           email: email,
@@ -89,8 +121,11 @@ app.post('/api/book', async (req, res) => {
     });
 
     const data = await response.json();
-    console.log('📥 Cal.eu response status:', response.status);
-    console.log('📥 Cal.eu response:', JSON.stringify(data, null, 2));
+    console.log('📥 Cal.eu response:', response.status);
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || `HTTP ${response.status}`);
+    }
 
     if (data.status !== 'success') {
       throw new Error(data.error?.message || 'Booking failed');
@@ -108,12 +143,49 @@ app.post('/api/book', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Booking error:', error);
+    console.error('❌ Booking error:', error);
     res.status(500).json({ 
       error: error.message || 'Failed to create booking' 
     });
   }
 });
+
+// 🔥 FIXED: Generate 30-min slots
+function getManualSlots(date) {
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = days[date.getDay()];
+  const schedule = AVAILABILITY_SCHEDULE[dayName];
+
+  if (!schedule) return [];
+
+  const slots = [];
+  const dateStr = date.toISOString().split('T')[0];
+  
+  // Start and end in UTC
+  const startHour = schedule.start;
+  const endHour = schedule.end;
+  
+  for (let hour = startHour; hour < endHour; hour++) {
+    // On the hour
+    const timeStr = `${dateStr}T${String(hour).padStart(2, '0')}:00:00Z`;
+    const dateObj = new Date(timeStr);
+    
+    // Display in London time (UTC+1 during BST)
+    const londonTime = new Date(dateObj.getTime() + 60 * 60 * 1000);
+    const display = londonTime.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    
+    slots.push({
+      start: timeStr,
+      display: display
+    });
+  }
+
+  return slots;
+}
 
 // API: Webhook handler
 app.post('/api/cal-webhook', async (req, res) => {
@@ -124,7 +196,6 @@ app.post('/api/cal-webhook', async (req, res) => {
     }
 
     const { triggerEvent, payload } = req.body;
-    
     console.log(`📅 Webhook received: ${triggerEvent}`);
 
     switch(triggerEvent) {
@@ -135,7 +206,6 @@ app.post('/api/cal-webhook', async (req, res) => {
         console.log('⏰ Time:', payload.data.start);
         console.log('🔗 Meeting URL:', payload.data.meetingUrl);
         break;
-        
       default:
         console.log(`Unhandled event: ${triggerEvent}`);
     }
@@ -147,53 +217,19 @@ app.post('/api/cal-webhook', async (req, res) => {
   }
 });
 
-// Helper function: Generate 30-min slots with 24-hour format
-function getManualSlots(date) {
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const dayName = days[date.getDay()];
-  const daySchedule = AVAILABILITY_SCHEDULE[dayName];
-
-  if (!daySchedule || !daySchedule.available) {
-    return [];
-  }
-
-  const slots = [];
-  const dateStr = date.toISOString().split('T')[0];
-  const startTime = new Date(`${dateStr}T${daySchedule.start}:00Z`);
-  const endTime = new Date(`${dateStr}T${daySchedule.end}:00Z`);
-
-  let current = new Date(startTime);
-  
-  while (current < endTime) {
-    const slotEnd = new Date(current.getTime() + 30 * 60000);
-    if (slotEnd <= endTime) {
-      slots.push({
-        start: current.toISOString(),
-        display: current.toLocaleTimeString('en-GB', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        })
-      });
-    }
-    current = slotEnd;
-  }
-
-  return slots;
-}
-
 // Serve the booking page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'booking.html'));
 });
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    eventTypeId: EVENT_TYPE_ID
+    eventTypeId: EVENT_TYPE_ID,
+    hasApiKey: !!CAL_API_KEY
   });
 });
 
