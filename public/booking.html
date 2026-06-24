@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book a Meeting</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f7f9fc;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      padding: 32px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .availability-info {
+      background: #f0f7ff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #0066cc;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 6px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .slot-btn {
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .slot-btn:hover:not(:disabled) {
+      background: #f3f4f6;
+      border-color: #3b82f6;
+    }
+
+    .slot-btn.selected {
+      background: #3b82f6;
+      color: white;
+      border-color: #3b82f6;
+    }
+
+    .slot-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #2563eb;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .booking-form {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .message.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    .message.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .message.success a {
+      color: #065f46;
+      text-decoration: underline;
+    }
+
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 20px 0;
+    }
+
+    .no-slots {
+      text-align: center;
+      color: #666;
+      padding: 20px 0;
+    }
+
+    .meeting-link {
+      margin-top: 8px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <h1>📅 Book a Meeting</h1>
+    <p class="subtitle">15-minute consultation</p>
+    
+    <div class="availability-info">
+      ⏰ Available: Mon-Thu 14:00-17:00 · Fri 14:00-16:00
+    </div>
+
+    <!-- Date Picker -->
+    <div class="form-group">
+      <label for="datePicker">Select Date</label>
+      <input type="date" id="datePicker" />
+    </div>
+
+    <!-- Available Slots -->
+    <div class="form-group">
+      <label>Available Times</label>
+      <div id="slotsContainer">
+        <div class="loading">Loading available slots...</div>
+      </div>
+    </div>
+
+    <!-- Booking Form -->
+    <div id="bookingForm" class="booking-form hidden">
+      <div id="messageContainer"></div>
+      
+      <div class="form-group">
+        <label for="name">Your Name *</label>
+        <input type="text" id="name" placeholder="Enter your name" required />
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email *</label>
+        <input type="email" id="email" placeholder="Enter your email" required />
+      </div>
+
+      <div class="form-group">
+        <label for="notes">Notes (optional)</label>
+        <textarea id="notes" placeholder="Any special requests?"></textarea>
+      </div>
+
+      <button class="btn-primary" id="bookBtn">Book Now</button>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let selectedSlot = null;
+    let isLoading = false;
+
+    // DOM Elements
+    const datePicker = document.getElementById('datePicker');
+    const slotsContainer = document.getElementById('slotsContainer');
+    const bookingForm = document.getElementById('bookingForm');
+    const messageContainer = document.getElementById('messageContainer');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const notesInput = document.getElementById('notes');
+    const bookBtn = document.getElementById('bookBtn');
+
+    // Set today's date as default
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    datePicker.value = `${year}-${month}-${day}`;
+    datePicker.min = `${year}-${month}-${day}`;
+
+    // Load slots on page load
+    loadSlots();
+
+    // Event listeners
+    datePicker.addEventListener('change', loadSlots);
+
+    bookBtn.addEventListener('click', handleBooking);
+
+    // Functions
+    async function loadSlots() {
+      const date = datePicker.value;
+      if (!date) return;
+
+      slotsContainer.innerHTML = '<div class="loading">Loading available slots...</div>';
+      bookingForm.classList.add('hidden');
+
+      try {
+        const response = await fetch(`/api/slots?date=${date}`);
+        const data = await response.json();
+
+        if (data.slots && data.slots.length > 0) {
+          renderSlots(data.slots);
+        } else {
+          slotsContainer.innerHTML = '<div class="no-slots">No available slots for this day</div>';
+        }
+      } catch (error) {
+        slotsContainer.innerHTML = '<div class="message error">Failed to load slots. Please try again.</div>';
+        console.error('Error loading slots:', error);
+      }
+    }
+
+    function renderSlots(slots) {
+      let html = '<div class="slots-grid">';
+      slots.forEach((slot) => {
+        html += `
+          <button class="slot-btn" data-start="${slot.start}" onclick="selectSlot('${slot.start}')">
+            ${slot.display}
+          </button>
+        `;
+      });
+      html += '</div>';
+      slotsContainer.innerHTML = html;
+    }
+
+    function selectSlot(start) {
+      // Deselect all
+      document.querySelectorAll('.slot-btn').forEach(btn => {
+        btn.classList.remove('selected');
+      });
+
+      // Select clicked
+      const selectedBtn = document.querySelector(`.slot-btn[data-start="${start}"]`);
+      if (selectedBtn) {
+        selectedBtn.classList.add('selected');
+        selectedSlot = start;
+        bookingForm.classList.remove('hidden');
+        clearMessages();
+      }
+    }
+
+    async function handleBooking() {
+      if (!selectedSlot) {
+        showMessage('Please select a time slot first', 'error');
+        return;
+      }
+
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+
+      if (!name || !email) {
+        showMessage('Please enter your name and email', 'error');
+        return;
+      }
+
+      // Disable button during submission
+      bookBtn.disabled = true;
+      bookBtn.textContent = 'Booking...';
+      clearMessages();
+
+      try {
+        const response = await fetch('/api/book', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            startTime: selectedSlot,
+            name: name,
+            email: email,
+            notes: notesInput.value.trim()
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage(`
+            ✅ <strong>Booking Confirmed!</strong><br />
+            Meeting: ${new Date(result.booking.start).toLocaleString()}<br />
+            ${result.booking.meetingUrl ? `<a href="${result.booking.meetingUrl}" target="_blank">🔗 Join Meeting</a>` : ''}
+          `, 'success');
+          
+          // Reset form
+          bookingForm.classList.add('hidden');
+          selectedSlot = null;
+          document.querySelectorAll('.slot-btn').forEach(btn => {
+            btn.classList.remove('selected');
+          });
+          nameInput.value = '';
+          emailInput.value = '';
+          notesInput.value = '';
+          
+          // Refresh slots
+          loadSlots();
+        } else {
+          showMessage(result.error || 'Booking failed. Please try again.', 'error');
+        }
+      } catch (error) {
+        showMessage('An error occurred. Please try again.', 'error');
+        console.error('Booking error:', error);
+      } finally {
+        bookBtn.disabled = false;
+        bookBtn.textContent = 'Book Now';
+      }
+    }
+
+    function showMessage(message, type = 'error') {
+      messageContainer.innerHTML = `<div class="message ${type}">${message}</div>`;
+    }
+
+    function clearMessages() {
+      messageContainer.innerHTML = '';
+    }
+  </script>
+</body>
+</html>
