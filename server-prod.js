@@ -23,15 +23,30 @@ app.use(express.static('public'));
 const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || process.env.NEXT_PUBLIC_CAL_EVENT_TYPE_ID || '344929', 10);
 const CAL_API_KEY = process.env.CAL_API_KEY || '';
 
-// Resend Configuration
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@yourdomain.com';
+// Resend Configuration - with fallbacks
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@turnkii.com';
 const NOTIFY_EMAIL = process.env.RESEND_TO_EMAIL || 'gavin911@proton.me';
 
-console.log(`📅 Event Type ID: ${EVENT_TYPE_ID}`);
-console.log(`🔑 CAL_API_KEY exists: ${CAL_API_KEY ? 'Yes' : 'No'}`);
-console.log(`📧 Resend configured: ${process.env.RESEND_API_KEY ? 'Yes' : 'No'}`);
-console.log(`📧 From email: ${FROM_EMAIL}`);
+console.log('📋 Server Configuration:');
+console.log(`  Event Type ID: ${EVENT_TYPE_ID}`);
+console.log(`  CAL_API_KEY exists: ${CAL_API_KEY ? 'Yes' : 'No'}`);
+console.log(`  RESEND_API_KEY exists: ${RESEND_API_KEY ? 'Yes' : 'No'}`);
+console.log(`  FROM_EMAIL: ${FROM_EMAIL}`);
+console.log(`  NOTIFY_EMAIL: ${NOTIFY_EMAIL}`);
+
+// Initialize Resend only if API key exists
+let resend = null;
+if (RESEND_API_KEY) {
+  try {
+    resend = new Resend(RESEND_API_KEY);
+    console.log('✅ Resend initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize Resend:', error.message);
+  }
+} else {
+  console.log('⚠️ Resend not configured - emails will be skipped');
+}
 
 // Availability in UTC (London is UTC+1 during BST)
 const AVAILABILITY_SCHEDULE = {
@@ -136,61 +151,60 @@ app.post('/api/book', async (req, res) => {
 
     const booking = data.data;
 
-    // 2. Send confirmation email via Resend
-    console.log('📧 Sending confirmation email via Resend...');
-    const meetingTime = new Date(booking.start);
-    const meetingEnd = new Date(booking.end);
-    
-    const emailData = {
-      from: FROM_EMAIL,
-      to: [email, NOTIFY_EMAIL],
-      subject: `Meeting Confirmed: ${meetingTime.toLocaleDateString()} at ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb; border-radius: 12px;">
-          <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-            <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">✅ Meeting Confirmed</h1>
-            <p style="color: #666; margin-bottom: 24px;">Your meeting has been scheduled successfully.</p>
-            
-            <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
-              <p style="margin: 4px 0;"><strong>📅 Date:</strong> ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-              <p style="margin: 4px 0;"><strong>⏰ Time:</strong> ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${meetingEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London time)</p>
-              <p style="margin: 4px 0;"><strong>👤 Attendee:</strong> ${name}</p>
-              <p style="margin: 4px 0;"><strong>📧 Email:</strong> ${email}</p>
-              ${notes ? `<p style="margin: 4px 0;"><strong>📝 Notes:</strong> ${notes}</p>` : ''}
-            </div>
-
-            ${booking.meetingUrl ? `
-              <div style="text-align: center; margin: 24px 0;">
-                <a href="${booking.meetingUrl}" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 500;">
-                  🔗 Join Meeting
-                </a>
-              </div>
-            ` : ''}
-
-            <p style="color: #999; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 16px;">
-              This meeting was booked via Turnkii. Need to reschedule? <a href="mailto:${NOTIFY_EMAIL}" style="color: #3b82f6; text-decoration: underline;">Contact support</a>.
-            </p>
-          </div>
-        </div>
-      `,
-      text: `
-        Meeting Confirmed!
-        Date: ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        Time: ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${meetingEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London time)
-        Attendee: ${name}
-        Email: ${email}
-        ${notes ? `Notes: ${notes}` : ''}
-        ${booking.meetingUrl ? `Meeting Link: ${booking.meetingUrl}` : ''}
-      `
-    };
-
-    // Only send email if Resend API key is configured
-    if (process.env.RESEND_API_KEY) {
+    // 2. Send confirmation email via Resend (if configured)
+    if (resend) {
+      console.log('📧 Sending confirmation email via Resend...');
       try {
+        const meetingTime = new Date(booking.start);
+        const meetingEnd = new Date(booking.end);
+        
+        const emailData = {
+          from: FROM_EMAIL,
+          to: [email, NOTIFY_EMAIL],
+          subject: `Meeting Confirmed: ${meetingTime.toLocaleDateString()} at ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb; border-radius: 12px;">
+              <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">✅ Meeting Confirmed</h1>
+                <p style="color: #666; margin-bottom: 24px;">Your meeting has been scheduled successfully.</p>
+                
+                <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                  <p style="margin: 4px 0;"><strong>📅 Date:</strong> ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p style="margin: 4px 0;"><strong>⏰ Time:</strong> ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${meetingEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London time)</p>
+                  <p style="margin: 4px 0;"><strong>👤 Attendee:</strong> ${name}</p>
+                  <p style="margin: 4px 0;"><strong>📧 Email:</strong> ${email}</p>
+                  ${notes ? `<p style="margin: 4px 0;"><strong>📝 Notes:</strong> ${notes}</p>` : ''}
+                </div>
+
+                ${booking.meetingUrl ? `
+                  <div style="text-align: center; margin: 24px 0;">
+                    <a href="${booking.meetingUrl}" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 500;">
+                      🔗 Join Meeting
+                    </a>
+                  </div>
+                ` : ''}
+
+                <p style="color: #999; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 16px;">
+                  This meeting was booked via Turnkii.
+                </p>
+              </div>
+            </div>
+          `,
+          text: `
+            Meeting Confirmed!
+            Date: ${meetingTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            Time: ${meetingTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${meetingEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} (London time)
+            Attendee: ${name}
+            Email: ${email}
+            ${notes ? `Notes: ${notes}` : ''}
+            ${booking.meetingUrl ? `Meeting Link: ${booking.meetingUrl}` : ''}
+          `
+        };
+
         const emailResult = await resend.emails.send(emailData);
         console.log('✅ Email sent:', emailResult);
       } catch (emailError) {
-        console.error('❌ Email sending failed:', emailError);
+        console.error('❌ Email sending failed:', emailError.message);
         // Don't fail the booking if email fails
       }
     } else {
@@ -288,7 +302,7 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     eventTypeId: EVENT_TYPE_ID,
     hasApiKey: !!CAL_API_KEY,
-    hasResend: !!process.env.RESEND_API_KEY
+    hasResend: !!RESEND_API_KEY
   });
 });
 
