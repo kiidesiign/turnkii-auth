@@ -103,7 +103,7 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .slot-btn:hover:not(:disabled) {
+    .slot-btn:hover:not(:disabled):not(.booked) {
       background: #f3f4f6;
       border-color: #3b82f6;
     }
@@ -112,6 +112,13 @@
       background: #3b82f6;
       color: white;
       border-color: #3b82f6;
+    }
+
+    .slot-btn.booked {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: #f3f4f6;
+      text-decoration: line-through;
     }
 
     .slot-btn:disabled {
@@ -170,6 +177,12 @@
       text-decoration: underline;
     }
 
+    .message.info {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+
     .loading {
       text-align: center;
       color: #666;
@@ -185,6 +198,13 @@
     .hidden {
       display: none;
     }
+
+    .booked-label {
+      font-size: 11px;
+      color: #999;
+      display: block;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -193,7 +213,7 @@
     <p class="subtitle">30-minute consultation</p>
     
     <div class="availability-info">
-      ⏰ Available: Mon-Thu 14:00-17:00 · Fri 14:00-16:00
+      ⏰ Available: Mon-Thu 14:00-17:00 · Fri 14:00-16:00 (London time)
     </div>
 
     <!-- Date Picker -->
@@ -237,6 +257,7 @@
     // State
     let selectedSlot = null;
     let isLoading = false;
+    let bookedSlots = [];
 
     // DOM Elements
     const datePicker = document.getElementById('datePicker');
@@ -271,6 +292,7 @@
 
       slotsContainer.innerHTML = '<div class="loading">Loading available slots...</div>';
       bookingForm.classList.add('hidden');
+      bookedSlots = [];
 
       try {
         const response = await fetch(`/api/slots?date=${date}`);
@@ -289,13 +311,22 @@
 
     function renderSlots(slots) {
       let html = '<div class="slots-grid">';
+      
       slots.forEach((slot) => {
+        // Check if this slot is already booked (you could add logic here to check against bookedSlots)
+        const isBooked = false; // We'll handle this on the server side
+        
         html += `
-          <button class="slot-btn" data-start="${slot.start}" onclick="selectSlot('${slot.start}')">
+          <button class="slot-btn ${isBooked ? 'booked' : ''}" 
+                  data-start="${slot.start}" 
+                  onclick="selectSlot('${slot.start}')"
+                  ${isBooked ? 'disabled' : ''}>
             ${slot.display}
+            ${isBooked ? '<span class="booked-label">Booked</span>' : ''}
           </button>
         `;
       });
+      
       html += '</div>';
       slotsContainer.innerHTML = html;
     }
@@ -308,11 +339,14 @@
 
       // Select clicked
       const selectedBtn = document.querySelector(`.slot-btn[data-start="${start}"]`);
-      if (selectedBtn) {
+      if (selectedBtn && !selectedBtn.classList.contains('booked')) {
         selectedBtn.classList.add('selected');
         selectedSlot = start;
         bookingForm.classList.remove('hidden');
         clearMessages();
+        console.log('✅ Selected slot:', start);
+      } else if (selectedBtn && selectedBtn.classList.contains('booked')) {
+        showMessage('This slot is already booked. Please select another time.', 'error');
       }
     }
 
@@ -334,6 +368,12 @@
       bookBtn.disabled = true;
       bookBtn.textContent = 'Booking...';
       clearMessages();
+
+      console.log('📤 Booking request:', {
+        startTime: selectedSlot,
+        name: name,
+        email: email
+      });
 
       try {
         const response = await fetch('/api/book', {
@@ -371,10 +411,20 @@
           emailInput.value = '';
           notesInput.value = '';
           
-          // Refresh slots
-          loadSlots();
+          // Refresh slots to remove booked slot
+          setTimeout(loadSlots, 1000);
         } else {
-          showMessage(result.error || 'Booking failed. Please try again.', 'error');
+          // Check if it's a booking conflict
+          if (result.error && (
+            result.error.includes('already has booking') || 
+            result.error.includes('not available')
+          )) {
+            showMessage('This time slot is already booked. Please select another time.', 'error');
+            // Refresh slots to show updated availability
+            setTimeout(loadSlots, 1000);
+          } else {
+            showMessage(result.error || 'Booking failed. Please try again.', 'error');
+          }
         }
       } catch (error) {
         showMessage('An error occurred. Please try again.', 'error');
@@ -391,6 +441,15 @@
 
     function clearMessages() {
       messageContainer.innerHTML = '';
+    }
+
+    // Helper: Check if a date is today or in the future
+    function isFutureDate(dateString) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkDate = new Date(dateString);
+      checkDate.setHours(0, 0, 0, 0);
+      return checkDate >= today;
     }
   </script>
 </body>
