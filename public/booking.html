@@ -134,6 +134,14 @@
       bookBtn.textContent = 'Booking...';
       messageContainer.innerHTML = '';
 
+        // 🔍 DEBUG: Add this right here
+      console.log('🔍 DEBUG:');
+      console.log('  selectedSlot raw:', selectedSlot);
+      console.log('  selectedSlot type:', typeof selectedSlot);
+      console.log('  As Date:', new Date(selectedSlot));
+      console.log('  UTC string:', new Date(selectedSlot).toISOString());
+      console.log('  UTC+1 (London):', new Date(selectedSlot).toLocaleString('en-GB', { timeZone: 'Europe/London' }));
+      
       // 🔥 FIX: Ensure UTC format
       let startTime = selectedSlot;
       if (!startTime.endsWith('Z')) {
