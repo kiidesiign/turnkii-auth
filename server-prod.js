@@ -151,8 +151,15 @@ app.get('/api/slots', async (req, res) => {
 
 app.post('/api/book', async (req, res) => {
   try {
-    const { startTime, name, email, notes } = req.body;
+    const { startTime, firstName, lastName, email, notes, acceptTerms, acceptMarketing } = req.body;
 
+    // Validation
+    if (!startTime || !firstName || !lastName || !email) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: startTime, firstName, lastName, email' 
+      });
+    }
+    
     console.log('📤 Booking request:', { startTime, name, email });
 
     if (!startTime || !name || !email) {
