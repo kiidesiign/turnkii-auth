@@ -12,7 +12,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// ============================================================
+// MIDDLEWARE
+// ============================================================
+
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -36,7 +39,7 @@ const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || process.env.NEXT_PUB
 const CAL_API_KEY = process.env.CAL_API_KEY || '';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@turnkii.com';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@mail.turnkii.es';
 const NOTIFY_EMAIL = process.env.RESEND_TO_EMAIL || 'gavin911@proton.me';
 
 // Supabase Configuration
@@ -66,7 +69,7 @@ if (RESEND_API_KEY) {
 }
 
 // ============================================================
-// RATE LIMITING
+// RATE LIMITING (for magic_link)
 // ============================================================
 
 const rateLimits = new Map();
@@ -305,7 +308,7 @@ app.post('/api/book', async (req, res) => {
 });
 
 // ============================================================
-// API: Generate slots with CEST as primary time
+// Helper: Generate slots with CEST as primary time
 // ============================================================
 
 function getManualSlots(date) {
@@ -371,156 +374,349 @@ app.post('/api/cal-webhook', async (req, res) => {
 });
 
 // ============================================================
-// API: Send OTP (sp-contact)
+// API: Send OTP (sp-contact) - MERGED FROM api/sp-contact.js
 // ============================================================
 
 app.post('/api/sp-contact', async (req, res) => {
   try {
-    const { email, firstName, lastName, mobileNumber, mobileCountryCode } = req.body;
+    const { email, firstName, lastName, mobileNumber, mobileCountryCode, action, otp, token } = req.body;
 
-    console.log('📧 OTP request:', { email, firstName, lastName });
+    // ============================================================
+    // GET: Fetch contact by email
+    // ============================================================
+    if (req.method === 'GET') {
+      const { email } = req.query;
+      if (!email) {
+        return res.status(400).json({ success: false, error: 'Email is required' });
+      }
 
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
+      const { data: contact, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
 
-    if (!resend) {
-      console.error('❌ Resend not configured');
-      return res.status(500).json({ error: 'Email service not configured' });
-    }
+      if (error || !contact) {
+        return res.status(404).json({ success: false, error: 'Contact not found' });
+      }
 
-    // Rate limiting
-    const rateCheck = checkRateLimit(email, 5, 3);
-    if (!rateCheck.allowed) {
-      return res.status(429).json({
-        success: false,
-        error: `Too many requests. Please wait ${rateCheck.waitMinutes} minute(s) before requesting another code.`
+      return res.status(200).json({
+        success: true,
+        contact: {
+          id: contact.id,
+          email: contact.email || '',
+          firstName: contact.first_name || '',
+          lastName: contact.last_name || '',
+          mobileNumber: contact.mobile_number || '',
+          mobileCountryCode: contact.mobile_country_code || '',
+          otp: contact.otp || '',
+          magicLink: contact.magic_link || '',
+          linkExpiry: contact.link_expiry || '',
+        }
       });
     }
 
-    const otp = generateOTP();
-    const token = generateToken();
-    const expiryTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-
-    // Check if contact exists
-    const { data: existingContact, error: findError } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    let contactId;
-    let isNewContact = false;
-
-    if (findError && findError.code === 'PGRST116') {
-      // Contact doesn't exist - create new
-      console.log('👤 Creating new contact...');
-      
-      // First create an account
-      const { data: newAccount, error: accountError } = await supabase
-        .from('accounts')
-        .insert({})
-        .select()
-        .single();
-
-      if (accountError) {
-        console.error('❌ Failed to create account:', accountError);
-        return res.status(500).json({ error: 'Failed to create account' });
+    // ============================================================
+    // UPDATE contact
+    // ============================================================
+    if (action === 'update') {
+      if (!firstName || !lastName) {
+        return res.status(400).json({ success: false, error: 'First name and last name are required' });
       }
 
-      const accountId = newAccount.id;
-
-      // Then create contact
-      const { data: newContact, error: createError } = await supabase
+      const { data: existingContact, error: findError } = await supabase
         .from('contacts')
-        .insert({
-          email: email.toLowerCase(),
-          first_name: firstName || email.split('@')[0],
-          last_name: lastName || '',
-          account_id: accountId,
-          role: 'primary',
-          mobile_number: mobileNumber || '',
-          mobile_country_code: mobileCountryCode || '+34',
-          otp: otp,
-          magic_link: token,
-          link_expiry: expiryTime
-        })
-        .select()
+        .select('id')
+        .eq('email', email.toLowerCase())
         .single();
 
-      if (createError) {
-        console.error('❌ Failed to create contact:', createError);
-        return res.status(500).json({ error: 'Failed to create contact' });
+      if (findError || !existingContact) {
+        return res.status(404).json({ success: false, error: 'Contact not found' });
       }
-
-      contactId = newContact.id;
-      isNewContact = true;
-      console.log('✅ Created new contact:', contactId);
-
-    } else if (existingContact) {
-      // Update existing contact
-      contactId = existingContact.id;
-      isNewContact = false;
-      console.log('✅ Found existing contact:', contactId);
 
       const { error: updateError } = await supabase
         .from('contacts')
         .update({
-          otp: otp,
-          magic_link: token,
-          link_expiry: expiryTime,
+          first_name: firstName,
+          last_name: lastName,
+          mobile_number: mobileNumber || '',
+          mobile_country_code: mobileCountryCode || '+34',
           updated_at: new Date().toISOString()
         })
-        .eq('id', contactId);
+        .eq('id', existingContact.id);
 
       if (updateError) {
-        console.error('❌ Failed to update contact:', updateError);
-        return res.status(500).json({ error: 'Failed to update contact' });
+        return res.status(500).json({ success: false, error: 'Failed to update contact' });
       }
-    } else {
-      console.error('❌ Database error:', findError);
-      return res.status(500).json({ error: 'Database error' });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully'
+      });
     }
 
-    // Send OTP email
-    console.log('📧 Sending OTP email to:', email);
-    const emailResult = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: email,
-      subject: `🔐 Your OTP Code for Turnkii`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb; border-radius: 12px;">
-          <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-            <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">🔐 Your OTP Code</h1>
-            <p style="color: #666; margin-bottom: 24px;">Use this code to verify your email address.</p>
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 24px 0;">
-              <div style="font-size: 36px; font-weight: bold; letter-spacing: 12px; color: #1a1a1a;">${otp}</div>
-            </div>
-            <p style="color: #666; font-size: 14px;">This code expires in <strong>10 minutes</strong>.</p>
-          </div>
-        </div>
-      `,
-      text: `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.`
-    });
+    // ============================================================
+    // MAGIC_LINK - Generate OTP and send email
+    // ============================================================
+    if (action === 'magic_link' || !action) {
+      // Rate limiting
+      const rateCheck = checkRateLimit(email, 5, 3);
+      if (!rateCheck.allowed) {
+        return res.status(429).json({
+          success: false,
+          error: `Too many requests. Please wait ${rateCheck.waitMinutes} minute(s) before requesting another code.`
+        });
+      }
 
-    console.log('✅ OTP sent:', emailResult);
+      const otpCode = generateOTP();
+      const tokenCode = generateToken();
+      const expiryTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-    res.json({
-      success: true,
-      message: 'OTP sent successfully',
-      contactId: contactId,
-      isNewContact: isNewContact,
-      remainingRequests: rateCheck.remaining
+      // Check if contact exists
+      const { data: existingContact, error: findError } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      let contactId;
+      let isNewContact = false;
+
+      if (findError && findError.code === 'PGRST116') {
+        // Create account first
+        const { data: newAccount, error: accountError } = await supabase
+          .from('accounts')
+          .insert({})
+          .select()
+          .single();
+
+        if (accountError) {
+          console.error('❌ Failed to create account:', accountError);
+          return res.status(500).json({ error: 'Failed to create account' });
+        }
+
+        const { data: newContact, error: createError } = await supabase
+          .from('contacts')
+          .insert({
+            email: email.toLowerCase(),
+            first_name: firstName || email.split('@')[0],
+            last_name: lastName || '',
+            account_id: newAccount.id,
+            role: 'primary',
+            mobile_number: mobileNumber || '',
+            mobile_country_code: mobileCountryCode || '+34',
+            otp: otpCode,
+            magic_link: tokenCode,
+            link_expiry: expiryTime
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('❌ Failed to create contact:', createError);
+          return res.status(500).json({ error: 'Failed to create contact' });
+        }
+
+        contactId = newContact.id;
+        isNewContact = true;
+        console.log('✅ Created new contact with OTP');
+      } else if (existingContact) {
+        contactId = existingContact.id;
+        isNewContact = false;
+
+        const { error: updateError } = await supabase
+          .from('contacts')
+          .update({
+            otp: otpCode,
+            magic_link: tokenCode,
+            link_expiry: expiryTime,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', contactId);
+
+        if (updateError) {
+          console.error('❌ Failed to update OTP:', updateError);
+          return res.status(500).json({ error: 'Failed to update OTP' });
+        }
+        console.log('✅ Updated OTP for existing contact');
+      } else {
+        return res.status(500).json({ error: 'Database error' });
+      }
+
+      // Send OTP email
+      let emailSent = false;
+      if (resend) {
+        try {
+          await resend.emails.send({
+            from: FROM_EMAIL,
+            to: email,
+            subject: `🔐 Your OTP Code for Turnkii`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb; border-radius: 12px;">
+                <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                  <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">🔐 Your OTP Code</h1>
+                  <p style="color: #666; margin-bottom: 24px;">Use this code to verify your email address.</p>
+                  <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 24px 0;">
+                    <div style="font-size: 36px; font-weight: bold; letter-spacing: 12px; color: #1a1a1a;">${otpCode}</div>
+                  </div>
+                  <p style="color: #666; font-size: 14px;">This code expires in <strong>10 minutes</strong>.</p>
+                </div>
+              </div>
+            `,
+            text: `Your OTP code is: ${otpCode}\n\nThis code expires in 10 minutes.`
+          });
+          emailSent = true;
+          console.log('✅ OTP email sent to:', email);
+        } catch (emailError) {
+          console.error('❌ Failed to send OTP email:', emailError.message);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'OTP sent successfully',
+        otp: otpCode,
+        token: tokenCode,
+        expiry: expiryTime,
+        contactId: contactId,
+        isNewContact: isNewContact,
+        emailSent: emailSent,
+        remainingRequests: rateCheck.remaining
+      });
+    }
+
+    // ============================================================
+    // VERIFY OTP
+    // ============================================================
+    if (action === 'verify_otp') {
+      if (!otp) {
+        return res.status(400).json({ success: false, error: 'OTP is required' });
+      }
+
+      const { data: contact, error: findError } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (findError || !contact) {
+        return res.status(404).json({ success: false, error: 'Contact not found' });
+      }
+
+      if (contact.otp !== otp) {
+        return res.status(401).json({ success: false, error: 'Invalid OTP' });
+      }
+
+      if (contact.link_expiry && new Date(contact.link_expiry) < new Date()) {
+        return res.status(401).json({ success: false, error: 'OTP has expired' });
+      }
+
+      await supabase
+        .from('contacts')
+        .update({
+          otp: null,
+          email_verified: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contact.id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'OTP verified successfully',
+        token: contact.magic_link,
+        email: contact.email,
+        firstName: contact.first_name || '',
+        lastName: contact.last_name || ''
+      });
+    }
+
+    // ============================================================
+    // VERIFY TOKEN
+    // ============================================================
+    if (action === 'verify_token') {
+      if (!token) {
+        return res.status(400).json({ success: false, error: 'Token is required' });
+      }
+
+      const { data: contact, error: findError } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (findError || !contact) {
+        return res.status(404).json({ success: false, error: 'Contact not found' });
+      }
+
+      if (contact.magic_link !== token) {
+        return res.status(401).json({ success: false, error: 'Invalid token' });
+      }
+
+      if (contact.link_expiry && new Date(contact.link_expiry) < new Date()) {
+        return res.status(401).json({ success: false, error: 'Token has expired' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Token verified successfully',
+        email: contact.email,
+        firstName: contact.first_name || '',
+        lastName: contact.last_name || '',
+        mobileNumber: contact.mobile_number || '',
+        mobileCountryCode: contact.mobile_country_code || ''
+      });
+    }
+
+    // ============================================================
+    // LOGOUT
+    // ============================================================
+    if (action === 'logout') {
+      if (!token) {
+        return res.status(400).json({ success: false, error: 'Token is required' });
+      }
+
+      const { data: contact, error: findError } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (findError || !contact) {
+        return res.status(404).json({ success: false, error: 'Contact not found' });
+      }
+
+      if (contact.magic_link !== token) {
+        return res.status(401).json({ success: false, error: 'Invalid token' });
+      }
+
+      await supabase
+        .from('contacts')
+        .update({
+          magic_link: null,
+          link_expiry: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contact.id);
+
+      return res.status(200).json({ success: true, message: 'Logged out successfully' });
+    }
+
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid action. Valid actions: update, magic_link, verify_otp, verify_token, logout'
     });
 
   } catch (error) {
-    console.error('❌ OTP error:', error);
-    res.status(500).json({ error: error.message || 'Failed to send OTP' });
+    console.error('❌ sp-contact error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Server error'
+    });
   }
 });
 
 // ============================================================
-// API: Verify OTP
+// API: Verify OTP (standalone endpoint for compatibility)
 // ============================================================
 
 app.post('/api/verify-otp', async (req, res) => {
@@ -543,7 +739,6 @@ app.post('/api/verify-otp', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Contact not found' });
     }
 
-    // Check OTP
     if (contact.otp !== otp) {
       return res.status(401).json({ success: false, error: 'Invalid OTP' });
     }
@@ -552,7 +747,8 @@ app.post('/api/verify-otp', async (req, res) => {
       return res.status(401).json({ success: false, error: 'OTP has expired' });
     }
 
-    // Clear OTP and mark email as verified
+    const token = contact.magic_link;
+
     await supabase
       .from('contacts')
       .update({
@@ -567,7 +763,7 @@ app.post('/api/verify-otp', async (req, res) => {
     res.json({
       success: true,
       message: 'OTP verified successfully',
-      token: contact.magic_link,
+      token: token,
       email: contact.email,
       firstName: contact.first_name || '',
       lastName: contact.last_name || ''
@@ -601,6 +797,20 @@ app.get('/api/health', (req, res) => {
     hasResend: !!RESEND_API_KEY,
     hasSupabase: !!supabaseUrl
   });
+});
+
+// ============================================================
+// TEMPORARY: Clear rate limit for testing
+// ============================================================
+
+app.post('/api/clear-rate-limit', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+  
+  const key = `sp_magic_${email}`;
+  rateLimits.delete(key);
+  console.log(`✅ Rate limit cleared for ${email}`);
+  res.json({ success: true, message: `Rate limit cleared for ${email}` });
 });
 
 // ============================================================
