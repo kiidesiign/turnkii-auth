@@ -592,6 +592,22 @@
   line-height: 1.6;
   color: #495057;
 }
+
+/* --- Booking Lightbox overrides --- */
+.booking-lightbox .lightbox {
+  max-width: 900px;
+  padding: 0;
+  overflow: hidden;
+}
+.booking-lightbox .lightbox-header {
+  padding: 12px 20px;
+  margin-bottom: 0;
+  border-bottom: 1px solid #e9ecef;
+}
+.booking-lightbox .lightbox-close {
+  font-size: 28px;
+  padding: 0 8px;
+}
 </style>
 
 <script>
@@ -1400,6 +1416,7 @@ window.downloadDocument = function(doc) {
           <div id="documents-container"></div>
           
           <div class="profile-actions">
+            <button class="btn btn-primary" onclick="window.openBookingLightbox()">📅 Free Consultation</button>
             <button class="btn btn-refresh" onclick="window.refreshDocumentStatus()">🔄 Refresh Status</button>
             <button class="btn btn-logout" onclick="window.logout()">🚪 Logout</button>
           </div>
@@ -1469,6 +1486,73 @@ window.downloadDocument = function(doc) {
       renderDocuments(docs);
     });
   }
+  
+  // ============================================================
+  // BOOKING LIGHTBOX FUNCTIONS
+  // ============================================================
+  
+  window.openBookingLightbox = function() {
+    if (!currentContactData || !currentContactData.email) {
+      showToast('Please refresh the page and try again.', 'error');
+      return;
+    }
+
+    var overlay = document.getElementById('booking-lightbox-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'booking-lightbox-overlay';
+      overlay.className = 'lightbox-overlay booking-lightbox';
+      overlay.style.display = 'none';
+      document.body.appendChild(overlay);
+    }
+
+    var name = (currentContactData.firstName || '') + ' ' + (currentContactData.lastName || '');
+    var emailEncoded = encodeURIComponent(currentContactData.email);
+    var phoneEncoded = encodeURIComponent(currentContactData.mobileNumber || '');
+    var calUrl = 'https://cal.eu/turnkii/15min?email=' + emailEncoded + '&name=' + encodeURIComponent(name.trim()) + '&phone=' + phoneEncoded;
+
+    overlay.innerHTML = `
+      <div class="lightbox" style="max-width: 900px; width: 100%; max-height: 95vh; padding: 0; overflow: hidden; border-radius: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+          <span style="font-weight: 600; font-size: 16px;">📅 Book a Free Consultation</span>
+          <button onclick="window.closeBookingLightbox()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #6c757d; padding: 0 8px; line-height: 1;">&times;</button>
+        </div>
+        <iframe
+          src="${calUrl}"
+          style="width: 100%; height: 80vh; border: none; display: block;"
+          title="Book a Free Consultation"
+          allow="camera; microphone; autoplay; encrypted-media"
+        ></iframe>
+      </div>
+    `;
+
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.closeBookingLightbox = function() {
+    var overlay = document.getElementById('booking-lightbox-overlay');
+    if (overlay) {
+      overlay.classList.remove('active');
+      overlay.style.display = 'none';
+      document.body.style.overflow = '';
+    }
+  };
+
+  // ---- Listen for postMessage from Cal.com to auto-close on booking success ----
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'cal:booking:success') {
+      showToast('✅ Booking confirmed!', 'success');
+      setTimeout(function() {
+        window.closeBookingLightbox();
+        // Refresh documents or bookings
+        if (typeof window.refreshDocumentStatus === 'function') {
+          window.refreshDocumentStatus();
+        }
+      }, 2000);
+    }
+  });
   
   // ============================================================
   // Verify token and load profile using consolidated endpoint
