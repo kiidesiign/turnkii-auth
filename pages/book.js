@@ -43,12 +43,15 @@ export default function BookingPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await createBooking({
-        startTime: selectedSlot.start,
-        attendeeName: formData.name,
-        attendeeEmail: formData.email,
-        notes: formData.notes
-      });
+        const result = await createBooking({
+          startTime: selectedSlot.start,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          notes: formData.notes,
+          acceptTerms: formData.acceptTerms,
+          acceptMarketing: formData.acceptMarketing
+        });
 
       setBookingSuccess(result);
       setSelectedSlot(null);
