@@ -149,25 +149,24 @@ app.get('/api/slots', async (req, res) => {
 // API: Create a booking
 // ============================================================
 
+// ============================================================
+// API: Create a booking (MINIMAL – no Supabase, just Cal.com + email)
+// ============================================================
+
 app.post('/api/book', async (req, res) => {
   try {
     const { startTime, firstName, lastName, email, notes, acceptTerms, acceptMarketing } = req.body;
 
-    // Validation
+    console.log('📤 Booking request:', { startTime, firstName, lastName, email });
+
+    // 1. Validate required fields
     if (!startTime || !firstName || !lastName || !email) {
       return res.status(400).json({ 
         error: 'Missing required fields: startTime, firstName, lastName, email' 
       });
     }
-    
-    console.log('📤 Booking request:', { startTime, name, email });
 
-    if (!startTime || !name || !email) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: startTime, name, email' 
-      });
-    }
-
+    // 2. Validate time slot (using your existing schedule)
     const bookingDate = new Date(startTime);
     const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const hour = bookingDate.getUTCHours();
@@ -175,17 +174,11 @@ app.post('/api/book', async (req, res) => {
 
     const schedule = AVAILABILITY_SCHEDULE[dayOfWeek];
     if (!schedule) {
-      return res.status(400).json({ 
-        error: 'Bookings are only available Monday-Friday' 
-      });
+      return res.status(400).json({ error: 'Bookings are only available Monday-Friday' });
     }
-
     if (minute !== 0 && minute !== 30) {
-      return res.status(400).json({ 
-        error: 'Bookings must start on the hour or half-hour' 
-      });
+      return res.status(400).json({ error: 'Bookings must start on the hour or half-hour' });
     }
-
     if (hour < schedule.start || hour > schedule.end || (hour === schedule.end && minute > 0)) {
       const startCest = schedule.start + 2;
       const endCest = schedule.end + 2;
@@ -194,11 +187,13 @@ app.post('/api/book', async (req, res) => {
       });
     }
 
+    // 3. Ensure UTC format
     let start = startTime;
     if (!start.endsWith('Z')) {
       start = new Date(startTime).toISOString();
     }
 
+    // 4. Create booking in Cal.com
     console.log('📤 Creating booking in Cal.eu...');
     const response = await fetch('https://api.cal.eu/v2/bookings', {
       method: 'POST',
@@ -211,7 +206,7 @@ app.post('/api/book', async (req, res) => {
         eventTypeId: EVENT_TYPE_ID,
         start: start,
         attendee: {
-          name: name,
+          name: `${firstName} ${lastName}`,
           email: email,
           timeZone: 'Europe/Berlin'
         },
@@ -234,82 +229,59 @@ app.post('/api/book', async (req, res) => {
 
     const booking = data.data;
 
-    // Send email
+    // 5. Send confirmation email via Resend (only if Resend is configured)
     if (resend) {
-      console.log('📧 Sending confirmation email via Resend...');
+      console.log('📧 Sending confirmation email...');
       try {
         const meetingTime = new Date(booking.start);
         const meetingEnd = new Date(booking.end);
-        
         const cestTime = new Date(meetingTime.getTime() + 2 * 60 * 60 * 1000);
         const cestEnd = new Date(meetingEnd.getTime() + 2 * 60 * 60 * 1000);
-        const ukTime = new Date(meetingTime.getTime() + 60 * 60 * 1000);
         
-        const emailData = {
+        await resend.emails.send({
           from: FROM_EMAIL,
           to: [email, NOTIFY_EMAIL],
-          subject: `Meeting Confirmed: ${meetingTime.toLocaleDateString()} at ${cestTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} CEST`,
+          subject: `✅ Booking Confirmed: ${cestTime.toLocaleDateString()} at ${cestTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} CEST`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb; border-radius: 12px;">
               <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-                <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">✅ Meeting Confirmed</h1>
-                <p style="color: #666; margin-bottom: 24px;">Your meeting has been scheduled successfully.</p>
-                
+                <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 8px;">✅ Booking Confirmed</h1>
+                <p style="color: #666; margin-bottom: 24px;">Hi ${firstName}, your booking has been confirmed.</p>
                 <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
-                  <p style="margin: 4px 0;"><strong>📅 Date:</strong> ${cestTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p style="margin: 4px 0;"><strong>⏰ Time:</strong> ${cestTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${cestEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} CEST (${ukTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} UK)</p>
-                  <p style="margin: 4px 0;"><strong>👤 Attendee:</strong> ${name}</p>
-                  <p style="margin: 4px 0;"><strong>📧 Email:</strong> ${email}</p>
-                  ${notes ? `<p style="margin: 4px 0;"><strong>📝 Notes:</strong> ${notes}</p>` : ''}
+                  <p><strong>📅 Date:</strong> ${cestTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p><strong>⏰ Time:</strong> ${cestTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${cestEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} CEST</p>
+                  <p><strong>👤 Attendee:</strong> ${firstName} ${lastName}</p>
+                  <p><strong>📧 Email:</strong> ${email}</p>
                 </div>
-
-                ${booking.meetingUrl ? `
-                  <div style="text-align: center; margin: 24px 0;">
-                    <a href="${booking.meetingUrl}" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 500;">
-                      🔗 Join Meeting
-                    </a>
-                  </div>
-                ` : ''}
-
-                <p style="color: #999; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 16px;">
-                  This meeting was booked via Turnkii.
-                </p>
+                ${booking.meetingUrl ? `<a href="${booking.meetingUrl}" target="_blank" style="display:inline-block;background:#3b82f6;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;margin-top:8px;">🔗 Join Meeting</a>` : ''}
               </div>
             </div>
-          `,
-          text: `
-            Meeting Confirmed!
-            Date: ${cestTime.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            Time: ${cestTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} - ${cestEnd.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} CEST (${ukTime.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',hour12:false})} UK)
-            Attendee: ${name}
-            Email: ${email}
-            ${notes ? `Notes: ${notes}` : ''}
-            ${booking.meetingUrl ? `Meeting Link: ${booking.meetingUrl}` : ''}
           `
-        };
-
-        const emailResult = await resend.emails.send(emailData);
-        console.log('✅ Email sent:', emailResult);
+        });
+        console.log('✅ Email sent');
       } catch (emailError) {
         console.error('❌ Email sending failed:', emailError.message);
+        // Don't fail the booking if email fails
       }
     }
 
+    // 6. Return success
     res.json({
       success: true,
       booking: {
         uid: booking.uid,
         start: booking.start,
         end: booking.end,
-        meetingUrl: booking.meetingUrl,
-        attendee: booking.attendees[0]
+        meetingUrl: booking.meetingUrl
       }
     });
 
   } catch (error) {
     console.error('❌ Booking error:', error);
+    // Return detailed error for debugging (remove stack later)
     res.status(500).json({ 
-      error: error.message || 'Failed to create booking' 
+      error: error.message,
+      stack: error.stack
     });
   }
 });
