@@ -4,20 +4,19 @@ import Cal, { getCalApi } from "@calcom/embed-react";
 
 export default function CalBookingLightbox({ isOpen, onClose, user }) {
   const calRef = useRef();
+  const EVENT_TYPE_ID = 123456; // 🔁 Replace with your 30‑min event ID
 
   useEffect(() => {
     if (isOpen && calRef.current) {
       (async function () {
         const cal = await getCalApi();
         cal("ui", {
-          // 👇 Your custom CSS variables go here
           cssVarsPerTheme: {
-            "cal-brand": "#3d0566",        // Your primary brand color
-            "cal-brand-emphasis": "#2a0447", // Hover state
-            "cal-border-booker": "#e2e8f0", // Border color of the widget
+            "cal-brand": "#3d0566",
+            "cal-brand-emphasis": "#11243A",
+            "cal-border-booker": "#e2e8f0",
             "cal-border-booker-width": "1px",
             "radius": "8px",
-            // You can find many more variables here: https://cal.com/docs/developing/guides/embeds/customize-embed-css-variables
           }
         });
       })();
@@ -37,7 +36,8 @@ export default function CalBookingLightbox({ isOpen, onClose, user }) {
         </button>
         <div className="w-full h-full p-4">
           <Cal
-            calLink="turnkii/30min"
+            // 🔁 Use eventTypeId instead of calLink
+            eventTypeId={344929}
             config={{
               name: `${user.first_name} ${user.last_name}`,
               email: user.email,
