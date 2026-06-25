@@ -37,7 +37,7 @@ export default function CalBookingLightbox({ isOpen, onClose, user }) {
         </button>
         <div className="w-full h-full p-4">
           <Cal
-            calLink="turnkii/15min"
+            calLink="turnkii/30min"
             config={{
               name: `${user.first_name} ${user.last_name}`,
               email: user.email,
