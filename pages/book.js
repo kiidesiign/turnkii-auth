@@ -10,9 +10,12 @@ export default function BookingPage() {
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
-    notes: ''
+    notes: '',
+    acceptTerms: false,
+    acceptMarketing: false
   });
 
   useEffect(() => {
@@ -39,23 +42,38 @@ export default function BookingPage() {
       alert('Please select a time slot');
       return;
     }
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      alert('Please fill in all required fields');
+      return;
+    }
+    if (!formData.acceptTerms) {
+      alert('You must accept the terms and conditions');
+      return;
+    }
 
     setLoading(true);
     setError(null);
     try {
-        const result = await createBooking({
-          startTime: selectedSlot.start,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          notes: formData.notes,
-          acceptTerms: formData.acceptTerms,
-          acceptMarketing: formData.acceptMarketing
-        });
+      const result = await createBooking({
+        startTime: selectedSlot.start,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        notes: formData.notes,
+        acceptTerms: formData.acceptTerms,
+        acceptMarketing: formData.acceptMarketing
+      });
 
       setBookingSuccess(result);
       setSelectedSlot(null);
-      setFormData({ name: '', email: '', notes: '' });
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        notes: '',
+        acceptTerms: false,
+        acceptMarketing: false
+      });
       fetchSlots(selectedDate);
     } catch (error) {
       setError(error.message || 'Booking failed. Please try again.');
@@ -64,7 +82,6 @@ export default function BookingPage() {
     }
   };
 
-  // Check if date is available
   const isDateAvailable = (date) => {
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = days[date.getDay()];
@@ -156,15 +173,27 @@ export default function BookingPage() {
       {/* Booking Form */}
       {selectedSlot && (
         <form onSubmit={handleBooking} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Your Name *</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full p-2 border rounded"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">First Name *</label>
+              <input
+                type="text"
+                required
+                value={formData.firstName}
+                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Last Name *</label>
+              <input
+                type="text"
+                required
+                value={formData.lastName}
+                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                className="w-full p-2 border rounded"
+              />
+            </div>
           </div>
 
           <div>
@@ -186,6 +215,33 @@ export default function BookingPage() {
               className="w-full p-2 border rounded"
               rows="3"
             />
+          </div>
+
+          <div className="flex items-start">
+            <input
+              type="checkbox"
+              id="acceptTerms"
+              checked={formData.acceptTerms}
+              onChange={(e) => setFormData({...formData, acceptTerms: e.target.checked})}
+              className="mt-1 mr-2"
+              required
+            />
+            <label htmlFor="acceptTerms" className="text-sm">
+              I agree to the Terms of Service and Privacy Policy *
+            </label>
+          </div>
+
+          <div className="flex items-start">
+            <input
+              type="checkbox"
+              id="acceptMarketing"
+              checked={formData.acceptMarketing}
+              onChange={(e) => setFormData({...formData, acceptMarketing: e.target.checked})}
+              className="mt-1 mr-2"
+            />
+            <label htmlFor="acceptMarketing" className="text-sm">
+              I would like to receive occasional updates and offers (optional)
+            </label>
           </div>
 
           <button
