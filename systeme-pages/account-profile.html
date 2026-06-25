@@ -1509,7 +1509,7 @@ window.downloadDocument = function(doc) {
     var name = (currentContactData.firstName || '') + ' ' + (currentContactData.lastName || '');
     var emailEncoded = encodeURIComponent(currentContactData.email);
     var phoneEncoded = encodeURIComponent(currentContactData.mobileNumber || '');
-    var calUrl = 'https://cal.eu/turnkii/15min?email=' + emailEncoded + '&name=' + encodeURIComponent(name.trim()) + '&phone=' + phoneEncoded;
+    var calUrl = 'https://cal.eu/turnkii?eventTypeId=344929&email=' + emailEncoded + '&name=' + encodeURIComponent(name.trim()) + '&phone=' + phoneEncoded;
 
     overlay.innerHTML = `
       <div class="lightbox" style="max-width: 900px; width: 100%; max-height: 95vh; padding: 0; overflow: hidden; border-radius: 12px;">
