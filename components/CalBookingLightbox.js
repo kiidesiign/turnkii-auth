@@ -7,7 +7,20 @@ export default function CalBookingLightbox({ isOpen, onClose, user }) {
 
   useEffect(() => {
     if (isOpen && calRef.current) {
-      // Optionally refresh or configure the embed when opened
+      (async function () {
+        const cal = await getCalApi();
+        cal("ui", {
+          // 👇 Your custom CSS variables go here
+          cssVarsPerTheme: {
+            "cal-brand": "#3d0566",        // Your primary brand color
+            "cal-brand-emphasis": "#2a0447", // Hover state
+            "cal-border-booker": "#e2e8f0", // Border color of the widget
+            "cal-border-booker-width": "1px",
+            "radius": "8px",
+            // You can find many more variables here: https://cal.com/docs/developing/guides/embeds/customize-embed-css-variables
+          }
+        });
+      })();
     }
   }, [isOpen]);
 
