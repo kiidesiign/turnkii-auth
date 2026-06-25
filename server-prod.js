@@ -13,8 +13,16 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: true
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://www.turnkii.es',
+    'https://turnkii.es',
+    'https://project-qv4f9.vercel.app'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.static('public'));
