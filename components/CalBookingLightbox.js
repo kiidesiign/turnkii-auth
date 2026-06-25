@@ -17,7 +17,8 @@ export default function CalBookingLightbox({ isOpen, onClose, user }) {
             "cal-border-booker": "#e2e8f0",
             "cal-border-booker-width": "1px",
             "radius": "8px",
-          }
+          },
+          hideBranding: true, // ← This removes the Cal.com logo
         });
       })();
     }
