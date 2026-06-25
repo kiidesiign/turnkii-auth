@@ -1,10 +1,9 @@
-// components/CalBookingLightbox.js
+// In CalBookingLightbox.js
 import { useRef, useEffect } from 'react';
 import Cal, { getCalApi } from "@calcom/embed-react";
 
 export default function CalBookingLightbox({ isOpen, onClose, user }) {
   const calRef = useRef();
-  const EVENT_TYPE_ID = 123456; // 🔁 Replace with your 30‑min event ID
 
   useEffect(() => {
     if (isOpen && calRef.current) {
@@ -13,13 +12,13 @@ export default function CalBookingLightbox({ isOpen, onClose, user }) {
         cal("ui", {
           cssVarsPerTheme: {
             "cal-brand": "#3d0566",
-            "cal-brand-emphasis": "#11243A",
+            "cal-brand-emphasis": "#2a0447",
             "cal-border-booker": "#e2e8f0",
             "cal-border-booker-width": "1px",
             "radius": "8px",
-        },
-          hideBranding: true, // ← This hides the logo
-          hideEventTypeDetails: true, // ← This hides extra details
+          },
+          // hideBranding won't work on free plan, keep it anyway just in case
+          hideBranding: true,
         });
       })();
     }
@@ -38,7 +37,6 @@ export default function CalBookingLightbox({ isOpen, onClose, user }) {
         </button>
         <div className="w-full h-full p-4">
           <Cal
-            // 🔁 Use eventTypeId instead of calLink
             eventTypeId={344929}
             config={{
               name: `${user.first_name} ${user.last_name}`,
@@ -48,6 +46,24 @@ export default function CalBookingLightbox({ isOpen, onClose, user }) {
           />
         </div>
       </div>
+      {/* 🔽 Scoped CSS to hide branding */}
+      <style jsx>{`
+        :global(.cal-embed .cal-branding),
+        :global(.cal-embed .cal-footer),
+        :global(.cal-embed [data-testid="branding"]),
+        :global(.cal-embed .cal-logo),
+        :global(.cal-embed .cal-branding-text) {
+          display: none !important;
+        }
+        :global(.cal-embed .cal-panel-header h2),
+        :global(.cal-embed .cal-header h2) {
+          display: none !important;
+        }
+        :global(.cal-embed h2:has(+ .cal-availability)),
+        :global(.cal-embed .cal-availability-heading) {
+          display: none !important;
+        }
+      `}</style>
     </div>
   );
 }
