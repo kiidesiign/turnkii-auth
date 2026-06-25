@@ -13,6 +13,7 @@
     .availability-info{background:#f0f7ff;padding:12px 16px;border-radius:8px;font-size:14px;color:#06c;margin-bottom:24px}
     .form-group{margin-bottom:20px}
     label{display:block;font-size:14px;font-weight:500;color:#333;margin-bottom:6px}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     input,textarea{width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;transition:border-color .2s}
     input:focus,textarea:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.1)}
     textarea{resize:vertical;min-height:80px}
@@ -55,18 +56,28 @@
 
     <div id="bookingForm" class="booking-form hidden">
       <div id="messageContainer"></div>
-      <div class="form-group">
-        <label for="name">Your Name *</label>
-        <input type="text" id="name" placeholder="Enter your name" required />
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="firstName">First Name <span class="label-required" style="color:red;">*</span></label>
+          <input type="text" id="firstName" placeholder="First name" required />
+        </div>
+        <div class="form-group">
+          <label for="lastName">Last Name <span class="label-required" style="color:red;">*</span></label>
+          <input type="text" id="lastName" placeholder="Last name" required />
+        </div>
       </div>
+
       <div class="form-group">
-        <label for="email">Email *</label>
+        <label for="email">Email <span class="label-required" style="color:red;">*</span></label>
         <input type="email" id="email" placeholder="Enter your email" required />
       </div>
+
       <div class="form-group">
         <label for="notes">Notes (optional)</label>
         <textarea id="notes" placeholder="Any special requests?"></textarea>
       </div>
+
       <button class="btn-primary" id="bookBtn">Book Now</button>
     </div>
   </div>
@@ -78,7 +89,8 @@
     const slotsContainer = $('slotsContainer');
     const bookingForm = $('bookingForm');
     const messageContainer = $('messageContainer');
-    const nameInput = $('name');
+    const firstNameInput = $('firstName');
+    const lastNameInput = $('lastName');
     const emailInput = $('email');
     const notesInput = $('notes');
     const bookBtn = $('bookBtn');
@@ -126,34 +138,35 @@
 
     async function handleBooking() {
       if (!selectedSlot) return showMessage('Please select a time slot first', 'error');
-      const name = nameInput.value.trim();
+      const firstName = firstNameInput.value.trim();
+      const lastName = lastNameInput.value.trim();
       const email = emailInput.value.trim();
-      if (!name || !email) return showMessage('Please enter your name and email', 'error');
+      if (!firstName || !lastName || !email) return showMessage('Please fill in all required fields (First Name, Last Name, Email)', 'error');
 
       bookBtn.disabled = true;
       bookBtn.textContent = 'Booking...';
       messageContainer.innerHTML = '';
 
-        // 🔍 DEBUG: Add this right here
-      console.log('🔍 DEBUG:');
-      console.log('  selectedSlot raw:', selectedSlot);
-      console.log('  selectedSlot type:', typeof selectedSlot);
-      console.log('  As Date:', new Date(selectedSlot));
-      console.log('  UTC string:', new Date(selectedSlot).toISOString());
-      console.log('  UTC+1 (London):', new Date(selectedSlot).toLocaleString('en-GB', { timeZone: 'Europe/London' }));
-      
-      // 🔥 FIX: Ensure UTC format
+      // Ensure UTC format
       let startTime = selectedSlot;
       if (!startTime.endsWith('Z')) {
         startTime = new Date(startTime).toISOString();
       }
-      console.log('📤 Sending:', startTime);
+      console.log('📤 Sending:', { startTime, firstName, lastName, email });
 
       try {
         const res = await fetch('/api/book', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ startTime, name, email, notes: notesInput.value.trim() })
+          body: JSON.stringify({
+            startTime,
+            firstName,
+            lastName,
+            email,
+            notes: notesInput.value.trim(),
+            acceptTerms: true,
+            acceptMarketing: false
+          })
         });
         const result = await res.json();
 
@@ -168,7 +181,8 @@
           bookingForm.classList.add('hidden');
           selectedSlot = null;
           document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
-          nameInput.value = '';
+          firstNameInput.value = '';
+          lastNameInput.value = '';
           emailInput.value = '';
           notesInput.value = '';
           setTimeout(loadSlots, 1000);
