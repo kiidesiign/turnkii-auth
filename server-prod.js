@@ -374,47 +374,79 @@ app.post('/api/cal-webhook', async (req, res) => {
 });
 
 // ============================================================
-// API: Send OTP (sp-contact) - MERGED FROM api/sp-contact.js
+// API: GET sp-contact (fetch contact + documents)
+// ============================================================
+
+app.get('/api/sp-contact', async (req, res) => {
+  try {
+    const { email, action } = req.query;
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+
+    console.log('📤 GET /api/sp-contact:', { email, action });
+
+    // Fetch contact from Supabase
+    const { data: contact, error: findError } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (findError || !contact) {
+      return res.status(404).json({ success: false, error: 'Contact not found' });
+    }
+
+    // If action is get_documents, fetch documents for this contact
+    if (action === 'get_documents') {
+      console.log('📄 Fetching documents for contact:', contact.id);
+
+      const { data: documents, error: docsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('contact_id', contact.id);
+
+      if (docsError) {
+        console.error('❌ Error fetching documents:', docsError);
+        return res.status(500).json({ success: false, error: 'Failed to fetch documents' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        documents: documents || []
+      });
+    }
+
+    // Default: return contact info
+    return res.status(200).json({
+      success: true,
+      contact: {
+        id: contact.id,
+        email: contact.email,
+        firstName: contact.first_name || '',
+        lastName: contact.last_name || '',
+        mobileNumber: contact.mobile_number || '',
+        mobileCountryCode: contact.mobile_country_code || '',
+        otp: contact.otp || '',
+        magicLink: contact.magic_link || '',
+        linkExpiry: contact.link_expiry || '',
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ GET /api/sp-contact error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================================
+// API: Send OTP (sp-contact) - POST handler
 // ============================================================
 
 app.post('/api/sp-contact', async (req, res) => {
   try {
     const { email, firstName, lastName, mobileNumber, mobileCountryCode, action, otp, token } = req.body;
-
-    // ============================================================
-    // GET: Fetch contact by email
-    // ============================================================
-    if (req.method === 'GET') {
-      const { email } = req.query;
-      if (!email) {
-        return res.status(400).json({ success: false, error: 'Email is required' });
-      }
-
-      const { data: contact, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .single();
-
-      if (error || !contact) {
-        return res.status(404).json({ success: false, error: 'Contact not found' });
-      }
-
-      return res.status(200).json({
-        success: true,
-        contact: {
-          id: contact.id,
-          email: contact.email || '',
-          firstName: contact.first_name || '',
-          lastName: contact.last_name || '',
-          mobileNumber: contact.mobile_number || '',
-          mobileCountryCode: contact.mobile_country_code || '',
-          otp: contact.otp || '',
-          magicLink: contact.magic_link || '',
-          linkExpiry: contact.link_expiry || '',
-        }
-      });
-    }
 
     // ============================================================
     // UPDATE contact
