@@ -147,19 +147,19 @@
 
   <div class="row">
     <div class="col">
-      <label>Steve – Gross Income (€)</label>
-      <input type="number" id="steveIncome" value="63125" step="100" />
+      <label>Spouse-1 – Gross Income (€)</label>
+      <input type="number" id="spouse1Income" value="63125" step="100" />
       <div class="checkbox-group">
-        <input type="checkbox" id="steveOver65" checked />
-        <label style="font-weight:400; margin:0;">Steve is over 65</label>
+        <input type="checkbox" id="spouse1Over65" checked />
+        <label style="font-weight:400; margin:0;">Spouse-1 is over 65</label>
       </div>
     </div>
     <div class="col">
-      <label>Sue – Gross Income (€)</label>
-      <input type="number" id="sueIncome" value="17500" step="100" />
+      <label>Spouse-2 – Gross Income (€)</label>
+      <input type="number" id="spouse2Income" value="17500" step="100" />
       <div class="checkbox-group">
-        <input type="checkbox" id="sueOver65" />
-        <label style="font-weight:400; margin:0;">Sue is over 65</label>
+        <input type="checkbox" id="spouse2Over65" />
+        <label style="font-weight:400; margin:0;">Spouse-2 is over 65</label>
       </div>
     </div>
   </div>
@@ -231,9 +231,7 @@
     const base = net;
     const allowance = isOver65 ? MIN_OVER_65 : MIN_UNDER_65;
     const grossTax = taxOnBase(base);
-    const allowanceTax = taxOnBase(allowance); // AEAT uses marginal table but allowance is below 12450 so 19%
-    // AEAT methodology: tax = grossTax - allowanceTax (but allowanceTax is computed on the allowance using the same brackets)
-    // Since allowance is < 12450, allowanceTax = allowance * 0.19
+    const allowanceTax = taxOnBase(allowance);
     const tax = Math.max(0, grossTax - allowanceTax);
     return {
       gross: gross,
@@ -246,32 +244,26 @@
     };
   }
 
-  function calculateJoint(steveGross, sueGross, steveOver65, sueOver65) {
-    // Step 1: net income after work deduction for each
-    const steveNet = steveGross > 0 ? Math.max(0, steveGross - WORK_DEDUCTION) : 0;
-    const sueNet = sueGross > 0 ? Math.max(0, sueGross - WORK_DEDUCTION) : 0;
-    const totalNet = steveNet + sueNet;
+  function calculateJoint(spouse1Gross, spouse2Gross, spouse1Over65, spouse2Over65) {
+    const spouse1Net = spouse1Gross > 0 ? Math.max(0, spouse1Gross - WORK_DEDUCTION) : 0;
+    const spouse2Net = spouse2Gross > 0 ? Math.max(0, spouse2Gross - WORK_DEDUCTION) : 0;
+    const totalNet = spouse1Net + spouse2Net;
 
-    // Step 2: joint reduction
     const base = Math.max(0, totalNet - JOINT_REDUCTION);
 
-    // Step 3: determine allowances that apply
+    let spouse1Allow = spouse1Over65 ? MIN_OVER_65 : MIN_UNDER_65;
+    let spouse2Allow = spouse2Over65 ? MIN_OVER_65 : MIN_UNDER_65;
+
     // AEAT rule: spouse's allowance applies ONLY if spouse has income > 0
-    let steveAllow = steveOver65 ? MIN_OVER_65 : MIN_UNDER_65;
-    let sueAllow = sueOver65 ? MIN_OVER_65 : MIN_UNDER_65;
+    if (spouse2Gross <= 0) spouse2Allow = 0;
 
-    // If Steve has no income, his allowance still applies (he is the declarant)
-    // If Sue has no income, her allowance is LOST (confirmed by AEAT 2025 data)
-    if (sueGross <= 0) sueAllow = 0;
+    const totalAllowance = spouse1Allow + spouse2Allow;
 
-    const totalAllowance = steveAllow + sueAllow;
-
-    // Step 4: compute tax
     const grossTax = taxOnBase(base);
-    const allowanceTax = taxOnBase(totalAllowance); // effectively 19% as it's under 12450
+    const allowanceTax = taxOnBase(totalAllowance);
     const tax = Math.max(0, grossTax - allowanceTax);
 
-    const totalGross = steveGross + sueGross;
+    const totalGross = spouse1Gross + spouse2Gross;
     return {
       totalGross: totalGross,
       tax: tax,
@@ -280,8 +272,8 @@
       totalAllowance: totalAllowance,
       grossTax: grossTax,
       allowanceTax: allowanceTax,
-      steveAllow: steveAllow,
-      sueAllow: sueAllow
+      spouse1Allow: spouse1Allow,
+      spouse2Allow: spouse2Allow
     };
   }
 
@@ -291,10 +283,10 @@
   }
 
   function calculateTax() {
-    const steveGross = parseFloat(document.getElementById('steveIncome').value) || 0;
-    const sueGross = parseFloat(document.getElementById('sueIncome').value) || 0;
-    const steveOver65 = document.getElementById('steveOver65').checked;
-    const sueOver65 = document.getElementById('sueOver65').checked;
+    const spouse1Gross = parseFloat(document.getElementById('spouse1Income').value) || 0;
+    const spouse2Gross = parseFloat(document.getElementById('spouse2Income').value) || 0;
+    const spouse1Over65 = document.getElementById('spouse1Over65').checked;
+    const spouse2Over65 = document.getElementById('spouse2Over65').checked;
     const filingStatus = document.getElementById('filingStatus').value;
 
     const resultDiv = document.getElementById('results');
@@ -303,39 +295,35 @@
     let html = '';
 
     if (filingStatus === 'separate') {
-      const s = calculateIndividual(steveGross, steveOver65);
-      const su = calculateIndividual(sueGross, sueOver65);
-      const totalTax = s.tax + su.tax;
-      const totalNet = s.netIncome + su.netIncome;
+      const s1 = calculateIndividual(spouse1Gross, spouse1Over65);
+      const s2 = calculateIndividual(spouse2Gross, spouse2Over65);
+      const totalTax = s1.tax + s2.tax;
+      const totalNet = s1.netIncome + s2.netIncome;
 
       html = `
         <h3 style="margin-top:0;">Separate Filing – Results</h3>
         <div class="result-grid">
-          <div class="result-item"><span class="label">Steve Gross Income</span><span class="value">€${formatCurrency(s.gross)}</span></div>
-          <div class="result-item"><span class="label">Steve Tax</span><span class="value">€${formatCurrency(s.tax)}</span></div>
-          <div class="result-item"><span class="label">Steve Net Income</span><span class="value">€${formatCurrency(s.netIncome)}</span></div>
-          <div class="result-item"><span class="label">Steve Allowance Used</span><span class="value">€${formatCurrency(s.allowance)}</span></div>
+          <div class="result-item"><span class="label">Spouse-1 Gross Income</span><span class="value">€${formatCurrency(s1.gross)}</span></div>
+          <div class="result-item"><span class="label">Spouse-1 Tax</span><span class="value">€${formatCurrency(s1.tax)}</span></div>
+          <div class="result-item"><span class="label">Spouse-1 Net Income</span><span class="value">€${formatCurrency(s1.netIncome)}</span></div>
+          <div class="result-item"><span class="label">Spouse-1 Allowance Used</span><span class="value">€${formatCurrency(s1.allowance)}</span></div>
           <div style="border-top:1px solid #dce3f0; grid-column:1/-1;"></div>
-          <div class="result-item"><span class="label">Sue Gross Income</span><span class="value">€${formatCurrency(su.gross)}</span></div>
-          <div class="result-item"><span class="label">Sue Tax</span><span class="value">€${formatCurrency(su.tax)}</span></div>
-          <div class="result-item"><span class="label">Sue Net Income</span><span class="value">€${formatCurrency(su.netIncome)}</span></div>
-          <div class="result-item"><span class="label">Sue Allowance Used</span><span class="value">€${formatCurrency(su.allowance)}</span></div>
+          <div class="result-item"><span class="label">Spouse-2 Gross Income</span><span class="value">€${formatCurrency(s2.gross)}</span></div>
+          <div class="result-item"><span class="label">Spouse-2 Tax</span><span class="value">€${formatCurrency(s2.tax)}</span></div>
+          <div class="result-item"><span class="label">Spouse-2 Net Income</span><span class="value">€${formatCurrency(s2.netIncome)}</span></div>
+          <div class="result-item"><span class="label">Spouse-2 Allowance Used</span><span class="value">€${formatCurrency(s2.allowance)}</span></div>
           <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
           <div class="result-item" style="font-weight:700;"><span class="label">Total Tax Payable</span><span class="value">€${formatCurrency(totalTax)}</span></div>
           <div class="result-item" style="font-weight:700;"><span class="label">Total Net Income</span><span class="value">€${formatCurrency(totalNet)}</span></div>
         </div>
-        <div class="highlight">💰 Effective tax rate: ${((totalTax / (steveGross + sueGross)) * 100).toFixed(1)}%</div>
+        <div class="highlight">💰 Effective tax rate: ${((totalTax / (spouse1Gross + spouse2Gross)) * 100).toFixed(1)}%</div>
       `;
     } else {
-      // Joint
-      const j = calculateJoint(steveGross, sueGross, steveOver65, sueOver65);
-      // Also compute separate for comparison
-      const s = calculateIndividual(steveGross, steveOver65);
-      const su = calculateIndividual(sueGross, sueOver65);
-      const separateTax = s.tax + su.tax;
+      const j = calculateJoint(spouse1Gross, spouse2Gross, spouse1Over65, spouse2Over65);
+      const s1 = calculateIndividual(spouse1Gross, spouse1Over65);
+      const s2 = calculateIndividual(spouse2Gross, spouse2Over65);
+      const separateTax = s1.tax + s2.tax;
       const saving = separateTax - j.tax;
-
-      const sueAllowShown = (sueGross > 0) ? (sueOver65 ? MIN_OVER_65 : MIN_UNDER_65) : 0;
 
       html = `
         <h3 style="margin-top:0;">Joint Filing – Results</h3>
@@ -343,8 +331,8 @@
           <div class="result-item"><span class="label">Total Gross Income</span><span class="value">€${formatCurrency(j.totalGross)}</span></div>
           <div class="result-item"><span class="label">Joint Reduction</span><span class="value">€${formatCurrency(JOINT_REDUCTION)}</span></div>
           <div class="result-item"><span class="label">Taxable Base</span><span class="value">€${formatCurrency(j.base)}</span></div>
-          <div class="result-item"><span class="label">Steve’s Allowance</span><span class="value">€${formatCurrency(j.steveAllow)}</span></div>
-          <div class="result-item"><span class="label">Sue’s Allowance (${sueGross > 0 ? 'applied' : 'lost (no income)'})</span><span class="value">€${formatCurrency(j.sueAllow)}</span></div>
+          <div class="result-item"><span class="label">Spouse-1 Allowance</span><span class="value">€${formatCurrency(j.spouse1Allow)}</span></div>
+          <div class="result-item"><span class="label">Spouse-2 Allowance (${spouse2Gross > 0 ? 'applied' : 'lost (no income)'})</span><span class="value">€${formatCurrency(j.spouse2Allow)}</span></div>
           <div class="result-item"><span class="label">Total Allowance Tax Credit</span><span class="value">€${formatCurrency(j.allowanceTax)}</span></div>
           <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
           <div class="result-item" style="font-weight:700;"><span class="label">Joint Tax Payable</span><span class="value">€${formatCurrency(j.tax)}</span></div>
