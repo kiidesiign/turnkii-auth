@@ -16,6 +16,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Tax Calculator
+app.get('/tax-calculator', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'calculator.html'));
+});
+
 // Cal.com Configuration - FORCE as integer
 const EVENT_TYPE_ID = parseInt(process.env.EVENT_TYPE_ID || '344929', 10);
 const CAL_API_KEY = process.env.CAL_API_KEY || 'cal_live_77bf74a698416a5dac2e9ff0bfef13f8';

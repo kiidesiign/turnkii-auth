@@ -32,6 +32,14 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // ============================================================
+// TAX CALCULATOR ROUTE
+// ============================================================
+
+app.get('/tax-calculator', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'calculator.html'));
+});
+
+// ============================================================
 // CONFIGURATION
 // ============================================================
 
