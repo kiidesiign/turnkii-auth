@@ -4,10 +4,6 @@
     {
       "src": "server-prod.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -16,12 +12,12 @@
       "dest": "/server-prod.js"
     },
     {
-      "src": "/",
+      "src": "/tax-calculator",
       "dest": "/server-prod.js"
     },
     {
       "src": "/(.*)",
-      "dest": "/public/$1"
+      "dest": "/server-prod.js"
     }
   ]
 }
