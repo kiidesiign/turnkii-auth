@@ -662,7 +662,7 @@
                 </div>
                 <div class="row">
                     <div class="col">
-                        <label>If Optimised – Max Amount (€)</label>
+                        <label>If Optimised – Max Annual Amount (€)</label>
                         <input type="number" id="pot1Max" value="0" step="500" />
                     </div>
                     <div class="col"></div>
@@ -725,7 +725,7 @@
                 </div>
                 <div class="row">
                     <div class="col">
-                        <label>If Optimised – Max Amount (€)</label>
+                        <label>If Optimised – Max Annual Amount (€)</label>
                         <input type="number" id="pot2Max" value="0" step="500" />
                     </div>
                     <div class="col"></div>
@@ -828,10 +828,17 @@
                     <div class="col">
                         <label>Annual Yield (%)</label>
                         <select id="otherYield">
-                            <option value="0" selected>0%</option>
+                            <option value="0">0%</option>
                             <option value="1">1%</option>
                             <option value="2">2%</option>
-                            <option value="3">3%</option>
+                            <option value="3" selected>3%</option>
+                            <option value="4">4%</option>
+                            <option value="5">5%</option>
+                            <option value="6">6%</option>
+                            <option value="7">7%</option>
+                            <option value="8">8%</option>
+                            <option value="9">9%</option>
+                            <option value="10">10%</option>
                         </select>
                     </div>
                 </div>
@@ -847,7 +854,7 @@
                 <span class="badge">Add all properties</span>
             </div>
             <div class="section-help" style="margin-bottom:0.8rem;">
-                For each property, enter its value, mortgage, rental income (if any), and mark the primary residence. If you plan to sell the property, enter the expected sale year and the net proceeds you will receive.
+                For each property, enter its value, mortgage, rental income (if any), and mark the primary residence at retirement. If you plan to sell the property, enter the expected sale year and the net proceeds you will receive.
             </div>
 
             <div class="dynamic-header">
@@ -855,7 +862,7 @@
                 <span>Currency</span>
                 <span>Mortgage</span>
                 <span>Rental Income (€/yr)</span>
-                <span>Primary</span>
+                <span>Primary Residence at Retirement</span>
                 <span>Sale Year</span>
                 <span>Net Proceeds</span>
                 <span style="flex:0 0 30px;"></span>
@@ -864,7 +871,7 @@
                 <!-- Dynamic rows inserted here -->
             </div>
             <button class="add-row-btn" onclick="addProperty()">+ Add Property</button>
-            <div class="section-help" style="margin-top:0.4rem;">Only one property can be marked as Primary Residence.</div>
+            <div class="section-help" style="margin-top:0.4rem;">Only one property can be marked as Primary Residence at Retirement.</div>
         </div>
 
         <!-- ========================================================== -->
@@ -1271,7 +1278,7 @@
             const investmentValue = convertToBaseCurrency(assets.investmentPortfolio.value, assets.investmentPortfolio
             .currency);
             const otherValue = convertToBaseCurrency(assets.otherAssets.value, assets.otherAssets.currency);
-            const totalCashBuffer = cashValue + investmentValue + otherValue;
+            let totalLiquidAssets = cashValue + investmentValue + otherValue;
 
             // Properties
             const props = properties.map(p => ({
@@ -1301,10 +1308,10 @@
                 return fullPension * proportion;
             }
 
-            const state1 = Object.values(sp).reduce((sum, val) => sum + calcStatePension(val.fullWeeks, val.fullPension, val
-                .weeks1), 0);
-            const state2 = Object.values(sp).reduce((sum, val) => sum + calcStatePension(val.fullWeeks, val.fullPension, val
-                .weeks2), 0);
+            const monthlyState1 = Object.values(sp).reduce((sum, val) => sum + calcStatePension(val.fullWeeks, val.fullPension,
+                val.weeks1), 0);
+            const monthlyState2 = Object.values(sp).reduce((sum, val) => sum + calcStatePension(val.fullWeeks, val.fullPension,
+                val.weeks2), 0);
 
             // Life expectancy
             function getLifeExpectancy(sex, age) {
@@ -1324,8 +1331,8 @@
                 endAge = Math.max(olderLE, youngerLE + 10);
             }
 
-            // Simulation
-            let cashBuffer = totalCashBuffer;
+            // Simulation - yearly
+            let liquidAssets = totalLiquidAssets;
             let pot1Balance = pot1Value;
             let pot2Balance = pot2Value;
             let totalTaxPaid = 0;
@@ -1334,7 +1341,7 @@
             const startYear = 2026;
             const startAge1 = profile.age1;
             const startAge2 = profile.age2;
-            const maxYears = endAge - Math.max(startAge1, startAge2) + 15;
+            const maxYears = endAge - Math.max(startAge1, startAge2) + 15; // buffer
 
             function getRentalIncomeForYear(year) {
                 let total = 0;
@@ -1393,34 +1400,44 @@
                 const age1 = startAge1 + y;
                 const age2 = startAge2 + y;
 
+                // Check if reached end age
+                if (age1 > endAge && age2 > endAge) break;
+                if (age1 > endAge && age2 > endAge) break; // already checked
+
+                // Determine if state pensions have started
                 const state1Active = age1 >= profile.stateAge1;
                 const state2Active = age2 >= profile.stateAge2;
-                const monthlyState1 = state1Active ? state1 : 0;
-                const monthlyState2 = state2Active ? state2 : 0;
+                const annualState1 = state1Active ? monthlyState1 * 12 : 0;
+                const annualState2 = state2Active ? monthlyState2 * 12 : 0;
 
+                // Determine drawdown eligibility
                 const drawdown1Active = age1 >= profile.drawdownAge1;
                 const drawdown2Active = age2 >= profile.drawdownAge2;
 
                 let drawdown1 = 0,
                     drawdown2 = 0;
 
+                // Spouse 1 drawdown
                 if (drawdown1Active && pot1Balance > 0) {
                     const strategy1 = privatePensions.pot1.strategy;
                     if (strategy1 === 'fixed') {
                         drawdown1 = Math.min(privatePensions.pot1.fixedAmount, pot1Balance);
                     } else {
+                        // Tax-optimised: try to draw up to max amount while keeping tax at 0
                         let maxDraw = privatePensions.pot1.maxAmount || 0;
                         let testDraw = 0;
-                        const baseIncome = monthlyState1 + monthlyState2;
+                        // base income for tax calculation (excluding this drawdown)
+                        const baseIncome = annualState1 + annualState2 + drawdown2; // drawdown2 might be zero at this point
                         while (testDraw < maxDraw && testDraw < pot1Balance) {
-                            const testIncome = baseIncome + testDraw + drawdown2;
-                            if (calculateSpanishTax(testIncome * 12, age1, age2) > 0) break;
-                            testDraw += 100;
+                            const testIncome = baseIncome + testDraw;
+                            if (calculateSpanishTax(testIncome, age1, age2) > 0) break;
+                            testDraw += 100; // increment by 100 EUR
                         }
                         drawdown1 = Math.min(testDraw, pot1Balance, maxDraw);
                     }
                 }
 
+                // Spouse 2 drawdown
                 if (drawdown2Active && pot2Balance > 0) {
                     const strategy2 = privatePensions.pot2.strategy;
                     if (strategy2 === 'fixed') {
@@ -1428,66 +1445,70 @@
                     } else {
                         let maxDraw = privatePensions.pot2.maxAmount || 0;
                         let testDraw = 0;
-                        const baseIncome = monthlyState1 + monthlyState2 + drawdown1;
+                        const baseIncome = annualState1 + annualState2 + drawdown1;
                         while (testDraw < maxDraw && testDraw < pot2Balance) {
                             const testIncome = baseIncome + testDraw;
-                            if (calculateSpanishTax(testIncome * 12, age1, age2) > 0) break;
+                            if (calculateSpanishTax(testIncome, age1, age2) > 0) break;
                             testDraw += 100;
                         }
                         drawdown2 = Math.min(testDraw, pot2Balance, maxDraw);
                     }
                 }
 
+                // Apply growth to remaining pot after withdrawals (annual growth)
                 pot1Balance = (pot1Balance - drawdown1) * (1 + privatePensions.pot1.growth);
                 pot2Balance = (pot2Balance - drawdown2) * (1 + privatePensions.pot2.growth);
                 if (pot1Balance < 0) pot1Balance = 0;
                 if (pot2Balance < 0) pot2Balance = 0;
 
-                const rentalIncome = getRentalIncomeForYear(year);
-                const salesIncome = getSalesForYear(year);
-                const monthlyRental = rentalIncome / 12;
-                const monthlySales = salesIncome / 12;
-                const totalMonthlyIncome = monthlyState1 + monthlyState2 + drawdown1 + drawdown2 + monthlyRental +
-                    monthlySales;
+                // Other income (rental, sales)
+                const annualRental = getRentalIncomeForYear(year);
+                const annualSales = getSalesForYear(year);
 
-                const annualIncome = totalMonthlyIncome * 12;
-                const tax = calculateSpanishTax(annualIncome, age1, age2);
-                const monthlyTax = tax / 12;
+                // Total annual income
+                const totalAnnualIncome = annualState1 + annualState2 + drawdown1 + drawdown2 + annualRental + annualSales;
+
+                // Tax
+                const tax = calculateSpanishTax(totalAnnualIncome, age1, age2);
                 totalTaxPaid += tax;
 
-                const monthlySpend = financialGoals.monthlySpend;
-                const monthlyPurchases = getPurchasesForYear(year) / 12;
-                const netMonthly = totalMonthlyIncome - monthlyTax - monthlySpend - monthlyPurchases;
+                // Annual expenses
+                const annualSpend = financialGoals.monthlySpend * 12;
+                const annualPurchases = getPurchasesForYear(year);
+                const totalAnnualOutflows = annualSpend + annualPurchases;
 
-                cashBuffer = cashBuffer + netMonthly;
-                if (cashBuffer < 0) cashBuffer = 0;
+                // Net annual cash flow
+                const netAnnual = totalAnnualIncome - tax - totalAnnualOutflows;
 
+                // Update liquid assets
+                liquidAssets = liquidAssets + netAnnual;
+                if (liquidAssets < 0) liquidAssets = 0;
+
+                // Store year data (convert to monthly for display consistency)
                 yearData.push({
                     year,
                     age1,
                     age2,
                     state1: monthlyState1,
                     state2: monthlyState2,
-                    drawdown1,
-                    drawdown2,
-                    rental: monthlyRental,
-                    sales: monthlySales,
-                    totalIncome: totalMonthlyIncome,
-                    tax: monthlyTax,
-                    netCashFlow: netMonthly,
-                    cashBuffer: cashBuffer,
+                    drawdown1: drawdown1 / 12,
+                    drawdown2: drawdown2 / 12,
+                    rental: annualRental / 12,
+                    sales: annualSales / 12,
+                    totalIncome: totalAnnualIncome / 12,
+                    tax: tax / 12,
+                    netCashFlow: netAnnual / 12,
+                    liquidAssets: liquidAssets,
                     pot1Balance: pot1Balance,
                     pot2Balance: pot2Balance,
                 });
 
-                if (pot1Balance < 10 && pot2Balance < 10 && cashBuffer < 1000) {
-                    if (age1 > 75 && age2 > 65) break;
-                }
-                if (age2 >= endAge || age1 >= endAge) break;
+                // Stop if both spouses have surpassed end age
+                if (age1 >= endAge && age2 >= endAge) break;
             }
 
             const propertyValues = props.reduce((sum, p) => sum + p.value - p.mortgage, 0);
-            const finalWealth = cashBuffer + pot1Balance + pot2Balance + propertyValues;
+            const finalWealth = liquidAssets + pot1Balance + pot2Balance + propertyValues;
             const inheritanceAchieved = finalWealth >= financialGoals.targetInheritance;
 
             return {
@@ -1495,7 +1516,7 @@
                 summary: {
                     totalTaxPaid: Math.round(totalTaxPaid),
                     finalWealth: Math.round(finalWealth),
-                    cashBuffer: Math.round(cashBuffer),
+                    liquidAssets: Math.round(liquidAssets),
                     pot1Balance: Math.round(pot1Balance),
                     pot2Balance: Math.round(pot2Balance),
                     propertyValues: Math.round(propertyValues),
@@ -1530,7 +1551,7 @@
                 <div class="result-item"><span class="label">Projection Period</span><span class="value">${result.summary.totalYears} years</span></div>
                 <div class="result-item"><span class="label">End Age</span><span class="value">${result.summary.endAge}</span></div>
                 <div class="result-item"><span class="label">Total Tax Paid</span><span class="value">${currencySymbol}${formatCurrencyWhole(result.summary.totalTaxPaid)}</span></div>
-                <div class="result-item"><span class="label">Final Cash Buffer</span><span class="value">${currencySymbol}${formatCurrencyWhole(result.summary.cashBuffer)}</span></div>
+                <div class="result-item"><span class="label">Final Liquid Assets</span><span class="value">${currencySymbol}${formatCurrencyWhole(result.summary.liquidAssets)}</span></div>
                 <div class="result-item"><span class="label">Final Pot 1</span><span class="value">${currencySymbol}${formatCurrencyWhole(result.summary.pot1Balance)}</span></div>
                 <div class="result-item"><span class="label">Final Pot 2</span><span class="value">${currencySymbol}${formatCurrencyWhole(result.summary.pot2Balance)}</span></div>
                 <div class="result-item"><span class="label">Property Value (net)</span><span class="value">${currencySymbol}${formatCurrencyWhole(result.summary.propertyValues)}</span></div>
@@ -1548,10 +1569,12 @@
 
                     html +=
                         `<div class="section-title" style="margin-top:1.5rem;">Year-by-Year Cash Flow (${baseCurrency})</div><div class="table-wrap"><table><thead><tr>
-                <th>Year</th><th>Age 1</th><th>Age 2</th><th>State</th><th>Drawdown</th><th>Rental</th><th>Sales</th><th>Tax</th><th>Net Cash</th><th>Buffer</th><th>Pot 1</th><th>Pot 2</th>
+                <th>Year</th><th>Age 1</th><th>Age 2</th><th>State</th><th>Drawdown</th><th>Rental</th><th>Sales</th><th>Tax</th><th>Net Cash</th><th>Liquid Assets</th><th>Pot 1</th><th>Pot 2</th>
               </tr></thead><tbody>`;
                     const data = result.yearData;
-                    for (let i = 0; i < data.length; i += 2) {
+                    // Show all years (or every 2nd if too many)
+                    const step = data.length > 30 ? 2 : 1;
+                    for (let i = 0; i < data.length; i += step) {
                         const d = data[i];
                         const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
                         html += `<tr>
@@ -1560,10 +1583,13 @@
                   <td>${currencySymbol}${formatCurrencyWhole(d.drawdown1 + d.drawdown2)}</td>
                   <td>${currencySymbol}${formatCurrencyWhole(d.rental)}</td><td>${currencySymbol}${formatCurrencyWhole(d.sales)}</td>
                   <td>${currencySymbol}${formatCurrencyWhole(d.tax)}</td><td class="${netClass}">${currencySymbol}${formatCurrencyWhole(d.netCashFlow)}</td>
-                  <td>${currencySymbol}${formatCurrencyWhole(d.cashBuffer)}</td><td>${currencySymbol}${formatCurrencyWhole(d.pot1Balance)}</td><td>${currencySymbol}${formatCurrencyWhole(d.pot2Balance)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssets)}</td><td>${currencySymbol}${formatCurrencyWhole(d.pot1Balance)}</td><td>${currencySymbol}${formatCurrencyWhole(d.pot2Balance)}</td>
                 </tr>`;
                     }
-                    html += `</tbody></table></div><div style="font-size:0.75rem; color:#6b7a93;">* Showing every 2nd year</div>`;
+                    html += `</tbody></table></div>`;
+                    if (step > 1) {
+                        html += `<div style="font-size:0.75rem; color:#6b7a93;">* Showing every 2nd year for readability</div>`;
+                    }
                     contentDiv.innerHTML = html;
                     resultsDiv.classList.add('visible');
                 } catch (error) {
