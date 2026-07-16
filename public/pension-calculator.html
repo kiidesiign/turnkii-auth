@@ -171,6 +171,26 @@
             min-width: 90px;
         }
 
+        /* ── Summary row for Section 3 ── */
+        .summary-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            padding: 0.5rem 0.6rem;
+            margin-top: 0.8rem;
+            background: #e6f0fa;
+            border-radius: 6px;
+            border: 1px solid #cde0ed;
+        }
+        .summary-row .col {
+            flex: 1 1 160px;
+            min-width: 120px;
+        }
+        .summary-row .label-total {
+            font-weight: 600;
+            color: #1a2b4c;
+        }
+
         /* ── Buttons ── */
         .btn {
             background: #1a2b4c;
@@ -562,6 +582,18 @@
                 <div class="col col-spouse"><input type="number" id="euWeeks1" value="316" /></div>
                 <div class="col col-spouse"><input type="number" id="euWeeks2" value="0" /></div>
             </div>
+
+            <!-- Summary row -->
+            <div class="summary-row" id="contributionSummary">
+                <div class="col">
+                    <span class="label-total">Spouse 1 – Total Weeks: <span id="totalWeeks1">0</span></span><br />
+                    <span class="label-total">% of Max (2080): <span id="percent1">0%</span></span>
+                </div>
+                <div class="col">
+                    <span class="label-total">Spouse 2 – Total Weeks: <span id="totalWeeks2">0</span></span><br />
+                    <span class="label-total">% of Max (2080): <span id="percent2">0%</span></span>
+                </div>
+            </div>
         </div>
 
         <!-- ========================================================== -->
@@ -777,9 +809,9 @@
                 </div>
             </div>
 
-            <!-- Other Assets -->
+            <!-- Other Assets (simplified) -->
             <div class="card-box bg-white-border">
-                <div class="card-label">💎 Other Assets (Cash / Gold / Non-EU)</div>
+                <div class="card-label">💎 Other Assets (e.g., cash, gold)</div>
                 <div class="row">
                     <div class="col">
                         <label>Value</label>
@@ -879,12 +911,12 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- SECTION 9: Projection Settings                              -->
+        <!-- SECTION 9: Report Settings (was Projection Settings)        -->
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>9. Projection Settings</span>
-                <span class="badge">Time horizon</span>
+                <span>9. Report Settings</span>
+                <span class="badge">Currency & time horizon</span>
             </div>
             <div class="row">
                 <div class="col">
@@ -895,7 +927,7 @@
                     </select>
                 </div>
                 <div class="col">
-                    <label>GBP → Base Exchange Rate</label>
+                    <label id="exchangeRateLabel">GBP → EUR Rate</label>
                     <input type="number" id="exchangeRate" value="1.15" step="0.01" />
                 </div>
             </div>
@@ -1009,7 +1041,40 @@
         }
 
         // ────────────────────────────────────────────────────────────────
-        // 2. GATHER INPUTS
+        // 2. UPDATE EXCHANGE RATE LABEL & SUMMARY
+        // ────────────────────────────────────────────────────────────────
+        function updateExchangeRateLabel() {
+            const base = document.getElementById('baseCurrency').value;
+            const label = document.getElementById('exchangeRateLabel');
+            if (base === 'EUR') {
+                label.textContent = 'GBP → EUR Rate';
+            } else {
+                label.textContent = 'EUR → GBP Rate';
+            }
+        }
+
+        function updateContributionSummary() {
+            const ids = ['ireWeeks1', 'ukWeeks1', 'spWeeks1', 'euWeeks1'];
+            let total1 = 0;
+            ids.forEach(id => {
+                total1 += parseInt(document.getElementById(id).value) || 0;
+            });
+            const ids2 = ['ireWeeks2', 'ukWeeks2', 'spWeeks2', 'euWeeks2'];
+            let total2 = 0;
+            ids2.forEach(id => {
+                total2 += parseInt(document.getElementById(id).value) || 0;
+            });
+            const maxWeeks = 2080;
+            const pct1 = (total1 / maxWeeks * 100).toFixed(1);
+            const pct2 = (total2 / maxWeeks * 100).toFixed(1);
+            document.getElementById('totalWeeks1').textContent = total1;
+            document.getElementById('percent1').textContent = pct1 + '%';
+            document.getElementById('totalWeeks2').textContent = total2;
+            document.getElementById('percent2').textContent = pct2 + '%';
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // 3. GATHER INPUTS
         // ────────────────────────────────────────────────────────────────
 
         // Hardcoded state pension parameters (full career weeks, full monthly amount in local currency)
@@ -1167,7 +1232,7 @@
         }
 
         // ────────────────────────────────────────────────────────────────
-        // 3. CURRENCY CONVERSION
+        // 4. CURRENCY CONVERSION
         // ────────────────────────────────────────────────────────────────
         function convertToBase(value, currency, baseCurrency, exchangeRate) {
             if (currency === baseCurrency) return value;
@@ -1177,7 +1242,7 @@
         }
 
         // ────────────────────────────────────────────────────────────────
-        // 4. CORE PENSION ENGINE
+        // 5. CORE PENSION ENGINE
         // ────────────────────────────────────────────────────────────────
         function calculatePensionEngine(inputs) {
             const { profile, statePensions, privatePensions, assets, properties, assetSales, financialGoals,
@@ -1443,7 +1508,7 @@
         }
 
         // ────────────────────────────────────────────────────────────────
-        // 5. UI: CALCULATE & DISPLAY RESULTS (No Decimals)
+        // 6. UI: CALCULATE & DISPLAY RESULTS (No Decimals)
         // ────────────────────────────────────────────────────────────────
         function calculatePension() {
             const resultsDiv = document.getElementById('results');
@@ -1513,7 +1578,7 @@
         }
 
         // ────────────────────────────────────────────────────────────────
-        // 6. SAVE / EXPORT (Vercel API)
+        // 7. SAVE / EXPORT (Vercel API)
         // ────────────────────────────────────────────────────────────────
         async function saveCalculation() {
             try {
@@ -1548,11 +1613,24 @@
         }
 
         // ────────────────────────────────────────────────────────────────
-        // 7. INITIALISE
+        // 8. INITIALISE
         // ────────────────────────────────────────────────────────────────
         window.onload = function() {
             addProperty(600000, 'EUR', 0, 0, true, null, 0);
             addProperty(300000, 'EUR', 0, 0, false, null, 0);
+            // Set initial exchange rate label
+            updateExchangeRateLabel();
+            // Set contribution summary
+            updateContributionSummary();
+            // Add event listeners for live updates
+            document.getElementById('baseCurrency').addEventListener('change', function() {
+                updateExchangeRateLabel();
+            });
+            // Listen to all contribution inputs to update summary
+            const inputs = document.querySelectorAll('#ireWeeks1, #ukWeeks1, #spWeeks1, #euWeeks1, #ireWeeks2, #ukWeeks2, #spWeeks2, #euWeeks2');
+            inputs.forEach(inp => {
+                inp.addEventListener('input', updateContributionSummary);
+            });
             setTimeout(calculatePension, 500);
         };
     </script>
