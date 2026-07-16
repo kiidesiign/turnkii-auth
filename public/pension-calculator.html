@@ -428,7 +428,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 1. Personal Profile</span>
+                <span>SECTION 1: Personal Profile</span>
                 <span class="badge">Both spouses</span>
             </div>
 
@@ -461,12 +461,12 @@
                 <div class="row">
                     <div class="col">
                         <label>State Pension Start Age</label>
-                        <input type="number" id="stateAge1" value="" />
+                        <input type="number" id="stateAge1" value="66" />
                         <div class="section-help">Age you claim the government pension (e.g., 66–70). Deferral increases the amount.</div>
                     </div>
                     <div class="col">
                         <label>Private Pension Drawdown Age</label>
-                        <input type="number" id="drawdownAge1" value="" />
+                        <input type="number" id="drawdownAge1" value="66" />
                         <div class="section-help">Age you start withdrawing from your private pot (Section 4). Can be earlier than state pension.</div>
                     </div>
                 </div>
@@ -501,12 +501,12 @@
                 <div class="row">
                     <div class="col">
                         <label>State Pension Start Age</label>
-                        <input type="number" id="stateAge2" value="" />
+                        <input type="number" id="stateAge2" value="66" />
                         <div class="section-help">Age they claim the government pension.</div>
                     </div>
                     <div class="col">
                         <label>Private Pension Drawdown Age</label>
-                        <input type="number" id="drawdownAge2" value="" />
+                        <input type="number" id="drawdownAge2" value="66" />
                         <div class="section-help">Age they start withdrawing from their private pot.</div>
                     </div>
                 </div>
@@ -518,7 +518,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 2. Residency Timeline</span>
+                <span>SECTION 2: Residency Timeline</span>
                 <span class="badge">Tax jurisdiction</span>
             </div>
             <div class="row">
@@ -544,7 +544,8 @@
             <div class="row">
                 <div class="col">
                     <label>Age at Relocation to Retirement Residence</label>
-                    <input type="number" id="relocationAge" value="" />
+                    <input type="number" id="relocationAge" value="66" />
+                    <div class="section-help">The age at which you move to your retirement country. This affects tax residency and state pension eligibility.</div>
                 </div>
                 <div class="col"></div>
             </div>
@@ -555,7 +556,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 3. State Pension Contributions</span>
+                <span>SECTION 3: State Pension Contributions</span>
                 <span class="badge">Per country, per spouse</span>
             </div>
             <div class="section-help" style="margin-bottom:0.8rem;">
@@ -601,7 +602,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 4. Private Pension Pots</span>
+                <span>SECTION 4: Private Pension Pots</span>
                 <span class="badge">Per spouse</span>
             </div>
 
@@ -628,7 +629,7 @@
                             <option value="0">0%</option>
                             <option value="1">1%</option>
                             <option value="2">2%</option>
-                            <option value="3">3%</option>
+                            <option value="3" selected>3%</option>
                             <option value="4">4%</option>
                             <option value="5">5%</option>
                             <option value="6">6%</option>
@@ -691,7 +692,7 @@
                             <option value="0">0%</option>
                             <option value="1">1%</option>
                             <option value="2">2%</option>
-                            <option value="3">3%</option>
+                            <option value="3" selected>3%</option>
                             <option value="4">4%</option>
                             <option value="5">5%</option>
                             <option value="6">6%</option>
@@ -737,7 +738,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 5. Household Assets & Investments</span>
+                <span>SECTION 5: Household Assets & Investments</span>
                 <span class="badge">Cash + Investments</span>
             </div>
 
@@ -759,10 +760,10 @@
                     <div class="col">
                         <label>Annual Yield (%)</label>
                         <select id="cashYield">
-                            <option value="0" selected>0%</option>
+                            <option value="0">0%</option>
                             <option value="1">1%</option>
                             <option value="2">2%</option>
-                            <option value="3">3%</option>
+                            <option value="3" selected>3%</option>
                             <option value="4">4%</option>
                             <option value="5">5%</option>
                             <option value="6">6%</option>
@@ -793,10 +794,10 @@
                     <div class="col">
                         <label>Annual Yield (%)</label>
                         <select id="investmentYield">
-                            <option value="0" selected>0%</option>
+                            <option value="0">0%</option>
                             <option value="1">1%</option>
                             <option value="2">2%</option>
-                            <option value="3">3%</option>
+                            <option value="3" selected>3%</option>
                             <option value="4">4%</option>
                             <option value="5">5%</option>
                             <option value="6">6%</option>
@@ -811,7 +812,7 @@
 
             <!-- Other Assets -->
             <div class="card-box bg-white-border">
-                <div class="card-label">💎 Other Assets (e.g., cash, gold)</div>
+                <div class="card-label">💎 Other Assets (e.g., gold, collectibles)</div>
                 <div class="row">
                     <div class="col">
                         <label>Value</label>
@@ -842,7 +843,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 6. Property Portfolio</span>
+                <span>SECTION 6: Property Portfolio</span>
                 <span class="badge">Add all properties</span>
             </div>
             <div class="section-help" style="margin-bottom:0.8rem;">
@@ -871,7 +872,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 7. Asset Sales</span>
+                <span>SECTION 7: Asset Sales</span>
                 <span class="badge">Liquidation events</span>
             </div>
             <div class="section-help" style="margin-bottom:0.8rem;">
@@ -888,7 +889,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 8. Financial Goals & Outflows</span>
+                <span>SECTION 8: Financial Goals & Outflows</span>
                 <span class="badge">Spending + Inheritance</span>
             </div>
             <div class="row">
@@ -915,7 +916,7 @@
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
-                <span>SECTION 9. Report Settings</span>
+                <span>SECTION 9: Report Settings</span>
                 <span class="badge">Currency & time horizon</span>
             </div>
             <div class="row">
