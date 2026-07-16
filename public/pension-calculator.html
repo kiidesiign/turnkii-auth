@@ -1757,42 +1757,57 @@
           }
           html += `</tbody></table></div>`;
 
-          // ---- Main Cash Flow Table ----
-          html += `<div class="section-title" style="margin-top:1.5rem;">Detailed Cash Flow (${baseCurrency}) – Monthly Averages</div>`;
+          // ---- Cash Flow Table (annual totals, simplified) ----
+          html += `<div class="section-title" style="margin-top:1.5rem;">Detailed Cash Flow (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
-            <th>Total Pension (monthly)</th>
-            <th>Rental Income</th>
-            <th>Investment Income</th>
+            <th>Income</th>
             <th>Outgoings</th>
-            <th>Special ★</th>
             <th>Tax</th>
             <th>Net Cash</th>
             <th>Cash Start</th>
             <th>Cash End</th>
-            <th>Pot 1</th><th>Pot 2</th>
+            <th>Pot 1</th>
+            <th>Pot 2</th>
             <th>Properties</th>
+            <th>★</th>
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
-            const totalPensionMonthly = d.state1 + d.state2 + d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2;
-            const investmentIncome = d.rental + d.sales;
-            const outgoings = (inputs.financialGoals.monthlySpend || 0) + d.purchases + d.mortgage;
-            const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
+            // Annualise all monthly values
+            const state1Annual = d.state1 * 12;
+            const state2Annual = d.state2 * 12;
+            const drawdown1Annual = (d.drawdown1 + d.annuity1) * 12;
+            const drawdown2Annual = (d.drawdown2 + d.annuity2) * 12;
+            const rentalAnnual = d.rental * 12;
+            const salesAnnual = d.sales * 12;
+            const mortgageAnnual = d.mortgage * 12;
+            const purchasesAnnual = d.purchases * 12;
+            const taxAnnual = d.tax * 12;
+            const netCashAnnual = d.netCashFlow * 12;
+            const monthlySpendAnnual = inputs.financialGoals.monthlySpend * 12;
+
+            // Income = state pensions + private drawdowns + rental + sales
+            const totalIncome = state1Annual + state2Annual + drawdown1Annual + drawdown2Annual + rentalAnnual + salesAnnual;
+            // Outgoings = monthly spend + mortgage + major purchases
+            const totalOutgoings = monthlySpendAnnual + mortgageAnnual + purchasesAnnual;
+
             const specialIcon = d.specialFlag ? '★' : '';
+            const netClass = netCashAnnual >= 0 ? 'positive' : 'negative';
+
             html += `<tr>
-              <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(totalPensionMonthly)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(d.rental)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(investmentIncome)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(outgoings)}</td>
-              <td>${specialIcon}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(d.tax)}</td>
-              <td class="${netClass}">${currencySymbol}${formatCurrencyWhole(d.netCashFlow)}</td>
+              <td>${d.year}</td>
+              <td>${d.age1}</td>
+              <td>${d.age2}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(totalIncome)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(totalOutgoings)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(taxAnnual)}</td>
+              <td class="${netClass}">${currencySymbol}${formatCurrencyWhole(netCashAnnual)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsStart)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsEnd)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.pot1Balance)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.pot2Balance)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.propertyValue)}</td>
+              <td>${specialIcon}</td>
             </tr>`;
           }
           html += `</tbody></table></div>`;
