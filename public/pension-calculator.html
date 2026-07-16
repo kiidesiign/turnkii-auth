@@ -12,17 +12,14 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f5f7fa;
-            display: flex;
-            justify-content: center;
-            padding: 2rem 1rem;
+            margin: 0;
+            padding: 1rem;
         }
         .calculator {
-            max-width: 1100px;
+            max-width: 100%;
             width: 100%;
             background: white;
-            padding: 2rem 2rem 1.5rem;
-            border-radius: 20px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            padding: 1.5rem 1.5rem 1rem;
         }
         h1 {
             font-size: 1.7rem;
@@ -40,7 +37,6 @@
         /* ── Sections ── */
         .section {
             background: #f8faff;
-            border-radius: 12px;
             padding: 1.2rem 1.5rem;
             margin: 1.2rem 0;
             border: 1px solid #e2e8f0;
@@ -72,9 +68,10 @@
 
         /* ── Cards for spouses / asset groups ── */
         .card-box {
-            border-radius: 10px;
             padding: 1rem 1.2rem;
             margin-bottom: 1.2rem;
+            background: #f8faff;
+            border: 1px solid #e2e8f0;
         }
         .card-box:last-child {
             margin-bottom: 0;
@@ -290,7 +287,6 @@
         .results {
             margin-top: 1.8rem;
             background: #f0f4fe;
-            border-radius: 14px;
             padding: 1.2rem 1.5rem;
             display: none;
         }
@@ -318,7 +314,6 @@
         }
         .highlight {
             background: #dbeafe;
-            border-radius: 10px;
             padding: 0.8rem 1.2rem;
             margin: 1rem 0 0;
             font-weight: 600;
@@ -395,7 +390,7 @@
 
         @media (max-width: 650px) {
             .calculator {
-                padding: 1.2rem;
+                padding: 1rem;
             }
             .result-grid {
                 grid-template-columns: 1fr;
@@ -461,12 +456,12 @@
                 <div class="row">
                     <div class="col">
                         <label>State Pension Start Age</label>
-                        <input type="number" id="stateAge1" value="" />
+                        <input type="number" id="stateAge1" value="66" />
                         <div class="section-help">Age you claim the government pension (e.g., 66–70). Deferral increases the amount.</div>
                     </div>
                     <div class="col">
                         <label>Private Pension Drawdown Age</label>
-                        <input type="number" id="drawdownAge1" value="" />
+                        <input type="number" id="drawdownAge1" value="66" />
                         <div class="section-help">Age you start withdrawing from your private pot (Section 4). Can be earlier than state pension.</div>
                     </div>
                 </div>
@@ -501,12 +496,12 @@
                 <div class="row">
                     <div class="col">
                         <label>State Pension Start Age</label>
-                        <input type="number" id="stateAge2" value="" />
+                        <input type="number" id="stateAge2" value="66" />
                         <div class="section-help">Age they claim the government pension.</div>
                     </div>
                     <div class="col">
                         <label>Private Pension Drawdown Age</label>
-                        <input type="number" id="drawdownAge2" value="" />
+                        <input type="number" id="drawdownAge2" value="66" />
                         <div class="section-help">Age they start withdrawing from their private pot.</div>
                     </div>
                 </div>
@@ -527,7 +522,7 @@
                     <select id="currentResidence">
                         <option value="Ireland">Ireland</option>
                         <option value="UK">UK</option>
-                        <option value="Spain">Spain</option>
+                        <option value="Spain" selected>Spain</option>
                         <option value="Other">Other</option>
                     </select>
                 </div>
@@ -536,18 +531,10 @@
                     <select id="retirementResidence">
                         <option value="Ireland">Ireland</option>
                         <option value="UK">UK</option>
-                        <option value="Spain">Spain</option>
+                        <option value="Spain" selected>Spain</option>
                         <option value="Other">Other</option>
                     </select>
                 </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <label>Age at Relocation to Retirement Residence</label>
-                    <input type="number" id="relocationAge" value="66" />
-                    <div class="section-help">The age at which you move to your retirement country. This affects tax residency and state pension eligibility.</div>
-                </div>
-                <div class="col"></div>
             </div>
         </div>
 
@@ -804,9 +791,9 @@
                         <label>Annual Yield (%)</label>
                         <select id="cashYield">
                             <option value="0">0%</option>
-                            <option value="1">1%</option>
+                            <option value="1" selected>1%</option>
                             <option value="2">2%</option>
-                            <option value="3" selected>3%</option>
+                            <option value="3">3%</option>
                             <option value="4">4%</option>
                             <option value="5">5%</option>
                             <option value="6">6%</option>
@@ -840,9 +827,9 @@
                             <option value="0">0%</option>
                             <option value="1">1%</option>
                             <option value="2">2%</option>
-                            <option value="3" selected>3%</option>
+                            <option value="3">3%</option>
                             <option value="4">4%</option>
-                            <option value="5">5%</option>
+                            <option value="5" selected>5%</option>
                             <option value="6">6%</option>
                             <option value="7">7%</option>
                             <option value="8">8%</option>
@@ -889,7 +876,7 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- SECTION 6: Property Portfolio                               -->
+        <!-- SECTION 6: Property Portfolio (simplified)                  -->
         <!-- ========================================================== -->
         <div class="section">
             <div class="section-title">
@@ -897,7 +884,7 @@
                 <span class="badge">Add all properties</span>
             </div>
             <div class="section-help" style="margin-bottom:0.8rem;">
-                For each property, enter its value, mortgage, rental income (if any), and mark the primary residence at retirement. If you plan to sell the property, enter the expected sale year and the net proceeds you will receive.
+                For each property, enter its value, mortgage, and rental income (if any). If you plan to sell the property, enter the expected sale year (as a year, e.g., 2040) and the net proceeds you will receive.
             </div>
 
             <div class="dynamic-header">
@@ -905,7 +892,6 @@
                 <span>Currency</span>
                 <span>Mortgage</span>
                 <span>Rental Income (€/yr)</span>
-                <span>Primary Residence at Retirement</span>
                 <span>Sale Year</span>
                 <span>Net Proceeds</span>
                 <span style="flex:0 0 30px;"></span>
@@ -914,7 +900,6 @@
                 <!-- Dynamic rows inserted here -->
             </div>
             <button class="add-row-btn" onclick="addProperty()">+ Add Property</button>
-            <div class="section-help" style="margin-top:0.4rem;">Only one property can be marked as Primary Residence at Retirement.</div>
         </div>
 
         <!-- ========================================================== -->
@@ -945,7 +930,7 @@
             <div class="row">
                 <div class="col">
                     <label>Monthly Net Spend Target (€)</label>
-                    <input type="number" id="monthlySpend" value="0" step="100" />
+                    <input type="number" id="monthlySpend" value="3000" step="100" />
                 </div>
                 <div class="col">
                     <label>Target Inheritance to Leave (€)</label>
@@ -1032,7 +1017,7 @@
             saleId = 0,
             purchaseId = 0;
 
-        function addProperty(value, currency, mortgage, rental, primary, saleYear, proceeds) {
+        function addProperty(value, currency, mortgage, rental, saleYear, proceeds) {
             const container = document.getElementById('propertiesContainer');
             const div = document.createElement('div');
             div.className = 'dynamic-row';
@@ -1045,10 +1030,7 @@
             </select>
             <input type="number" placeholder="Mortgage" value="${mortgage || '0'}" class="prop-mortgage" style="flex:1 1 70px;" />
             <input type="number" placeholder="Rental Income" value="${rental || '0'}" class="prop-rental" style="flex:1 1 80px;" />
-            <label style="display:inline; font-weight:400; font-size:0.8rem; flex:0 0 70px;">
-              <input type="checkbox" class="prop-primary" ${primary ? 'checked' : ''} /> Primary
-            </label>
-            <input type="number" placeholder="Sale Year" value="${saleYear || ''}" class="prop-sale-year" style="flex:1 1 70px;" />
+            <input type="text" placeholder="Sale Year (e.g. 2040)" value="${saleYear || ''}" class="prop-sale-year" style="flex:1 1 70px;" />
             <input type="number" placeholder="Net Proceeds" value="${proceeds || ''}" class="prop-proceeds" style="flex:1 1 80px;" />
             <button class="remove-row-btn" onclick="this.parentElement.remove()" style="flex:0 0 30px;">✕</button>
           `;
@@ -1152,17 +1134,6 @@
             otherEU: { fullWeeks: 2080, fullPension: 500, currency: 'EUR' }
         };
 
-        // Default state pension start ages: Ireland & UK at 66, Spain & Other EU at 67
-        function setDefaultStateAges() {
-            // Only set if fields are empty
-            ['stateAge1', 'stateAge2'].forEach(id => {
-                const el = document.getElementById(id);
-                if (!el.value) {
-                    // We'll set based on country in getInputs if empty
-                }
-            });
-        }
-
         function getInputs() {
             const profile = {
                 name1: document.getElementById('name1').value,
@@ -1188,7 +1159,6 @@
             const residency = {
                 currentResidence: document.getElementById('currentResidence').value,
                 retirementResidence: retirementResidence,
-                relocationAge: parseInt(document.getElementById('relocationAge').value) || 0,
             };
 
             // State pensions: read weeks only, use hardcoded fullWeeks and fullPension
@@ -1278,7 +1248,6 @@
                     currency: row.querySelector('.prop-currency').value,
                     mortgage: parseFloat(row.querySelector('.prop-mortgage').value) || 0,
                     rentalIncome: parseFloat(row.querySelector('.prop-rental').value) || 0,
-                    isPrimary: row.querySelector('.prop-primary').checked,
                     saleYear: parseInt(row.querySelector('.prop-sale-year').value) || null,
                     saleProceeds: parseFloat(row.querySelector('.prop-proceeds').value) || 0,
                 });
@@ -1379,7 +1348,6 @@
                 value: convertToBaseCurrency(p.value, p.currency),
                 mortgage: convertToBaseCurrency(p.mortgage, p.currency),
                 rentalIncome: convertToBaseCurrency(p.rentalIncome, p.currency),
-                isPrimary: p.isPrimary,
                 saleYear: p.saleYear,
                 saleProceeds: convertToBaseCurrency(p.saleProceeds, p.currency),
             }));
