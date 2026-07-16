@@ -884,7 +884,7 @@
                 <div class="col">
                     <label>Projection End Type</label>
                     <select id="endType">
-                        <option value="lifeExpectancy" selected>Standard Life Expectancy</option>
+                        <option value="lifeExpectancy" selected>Standard Life Expectancy (Younger + 10)</option>
                         <option value="fixed">Fixed End Age</option>
                     </select>
                 </div>
@@ -892,6 +892,9 @@
                     <label>Fixed End Age (last surviving)</label>
                     <input type="number" id="fixedEndAge" value="85" />
                 </div>
+            </div>
+            <div class="section-help" style="margin-top:0.5rem;">
+                <strong>Note:</strong> "Standard Life Expectancy" now extends 10 years beyond the younger spouse's life expectancy.
             </div>
         </div>
 
@@ -1217,7 +1220,14 @@
             } else {
                 const le1 = getLifeExpectancy(profile.sex1, profile.age1);
                 const le2 = getLifeExpectancy(profile.sex2, profile.age2);
-                endAge = Math.max(le1, le2);
+
+                // Identify which spouse is younger (lower current age)
+                const youngerLE = (profile.age1 < profile.age2) ? le1 : le2;
+                const olderLE = (profile.age1 < profile.age2) ? le2 : le1;
+
+                // Extend 10 years beyond the younger spouse's life expectancy
+                // But ensure we at least cover the older spouse's full life expectancy
+                endAge = Math.max(olderLE, youngerLE + 10);
             }
 
             // Simulation
@@ -1230,7 +1240,7 @@
             const startYear = 2026;
             const startAge1 = profile.age1;
             const startAge2 = profile.age2;
-            const maxYears = endAge - Math.max(startAge1, startAge2) + 10;
+            const maxYears = endAge - Math.max(startAge1, startAge2) + 15;
 
             function getRentalIncomeForYear(year) {
                 let total = 0;
@@ -1389,15 +1399,15 @@
             return {
                 yearData,
                 summary: {
-                    totalTaxPaid,
-                    finalWealth,
-                    cashBuffer,
-                    pot1Balance,
-                    pot2Balance,
-                    propertyValues,
-                    targetInheritance: financialGoals.targetInheritance,
+                    totalTaxPaid: Math.round(totalTaxPaid),
+                    finalWealth: Math.round(finalWealth),
+                    cashBuffer: Math.round(cashBuffer),
+                    pot1Balance: Math.round(pot1Balance),
+                    pot2Balance: Math.round(pot2Balance),
+                    propertyValues: Math.round(propertyValues),
+                    targetInheritance: Math.round(financialGoals.targetInheritance),
                     inheritanceAchieved,
-                    inheritanceShortfall: Math.max(0, financialGoals.targetInheritance - finalWealth),
+                    inheritanceShortfall: Math.round(Math.max(0, financialGoals.targetInheritance - finalWealth)),
                     endAge,
                     totalYears: yearData.length,
                 }
@@ -1405,7 +1415,7 @@
         }
 
         // ────────────────────────────────────────────────────────────────
-        // 5. UI: CALCULATE & DISPLAY RESULTS
+        // 5. UI: CALCULATE & DISPLAY RESULTS (No Decimals)
         // ────────────────────────────────────────────────────────────────
         function calculatePension() {
             const resultsDiv = document.getElementById('results');
@@ -1423,21 +1433,21 @@
                     html += `<div class="result-grid">
                 <div class="result-item"><span class="label">Projection Period</span><span class="value">${result.summary.totalYears} years</span></div>
                 <div class="result-item"><span class="label">End Age</span><span class="value">${result.summary.endAge}</span></div>
-                <div class="result-item"><span class="label">Total Tax Paid</span><span class="value">€${formatCurrency(result.summary.totalTaxPaid)}</span></div>
-                <div class="result-item"><span class="label">Final Cash Buffer</span><span class="value">€${formatCurrency(result.summary.cashBuffer)}</span></div>
-                <div class="result-item"><span class="label">Final Pot 1</span><span class="value">€${formatCurrency(result.summary.pot1Balance)}</span></div>
-                <div class="result-item"><span class="label">Final Pot 2</span><span class="value">€${formatCurrency(result.summary.pot2Balance)}</span></div>
-                <div class="result-item"><span class="label">Property Value (net)</span><span class="value">€${formatCurrency(result.summary.propertyValues)}</span></div>
-                <div class="result-item"><span class="label">Final Total Wealth</span><span class="value">€${formatCurrency(result.summary.finalWealth)}</span></div>
-                <div class="result-item"><span class="label">Target Inheritance</span><span class="value">€${formatCurrency(result.summary.targetInheritance)}</span></div>
+                <div class="result-item"><span class="label">Total Tax Paid</span><span class="value">€${formatCurrencyWhole(result.summary.totalTaxPaid)}</span></div>
+                <div class="result-item"><span class="label">Final Cash Buffer</span><span class="value">€${formatCurrencyWhole(result.summary.cashBuffer)}</span></div>
+                <div class="result-item"><span class="label">Final Pot 1</span><span class="value">€${formatCurrencyWhole(result.summary.pot1Balance)}</span></div>
+                <div class="result-item"><span class="label">Final Pot 2</span><span class="value">€${formatCurrencyWhole(result.summary.pot2Balance)}</span></div>
+                <div class="result-item"><span class="label">Property Value (net)</span><span class="value">€${formatCurrencyWhole(result.summary.propertyValues)}</span></div>
+                <div class="result-item"><span class="label">Final Total Wealth</span><span class="value">€${formatCurrencyWhole(result.summary.finalWealth)}</span></div>
+                <div class="result-item"><span class="label">Target Inheritance</span><span class="value">€${formatCurrencyWhole(result.summary.targetInheritance)}</span></div>
                 <div class="result-item"><span class="label">Inheritance Goal</span><span class="value">${result.summary.inheritanceAchieved ? '✅ Yes' : '❌ No'}</span></div>
               </div>`;
                     if (result.summary.inheritanceShortfall > 0) {
                         html +=
-                            `<div class="highlight warning">⚠️ Shortfall: €${formatCurrency(result.summary.inheritanceShortfall)}</div>`;
+                            `<div class="highlight warning">⚠️ Shortfall: €${formatCurrencyWhole(result.summary.inheritanceShortfall)}</div>`;
                     } else if (result.summary.inheritanceAchieved) {
                         html +=
-                            `<div class="highlight success">✅ Goal achieved! Surplus: €${formatCurrency(result.summary.finalWealth - result.summary.targetInheritance)}</div>`;
+                            `<div class="highlight success">✅ Goal achieved! Surplus: €${formatCurrencyWhole(result.summary.finalWealth - result.summary.targetInheritance)}</div>`;
                     }
 
                     html +=
@@ -1450,11 +1460,11 @@
                         const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
                         html += `<tr>
                   <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
-                  <td>${formatCurrency(d.state1 + d.state2)}</td>
-                  <td>${formatCurrency(d.drawdown1 + d.drawdown2)}</td>
-                  <td>${formatCurrency(d.rental)}</td><td>${formatCurrency(d.sales)}</td>
-                  <td>${formatCurrency(d.tax)}</td><td class="${netClass}">${formatCurrency(d.netCashFlow)}</td>
-                  <td>${formatCurrency(d.cashBuffer)}</td><td>${formatCurrency(d.pot1Balance)}</td><td>${formatCurrency(d.pot2Balance)}</td>
+                  <td>${formatCurrencyWhole(d.state1 + d.state2)}</td>
+                  <td>${formatCurrencyWhole(d.drawdown1 + d.drawdown2)}</td>
+                  <td>${formatCurrencyWhole(d.rental)}</td><td>${formatCurrencyWhole(d.sales)}</td>
+                  <td>${formatCurrencyWhole(d.tax)}</td><td class="${netClass}">${formatCurrencyWhole(d.netCashFlow)}</td>
+                  <td>${formatCurrencyWhole(d.cashBuffer)}</td><td>${formatCurrencyWhole(d.pot1Balance)}</td><td>${formatCurrencyWhole(d.pot2Balance)}</td>
                 </tr>`;
                     }
                     html += `</tbody></table></div><div style="font-size:0.75rem; color:#6b7a93;">* Showing every 2nd year</div>`;
@@ -1466,9 +1476,10 @@
             }, 100);
         }
 
-        function formatCurrency(amount) {
-            if (isNaN(amount) || amount === null || amount === undefined) return '0.00';
-            return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        // ── Format as whole number (no decimals) ──
+        function formatCurrencyWhole(amount) {
+            if (isNaN(amount) || amount === null || amount === undefined) return '0';
+            return Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         }
 
         // ────────────────────────────────────────────────────────────────
