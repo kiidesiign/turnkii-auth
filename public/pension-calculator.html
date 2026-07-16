@@ -17,7 +17,7 @@
             padding: 2rem 1rem;
         }
         .calculator {
-            max-width: 950px;
+            max-width: 1100px;
             width: 100%;
             background: white;
             padding: 2rem 2rem 1.5rem;
@@ -341,17 +341,17 @@
         .table-wrap table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
         }
         .table-wrap th {
             background: #e2e8f0;
-            padding: 6px 8px;
+            padding: 4px 6px;
             text-align: left;
             font-weight: 600;
             white-space: nowrap;
         }
         .table-wrap td {
-            padding: 5px 8px;
+            padding: 4px 6px;
             border-bottom: 1px solid #dce3f0;
             white-space: nowrap;
         }
@@ -461,12 +461,12 @@
                 <div class="row">
                     <div class="col">
                         <label>State Pension Start Age</label>
-                        <input type="number" id="stateAge1" value="66" />
+                        <input type="number" id="stateAge1" value="" />
                         <div class="section-help">Age you claim the government pension (e.g., 66–70). Deferral increases the amount.</div>
                     </div>
                     <div class="col">
                         <label>Private Pension Drawdown Age</label>
-                        <input type="number" id="drawdownAge1" value="66" />
+                        <input type="number" id="drawdownAge1" value="" />
                         <div class="section-help">Age you start withdrawing from your private pot (Section 4). Can be earlier than state pension.</div>
                     </div>
                 </div>
@@ -501,12 +501,12 @@
                 <div class="row">
                     <div class="col">
                         <label>State Pension Start Age</label>
-                        <input type="number" id="stateAge2" value="66" />
+                        <input type="number" id="stateAge2" value="" />
                         <div class="section-help">Age they claim the government pension.</div>
                     </div>
                     <div class="col">
                         <label>Private Pension Drawdown Age</label>
-                        <input type="number" id="drawdownAge2" value="66" />
+                        <input type="number" id="drawdownAge2" value="" />
                         <div class="section-help">Age they start withdrawing from their private pot.</div>
                     </div>
                 </div>
@@ -561,6 +561,7 @@
             </div>
             <div class="section-help" style="margin-bottom:0.8rem;">
                 Enter the total number of contribution weeks you expect to have by your state pension start age.
+                <br><strong>Note:</strong> Default start ages are 66 for Ireland & UK, 67 for Spain & Other EU.
             </div>
 
             <div class="country-row">
@@ -649,18 +650,39 @@
                 </div>
                 <div class="row">
                     <div class="col">
+                        <label>Lump Sum Amount (€)</label>
+                        <input type="number" id="pot1LumpAmount" value="0" step="1000" />
+                    </div>
+                    <div class="col">
+                        <label>Lump Sum Year (age)</label>
+                        <input type="number" id="pot1LumpYear" value="66" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label>Pension Type</label>
+                        <select id="pot1Type">
+                            <option value="ARF">ARF (Drawdown)</option>
+                            <option value="Annuity">Annuity</option>
+                        </select>
+                    </div>
+                    <div class="col" id="pot1AnnuityCol" style="display:none;">
+                        <label>Annuity Annual Income (€)</label>
+                        <input type="number" id="pot1AnnuityIncome" value="0" step="100" />
+                    </div>
+                    <div class="col" id="pot1DrawdownCol">
                         <label>Drawdown Strategy</label>
                         <select id="pot1Strategy">
                             <option value="fixed">Fixed Amount</option>
                             <option value="optimised">Tax-Optimised</option>
                         </select>
                     </div>
-                    <div class="col">
+                    <div class="col" id="pot1FixedCol">
                         <label>If Fixed – Annual Amount (€)</label>
                         <input type="number" id="pot1Fixed" value="0" step="500" />
                     </div>
                 </div>
-                <div class="row">
+                <div class="row" id="pot1MaxRow">
                     <div class="col">
                         <label>If Optimised – Max Annual Amount (€)</label>
                         <input type="number" id="pot1Max" value="0" step="500" />
@@ -712,18 +734,39 @@
                 </div>
                 <div class="row">
                     <div class="col">
+                        <label>Lump Sum Amount (€)</label>
+                        <input type="number" id="pot2LumpAmount" value="0" step="1000" />
+                    </div>
+                    <div class="col">
+                        <label>Lump Sum Year (age)</label>
+                        <input type="number" id="pot2LumpYear" value="66" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label>Pension Type</label>
+                        <select id="pot2Type">
+                            <option value="ARF">ARF (Drawdown)</option>
+                            <option value="Annuity">Annuity</option>
+                        </select>
+                    </div>
+                    <div class="col" id="pot2AnnuityCol" style="display:none;">
+                        <label>Annuity Annual Income (€)</label>
+                        <input type="number" id="pot2AnnuityIncome" value="0" step="100" />
+                    </div>
+                    <div class="col" id="pot2DrawdownCol">
                         <label>Drawdown Strategy</label>
                         <select id="pot2Strategy">
                             <option value="fixed">Fixed Amount</option>
                             <option value="optimised">Tax-Optimised</option>
                         </select>
                     </div>
-                    <div class="col">
+                    <div class="col" id="pot2FixedCol">
                         <label>If Fixed – Annual Amount (€)</label>
                         <input type="number" id="pot2Fixed" value="0" step="500" />
                     </div>
                 </div>
-                <div class="row">
+                <div class="row" id="pot2MaxRow">
                     <div class="col">
                         <label>If Optimised – Max Annual Amount (€)</label>
                         <input type="number" id="pot2Max" value="0" step="500" />
@@ -1049,7 +1092,7 @@
         }
 
         // ────────────────────────────────────────────────────────────────
-        // 2. UPDATE EXCHANGE RATE LABEL & SUMMARY
+        // 2. UPDATE EXCHANGE RATE LABEL & SUMMARY & TOGGLE ANNUITY FIELDS
         // ────────────────────────────────────────────────────────────────
         function updateExchangeRateLabel() {
             const base = document.getElementById('baseCurrency').value;
@@ -1081,6 +1124,22 @@
             document.getElementById('percent2').textContent = pct2 + '%';
         }
 
+        function toggleAnnuityFields() {
+            // Spouse 1
+            const type1 = document.getElementById('pot1Type').value;
+            document.getElementById('pot1AnnuityCol').style.display = type1 === 'Annuity' ? 'block' : 'none';
+            document.getElementById('pot1DrawdownCol').style.display = type1 === 'ARF' ? 'block' : 'none';
+            document.getElementById('pot1FixedCol').style.display = type1 === 'ARF' ? 'block' : 'none';
+            document.getElementById('pot1MaxRow').style.display = type1 === 'ARF' ? 'flex' : 'none';
+
+            // Spouse 2
+            const type2 = document.getElementById('pot2Type').value;
+            document.getElementById('pot2AnnuityCol').style.display = type2 === 'Annuity' ? 'block' : 'none';
+            document.getElementById('pot2DrawdownCol').style.display = type2 === 'ARF' ? 'block' : 'none';
+            document.getElementById('pot2FixedCol').style.display = type2 === 'ARF' ? 'block' : 'none';
+            document.getElementById('pot2MaxRow').style.display = type2 === 'ARF' ? 'flex' : 'none';
+        }
+
         // ────────────────────────────────────────────────────────────────
         // 3. GATHER INPUTS
         // ────────────────────────────────────────────────────────────────
@@ -1092,6 +1151,17 @@
             spain: { fullWeeks: 2080, fullPension: 1256, currency: 'EUR' },
             otherEU: { fullWeeks: 2080, fullPension: 500, currency: 'EUR' }
         };
+
+        // Default state pension start ages: Ireland & UK at 66, Spain & Other EU at 67
+        function setDefaultStateAges() {
+            // Only set if fields are empty
+            ['stateAge1', 'stateAge2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el.value) {
+                    // We'll set based on country in getInputs if empty
+                }
+            });
+        }
 
         function getInputs() {
             const profile = {
@@ -1109,9 +1179,15 @@
                 workExtra2: parseInt(document.getElementById('workExtra2').value) || 0,
             };
 
+            // Apply defaults for state pension start age based on residence country
+            const retirementResidence = document.getElementById('retirementResidence').value;
+            const defaultStateAge = (retirementResidence === 'Ireland' || retirementResidence === 'UK') ? 66 : 67;
+            if (!profile.stateAge1) profile.stateAge1 = defaultStateAge;
+            if (!profile.stateAge2) profile.stateAge2 = defaultStateAge;
+
             const residency = {
                 currentResidence: document.getElementById('currentResidence').value,
-                retirementResidence: document.getElementById('retirementResidence').value,
+                retirementResidence: retirementResidence,
                 relocationAge: parseInt(document.getElementById('relocationAge').value) || 0,
             };
 
@@ -1153,6 +1229,10 @@
                     currency: document.getElementById('pot1Currency').value,
                     growth: parseFloat(document.getElementById('pot1Growth').value) / 100 || 0.03,
                     lumpSumTaken: document.getElementById('pot1LumpSum').value === 'yes',
+                    lumpSumAmount: parseFloat(document.getElementById('pot1LumpAmount').value) || 0,
+                    lumpSumYear: parseInt(document.getElementById('pot1LumpYear').value) || 66,
+                    type: document.getElementById('pot1Type').value,
+                    annuityIncome: parseFloat(document.getElementById('pot1AnnuityIncome').value) || 0,
                     strategy: document.getElementById('pot1Strategy').value,
                     fixedAmount: parseFloat(document.getElementById('pot1Fixed').value) || 0,
                     maxAmount: parseFloat(document.getElementById('pot1Max').value) || 0,
@@ -1162,6 +1242,10 @@
                     currency: document.getElementById('pot2Currency').value,
                     growth: parseFloat(document.getElementById('pot2Growth').value) / 100 || 0.03,
                     lumpSumTaken: document.getElementById('pot2LumpSum').value === 'yes',
+                    lumpSumAmount: parseFloat(document.getElementById('pot2LumpAmount').value) || 0,
+                    lumpSumYear: parseInt(document.getElementById('pot2LumpYear').value) || 66,
+                    type: document.getElementById('pot2Type').value,
+                    annuityIncome: parseFloat(document.getElementById('pot2AnnuityIncome').value) || 0,
                     strategy: document.getElementById('pot2Strategy').value,
                     fixedAmount: parseFloat(document.getElementById('pot2Fixed').value) || 0,
                     maxAmount: parseFloat(document.getElementById('pot2Max').value) || 0,
@@ -1269,16 +1353,26 @@
                 sp[key] = { fullWeeks: val.fullWeeks, fullPension: fullPensionBase, weeks1: val.weeks1, weeks2: val.weeks2 };
             }
 
-            // Private pensions
-            const pot1Value = convertToBaseCurrency(privatePensions.pot1.value, privatePensions.pot1.currency);
-            const pot2Value = convertToBaseCurrency(privatePensions.pot2.value, privatePensions.pot2.currency);
+            // Private pension pots
+            let pot1Value = convertToBaseCurrency(privatePensions.pot1.value, privatePensions.pot1.currency);
+            let pot2Value = convertToBaseCurrency(privatePensions.pot2.value, privatePensions.pot2.currency);
+
+            // Lump sum details
+            const pot1Lump = privatePensions.pot1.lumpSumTaken ? privatePensions.pot1.lumpSumAmount : 0;
+            const pot1LumpYear = privatePensions.pot1.lumpSumYear;
+            const pot2Lump = privatePensions.pot2.lumpSumTaken ? privatePensions.pot2.lumpSumAmount : 0;
+            const pot2LumpYear = privatePensions.pot2.lumpSumYear;
+
+            // Annuity incomes
+            const pot1Annuity = privatePensions.pot1.type === 'Annuity' ? privatePensions.pot1.annuityIncome : 0;
+            const pot2Annuity = privatePensions.pot2.type === 'Annuity' ? privatePensions.pot2.annuityIncome : 0;
 
             // Assets
             const cashValue = convertToBaseCurrency(assets.cashSavings.value, assets.cashSavings.currency);
             const investmentValue = convertToBaseCurrency(assets.investmentPortfolio.value, assets.investmentPortfolio
             .currency);
             const otherValue = convertToBaseCurrency(assets.otherAssets.value, assets.otherAssets.currency);
-            let totalLiquidAssets = cashValue + investmentValue + otherValue;
+            let liquidAssets = cashValue + investmentValue + otherValue;
 
             // Properties
             const props = properties.map(p => ({
@@ -1332,7 +1426,7 @@
             }
 
             // Simulation - yearly
-            let liquidAssets = totalLiquidAssets;
+            let liquidAssetsStart = liquidAssets;
             let pot1Balance = pot1Value;
             let pot2Balance = pot2Value;
             let totalTaxPaid = 0;
@@ -1395,6 +1489,9 @@
                 return tax;
             }
 
+            // Track special events per year
+            let previousLiquid = liquidAssets;
+
             for (let y = 0; y < maxYears; y++) {
                 const year = startYear + y;
                 const age1 = startAge1 + y;
@@ -1402,7 +1499,6 @@
 
                 // Check if reached end age
                 if (age1 > endAge && age2 > endAge) break;
-                if (age1 > endAge && age2 > endAge) break; // already checked
 
                 // Determine if state pensions have started
                 const state1Active = age1 >= profile.stateAge1;
@@ -1410,34 +1506,56 @@
                 const annualState1 = state1Active ? monthlyState1 * 12 : 0;
                 const annualState2 = state2Active ? monthlyState2 * 12 : 0;
 
-                // Determine drawdown eligibility
-                const drawdown1Active = age1 >= profile.drawdownAge1;
-                const drawdown2Active = age2 >= profile.drawdownAge2;
+                // Determine drawdown eligibility (only for ARF pots)
+                const drawdown1Active = age1 >= profile.drawdownAge1 && privatePensions.pot1.type === 'ARF';
+                const drawdown2Active = age2 >= profile.drawdownAge2 && privatePensions.pot2.type === 'ARF';
 
                 let drawdown1 = 0,
                     drawdown2 = 0;
 
-                // Spouse 1 drawdown
+                // Process lump sums (if taken this year)
+                let lumpSumAdded = 0;
+                if (privatePensions.pot1.lumpSumTaken && age1 === pot1LumpYear && pot1Balance > 0) {
+                    const lump = Math.min(pot1Lump, pot1Balance);
+                    liquidAssets += lump;
+                    pot1Balance -= lump;
+                    lumpSumAdded += lump;
+                }
+                if (privatePensions.pot2.lumpSumTaken && age2 === pot2LumpYear && pot2Balance > 0) {
+                    const lump = Math.min(pot2Lump, pot2Balance);
+                    liquidAssets += lump;
+                    pot2Balance -= lump;
+                    lumpSumAdded += lump;
+                }
+
+                // Annuity income (fixed annual amount, not dependent on pot balance)
+                let annuityIncome1 = 0,
+                    annuityIncome2 = 0;
+                if (privatePensions.pot1.type === 'Annuity' && age1 >= profile.drawdownAge1) {
+                    annuityIncome1 = pot1Annuity;
+                }
+                if (privatePensions.pot2.type === 'Annuity' && age2 >= profile.drawdownAge2) {
+                    annuityIncome2 = pot2Annuity;
+                }
+
+                // ARF drawdown
                 if (drawdown1Active && pot1Balance > 0) {
                     const strategy1 = privatePensions.pot1.strategy;
                     if (strategy1 === 'fixed') {
                         drawdown1 = Math.min(privatePensions.pot1.fixedAmount, pot1Balance);
                     } else {
-                        // Tax-optimised: try to draw up to max amount while keeping tax at 0
                         let maxDraw = privatePensions.pot1.maxAmount || 0;
                         let testDraw = 0;
-                        // base income for tax calculation (excluding this drawdown)
-                        const baseIncome = annualState1 + annualState2 + drawdown2; // drawdown2 might be zero at this point
+                        const baseIncome = annualState1 + annualState2 + annuityIncome1 + annuityIncome2 + drawdown2;
                         while (testDraw < maxDraw && testDraw < pot1Balance) {
                             const testIncome = baseIncome + testDraw;
                             if (calculateSpanishTax(testIncome, age1, age2) > 0) break;
-                            testDraw += 100; // increment by 100 EUR
+                            testDraw += 100;
                         }
                         drawdown1 = Math.min(testDraw, pot1Balance, maxDraw);
                     }
                 }
 
-                // Spouse 2 drawdown
                 if (drawdown2Active && pot2Balance > 0) {
                     const strategy2 = privatePensions.pot2.strategy;
                     if (strategy2 === 'fixed') {
@@ -1445,7 +1563,7 @@
                     } else {
                         let maxDraw = privatePensions.pot2.maxAmount || 0;
                         let testDraw = 0;
-                        const baseIncome = annualState1 + annualState2 + drawdown1;
+                        const baseIncome = annualState1 + annualState2 + annuityIncome1 + annuityIncome2 + drawdown1;
                         while (testDraw < maxDraw && testDraw < pot2Balance) {
                             const testIncome = baseIncome + testDraw;
                             if (calculateSpanishTax(testIncome, age1, age2) > 0) break;
@@ -1455,18 +1573,28 @@
                     }
                 }
 
-                // Apply growth to remaining pot after withdrawals (annual growth)
-                pot1Balance = (pot1Balance - drawdown1) * (1 + privatePensions.pot1.growth);
-                pot2Balance = (pot2Balance - drawdown2) * (1 + privatePensions.pot2.growth);
-                if (pot1Balance < 0) pot1Balance = 0;
-                if (pot2Balance < 0) pot2Balance = 0;
+                // Apply growth to ARF pots after withdrawals
+                if (privatePensions.pot1.type === 'ARF') {
+                    pot1Balance = (pot1Balance - drawdown1) * (1 + privatePensions.pot1.growth);
+                    if (pot1Balance < 0) pot1Balance = 0;
+                } else {
+                    // Annuity: pot balance stays at 0 after purchase
+                    pot1Balance = 0;
+                }
+                if (privatePensions.pot2.type === 'ARF') {
+                    pot2Balance = (pot2Balance - drawdown2) * (1 + privatePensions.pot2.growth);
+                    if (pot2Balance < 0) pot2Balance = 0;
+                } else {
+                    pot2Balance = 0;
+                }
 
                 // Other income (rental, sales)
                 const annualRental = getRentalIncomeForYear(year);
                 const annualSales = getSalesForYear(year);
 
-                // Total annual income
-                const totalAnnualIncome = annualState1 + annualState2 + drawdown1 + drawdown2 + annualRental + annualSales;
+                // Total annual income (excluding lump sum for tax purposes)
+                const totalAnnualIncome = annualState1 + annualState2 + drawdown1 + drawdown2 + annuityIncome1 + annuityIncome2 +
+                    annualRental + annualSales;
 
                 // Tax
                 const tax = calculateSpanishTax(totalAnnualIncome, age1, age2);
@@ -1477,14 +1605,20 @@
                 const annualPurchases = getPurchasesForYear(year);
                 const totalAnnualOutflows = annualSpend + annualPurchases;
 
-                // Net annual cash flow
+                // Net annual cash flow (excluding lump sum for cash flow, but lump sum is added to liquid assets)
                 const netAnnual = totalAnnualIncome - tax - totalAnnualOutflows;
 
-                // Update liquid assets
-                liquidAssets = liquidAssets + netAnnual;
+                // Update liquid assets (including lump sum added)
+                liquidAssets = liquidAssets + netAnnual + lumpSumAdded;
                 if (liquidAssets < 0) liquidAssets = 0;
 
-                // Store year data (convert to monthly for display consistency)
+                // Determine if there was a special purchase or sale this year
+                let specialFlag = false;
+                if (annualPurchases > 0 || annualSales > 0 || lumpSumAdded > 0) {
+                    specialFlag = true;
+                }
+
+                // Store year data (all values in monthly equivalent for display)
                 yearData.push({
                     year,
                     age1,
@@ -1493,15 +1627,24 @@
                     state2: monthlyState2,
                     drawdown1: drawdown1 / 12,
                     drawdown2: drawdown2 / 12,
+                    annuity1: annuityIncome1 / 12,
+                    annuity2: annuityIncome2 / 12,
                     rental: annualRental / 12,
                     sales: annualSales / 12,
                     totalIncome: totalAnnualIncome / 12,
                     tax: tax / 12,
                     netCashFlow: netAnnual / 12,
-                    liquidAssets: liquidAssets,
+                    lumpSumAdded: lumpSumAdded / 12,
+                    liquidAssetsStart: previousLiquid,
+                    liquidAssetsEnd: liquidAssets,
                     pot1Balance: pot1Balance,
                     pot2Balance: pot2Balance,
+                    specialFlag: specialFlag,
+                    purchases: annualPurchases / 12,
+                    salesAmount: annualSales / 12,
                 });
+
+                previousLiquid = liquidAssets;
 
                 // Stop if both spouses have surpassed end age
                 if (age1 >= endAge && age2 >= endAge) break;
@@ -1568,28 +1711,47 @@
                     }
 
                     html +=
-                        `<div class="section-title" style="margin-top:1.5rem;">Year-by-Year Cash Flow (${baseCurrency})</div><div class="table-wrap"><table><thead><tr>
-                <th>Year</th><th>Age 1</th><th>Age 2</th><th>State</th><th>Drawdown</th><th>Rental</th><th>Sales</th><th>Tax</th><th>Net Cash</th><th>Liquid Assets</th><th>Pot 1</th><th>Pot 2</th>
+                        `<div class="section-title" style="margin-top:1.5rem;">Year-by-Year Cash Flow (${baseCurrency})</div>
+                    <div class="table-wrap"><table><thead><tr>
+                <th>Year</th><th>Age1</th><th>Age2</th>
+                <th>State Pension</th>
+                <th>Private Pension Drawdown</th>
+                <th>Investment Income</th>
+                <th>Outgoings</th>
+                <th>Special ★</th>
+                <th>Tax</th>
+                <th>Net Cash Flow</th>
+                <th>Cash Start</th>
+                <th>Cash End</th>
+                <th>Pot 1</th><th>Pot 2</th>
+                <th>Properties</th>
               </tr></thead><tbody>`;
                     const data = result.yearData;
-                    // Show all years (or every 2nd if too many)
-                    const step = data.length > 30 ? 2 : 1;
-                    for (let i = 0; i < data.length; i += step) {
+                    for (let i = 0; i < data.length; i++) {
                         const d = data[i];
                         const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
+                        const specialIcon = d.specialFlag ? '★' : '';
+                        // Compute investment income (rental + sales) as monthly
+                        const investmentIncome = d.rental + d.sales;
+                        // Outgoings = monthly spend + purchases (already included in net cash flow)
+                        const outgoings = (inputs.financialGoals.monthlySpend || 0) + d.purchases;
                         html += `<tr>
                   <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
                   <td>${currencySymbol}${formatCurrencyWhole(d.state1 + d.state2)}</td>
-                  <td>${currencySymbol}${formatCurrencyWhole(d.drawdown1 + d.drawdown2)}</td>
-                  <td>${currencySymbol}${formatCurrencyWhole(d.rental)}</td><td>${currencySymbol}${formatCurrencyWhole(d.sales)}</td>
-                  <td>${currencySymbol}${formatCurrencyWhole(d.tax)}</td><td class="${netClass}">${currencySymbol}${formatCurrencyWhole(d.netCashFlow)}</td>
-                  <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssets)}</td><td>${currencySymbol}${formatCurrencyWhole(d.pot1Balance)}</td><td>${currencySymbol}${formatCurrencyWhole(d.pot2Balance)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(investmentIncome)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(outgoings)}</td>
+                  <td>${specialIcon}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(d.tax)}</td>
+                  <td class="${netClass}">${currencySymbol}${formatCurrencyWhole(d.netCashFlow)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsStart)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsEnd)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(d.pot1Balance)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(d.pot2Balance)}</td>
+                  <td>${currencySymbol}${formatCurrencyWhole(result.summary.propertyValues)}</td>
                 </tr>`;
                     }
                     html += `</tbody></table></div>`;
-                    if (step > 1) {
-                        html += `<div style="font-size:0.75rem; color:#6b7a93;">* Showing every 2nd year for readability</div>`;
-                    }
                     contentDiv.innerHTML = html;
                     resultsDiv.classList.add('visible');
                 } catch (error) {
@@ -1643,7 +1805,11 @@
         // 8. INITIALISE
         // ────────────────────────────────────────────────────────────────
         window.onload = function() {
-            // Section 6 and 7 are empty by default (no pre-filled properties)
+            // Add event listeners for annuity toggle
+            document.getElementById('pot1Type').addEventListener('change', toggleAnnuityFields);
+            document.getElementById('pot2Type').addEventListener('change', toggleAnnuityFields);
+            toggleAnnuityFields();
+
             // Set initial exchange rate label
             updateExchangeRateLabel();
             // Set contribution summary
