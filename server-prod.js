@@ -39,6 +39,10 @@ app.get('/tax-calculator', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'calculator.html'));
 });
 
+app.get('/pension-calculator', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pension-calculator.html'));
+});
+
 // ============================================================
 // CONFIGURATION
 // ============================================================

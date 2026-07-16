@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2026 Spain Tax Calculator – Andalusia</title>
+  <title>Spain Tax Calculator – 2025/2026 (AEAT Matching)</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -14,7 +14,7 @@
       padding: 2rem 1rem;
     }
     .calculator {
-      max-width: 780px;
+      max-width: 850px;
       width: 100%;
       background: white;
       padding: 2rem 2rem 1.5rem;
@@ -134,11 +134,94 @@
       padding: 8px 12px;
       background: #f3f6fc;
       border-radius: 8px;
+      flex-wrap: wrap;
     }
     .mode-toggle label {
       margin: 0;
       font-weight: 500;
       font-size: 0.9rem;
+    }
+    .year-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0.5rem 0 0.2rem;
+      padding: 8px 12px;
+      background: #f0f7ff;
+      border-radius: 8px;
+    }
+    .year-selector select {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 0.95rem;
+      background: white;
+    }
+    .breakdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5rem 0 0.8rem;
+      font-size: 0.9rem;
+    }
+    .breakdown-table th {
+      background: #e2e8f0;
+      padding: 6px 8px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .breakdown-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #dce3f0;
+    }
+    .breakdown-table tr:last-child td {
+      border-bottom: none;
+    }
+    .breakdown-total {
+      font-weight: 700;
+      background: #f8faff;
+    }
+    .section-title {
+      font-weight: 600;
+      font-size: 1.05rem;
+      margin: 0.8rem 0 0.3rem;
+    }
+    .contribution-section {
+      background: #f3f8fc;
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      margin: 0.8rem 0;
+      border: 1px solid #dce7f2;
+    }
+    .contribution-section label {
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+    .contribution-section .row {
+      margin: 0.5rem 0;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .bracket-info {
+      background: #f0faf0;
+      border-radius: 6px;
+      padding: 0.2rem 0.6rem;
+      margin: 0.2rem 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .bracket-info strong {
+      font-weight: 600;
+    }
+    .bracket-optimisation {
+      margin-top: 0.3rem;
+      padding-top: 0.3rem;
+      border-top: 1px solid #cde0cd;
+    }
+    .bracket-optimisation .opt-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.1rem 0;
     }
     @media (max-width: 550px) {
       .calculator { padding: 1.2rem; }
@@ -149,8 +232,17 @@
 <body>
 
 <div class="calculator">
-  <h1>🇪🇸 2026 Tax Calculator · Andalusia</h1>
-  <div class="sub">IRPF for pension income – updated with AEAT methodology</div>
+  <h1>🇪🇸 Spain Tax Calculator · Andalusia</h1>
+  <div class="sub"></div>
+
+  <div class="year-selector">
+    <label style="font-weight:600; margin:0;">Tax Year:</label>
+    <select id="taxYear" onchange="calculateTax()">
+      <option value="2025">2025</option>
+      <option value="2026" selected>2026</option>
+    </select>
+    <span style="font-size:0.8rem; color:#4a5a72; margin-left:6px;"></span>
+  </div>
 
   <div class="row">
     <div class="col" id="spouse1Col">
@@ -165,8 +257,30 @@
       <label id="spouse2Label">Spouse-2 – Gross Income (€)</label>
       <input type="number" id="spouse2Income" value="15000" step="100" />
       <div class="checkbox-group">
-        <input type="checkbox" id="spouse2Over65" />
+        <input type="checkbox" id="spouse2Over65" checked />
         <label style="font-weight:400; margin:0;">Spouse-2 is over 65</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- PENSION CONTRIBUTIONS SECTION – ALWAYS SHOW ALL FIELDS (except Single Mode) -->
+  <div class="contribution-section" id="contributionSection">
+    <div style="font-weight:600; margin-bottom:6px;">💰 Pension Plan Contributions (Spain)</div>
+    <div class="row" id="ownContribRow">
+      <div class="col" id="own1Col">
+        <label id="own1Label">Spouse-1 own contribution (max €1,500)</label>
+        <input type="number" id="contrib1Own" value="0" step="100" min="0" max="1500" />
+      </div>
+      <div class="col" id="own2Col">
+        <label id="own2Label">Spouse-2 own contribution (max €1,500)</label>
+        <input type="number" id="contrib2Own" value="0" step="100" min="0" max="1500" />
+      </div>
+    </div>
+    <div class="row" id="spousalContribRow">
+      <div class="col">
+        <label>Spouse-1 → Spouse-2 (spousal, max €1,000)</label>
+        <input type="number" id="contribSpousal12" value="0" step="100" min="0" max="1000" />
+        <div style="font-size:0.75rem; color:#4a5a72; margin-top:2px;">Only if Spouse-2's net income (after €2,000 deduction) &lt; €8,000</div>
       </div>
     </div>
   </div>
@@ -179,26 +293,64 @@
   <div style="margin: 0.5rem 0 0.2rem;">
     <label>Filing Status</label>
     <select id="filingStatus">
-      <option value="separate">Separate Returns</option>
-      <option value="joint">Joint Return</option>
+      <option value="separate">Separate Return</option>
+      <option value="joint" selected>Joint Return</option>
     </select>
   </div>
 
   <button class="btn" onclick="calculateTax()">Calculate Tax</button>
 
-  <div id="results" class="results">
+  <div id="results" class="results visible">
     <div id="resultContent"></div>
   </div>
 
   <div class="disclaimer">
-    <strong>Important:</strong> This calculator is for illustrative purposes only and uses the 2026 Andalusian combined rates.
-    It does not constitute tax advice. Always verify with a qualified tax adviser and the AEAT.
+    <strong>Important:</strong> This calculator is for illustrative purposes only. Always verify with the AEAT.
   </div>
 </div>
 
 <script>
-  // 2026 Andalusian combined tax brackets
-  const BRACKETS = [
+  // ================================================================
+  // 2025 – State and Autonomous (Andalusia) brackets & minimums
+  // ================================================================
+  const STATE_BRACKETS_2025 = [
+    { upTo: 12450, rate: 0.095 },
+    { upTo: 20200, rate: 0.12 },
+    { upTo: 35200, rate: 0.15 },
+    { upTo: 60000, rate: 0.185 },
+    { upTo: 300000, rate: 0.225 },
+    { upTo: Infinity, rate: 0.255 }
+  ];
+
+  const AUTON_BRACKETS_2025 = [
+    { upTo: 12450, rate: 0.095 },
+    { upTo: 20200, rate: 0.12 },
+    { upTo: 35200, rate: 0.147 },
+    { upTo: 60000, rate: 0.185 },
+    { upTo: 300000, rate: 0.225 },
+    { upTo: Infinity, rate: 0.255 }
+  ];
+
+  // Combined rates for 2025 (used for breakdown display)
+  const COMBINED_BRACKETS_2025 = [
+    { upTo: 12450, rate: 0.19 },
+    { upTo: 20200, rate: 0.24 },
+    { upTo: 35200, rate: 0.297 },
+    { upTo: 60000, rate: 0.37 },
+    { upTo: 300000, rate: 0.45 },
+    { upTo: Infinity, rate: 0.47 }
+  ];
+
+  // 2025 minimums
+  const STATE_MIN_UNDER_65_2025 = 5550;
+  const STATE_MIN_OVER_65_2025   = 6700;
+  const AUTON_MIN_UNDER_65_2025  = 5790;
+  const AUTON_MIN_OVER_65_2025   = 6990;
+
+  // ================================================================
+  // 2026 – Combined rates
+  // ================================================================
+  const COMBINED_BRACKETS_2026 = [
     { upTo: 12450, rate: 0.19 },
     { upTo: 13000, rate: 0.215 },
     { upTo: 20200, rate: 0.24 },
@@ -210,23 +362,29 @@
     { upTo: Infinity, rate: 0.47 }
   ];
 
-  // Personal minimums
-  const MIN_UNDER_65 = 5550;
-  const MIN_OVER_65 = 6700;
+  const COMBINED_MIN_UNDER_65 = 5550;
+  const COMBINED_MIN_OVER_65  = 6700;
 
-  // Work income deduction (pension income qualifies)
+  // ================================================================
+  // Constants
+  // ================================================================
   const WORK_DEDUCTION = 2000;
-
-  // Joint filing reduction
   const JOINT_REDUCTION = 3400;
+  const OWN_CONTRIB_LIMIT = 1500;
+  const SPOUSAL_CONTRIB_LIMIT = 1000;
+  const SPOUSAL_CONTRIB_MIN_INCOME = 8000;
 
-  // ---- Tax calculation engine ----
-  function taxOnBase(base) {
+  // ================================================================
+  // Tax engines
+  // ================================================================
+
+  // Generic: tax on base using a bracket array
+  function taxOnBrackets(base, brackets) {
     if (base <= 0) return 0;
     let remaining = base;
     let tax = 0;
     let prev = 0;
-    for (const b of BRACKETS) {
+    for (const b of brackets) {
       const slice = Math.min(remaining, b.upTo - prev);
       if (slice <= 0) break;
       tax += slice * b.rate;
@@ -237,187 +395,772 @@
     return tax;
   }
 
-  function calculateIndividual(gross, isOver65) {
-    if (gross <= 0) return { netIncome: 0, tax: 0, base: 0, allowance: 0, grossTax: 0, allowanceTax: 0 };
-    const net = Math.max(0, gross - WORK_DEDUCTION);
-    const base = net;
-    const allowance = isOver65 ? MIN_OVER_65 : MIN_UNDER_65;
-    const grossTax = taxOnBase(base);
-    const allowanceTax = taxOnBase(allowance);
-    const tax = Math.max(0, grossTax - allowanceTax);
+  // Returns array of { bracketLabel, amount, rate, tax }
+  function getBracketBreakdown(base, brackets) {
+    if (base <= 0) return [];
+    const result = [];
+    let remaining = base;
+    let prev = 0;
+    for (const b of brackets) {
+      const slice = Math.min(remaining, b.upTo - prev);
+      if (slice <= 0) break;
+      result.push({
+        bracketLabel: `€${formatCurrency(prev)} – €${formatCurrency(b.upTo)}`,
+        amount: slice,
+        rate: b.rate,
+        tax: slice * b.rate
+      });
+      remaining -= slice;
+      prev = b.upTo;
+      if (remaining <= 0) break;
+    }
+    return result;
+  }
+
+  // Get bracket position with friendly display info
+  function getBracketPosition(base, brackets) {
+    if (base <= 0) {
+      return {
+        amountOver: 0,
+        gap: brackets[0].upTo,
+        currentRate: 0,
+        nextRate: brackets[0].rate,
+        lowerBound: 0,
+        upperBound: brackets[0].upTo,
+        isTop: false
+      };
+    }
+    let currentBracket = null;
+    let nextBracket = null;
+    let lowerBound = 0;
+    let currentIndex = -1;
+    for (let i = 0; i < brackets.length; i++) {
+      if (base <= brackets[i].upTo) {
+        currentBracket = brackets[i];
+        currentIndex = i;
+        if (i < brackets.length - 1) {
+          nextBracket = brackets[i + 1];
+        }
+        lowerBound = (i === 0) ? 0 : brackets[i-1].upTo;
+        break;
+      }
+    }
+    if (!currentBracket) {
+      // Beyond the last bracket – top bracket
+      const last = brackets[brackets.length - 1];
+      const secondLast = brackets.length >= 2 ? brackets[brackets.length - 2] : { upTo: 0 };
+      return {
+        amountOver: base - (secondLast.upTo || 0),
+        gap: 0,
+        currentRate: last.rate,
+        nextRate: null,
+        lowerBound: secondLast.upTo || 0,
+        upperBound: Infinity,
+        isTop: true
+      };
+    }
+
+    let upperBound = currentBracket.upTo;
+    let gap = upperBound - base;
+    if (gap < 0) gap = 0;
+    let amountOver = base - lowerBound;
+    if (amountOver < 0) amountOver = 0;
+
+    // If base is exactly on the boundary, treat as already in next bracket
+    if (base === upperBound && nextBracket) {
+      lowerBound = upperBound;
+      upperBound = nextBracket.upTo;
+      amountOver = 0;
+      gap = upperBound - base;
+      return {
+        amountOver: amountOver,
+        gap: gap,
+        currentRate: nextBracket.rate,
+        nextRate: (currentIndex + 2 < brackets.length) ? brackets[currentIndex + 2].rate : null,
+        lowerBound: lowerBound,
+        upperBound: upperBound,
+        isTop: false
+      };
+    }
+
     return {
-      gross: gross,
-      netIncome: gross - tax,
-      tax: tax,
-      base: base,
-      allowance: allowance,
-      grossTax: grossTax,
-      allowanceTax: allowanceTax
+      amountOver: amountOver,
+      gap: gap,
+      currentRate: currentBracket.rate,
+      nextRate: nextBracket ? nextBracket.rate : null,
+      lowerBound: lowerBound,
+      upperBound: upperBound,
+      isTop: !nextBracket
     };
   }
 
-  function calculateJoint(spouse1Gross, spouse2Gross, spouse1Over65, spouse2Over65) {
-    const spouse1Net = spouse1Gross > 0 ? Math.max(0, spouse1Gross - WORK_DEDUCTION) : 0;
-    const spouse2Net = spouse2Gross > 0 ? Math.max(0, spouse2Gross - WORK_DEDUCTION) : 0;
-    const totalNet = spouse1Net + spouse2Net;
+  // ---- Helper to format bracket section with optimisation targets ----
+  function formatBracketSection(pos, base, brackets, filingStatus, year, singleMode, gross1, gross2) {
+    // Calculate gross income needed for each bracket target (upper limit)
+    let targetLines = '';
+    // Determine work deductions for the taxpayer(s)
+    let workDeductions = 0;
+    if (filingStatus === 'separate' || singleMode) {
+      // For separate, we only consider the person whose bracket we're showing (gross1 is the relevant one)
+      if (gross1 > 0) workDeductions = WORK_DEDUCTION;
+      // For the joint case, we'll compute both
+    } else {
+      // Joint
+      if (gross1 > 0) workDeductions += WORK_DEDUCTION;
+      if (gross2 > 0) workDeductions += WORK_DEDUCTION;
+    }
 
+    // For separate/single, we compute targets for the single person
+    // For joint, we compute targets for the combined gross
+    let targets = [];
+    let prev = 0;
+    for (let i = 0; i < brackets.length; i++) {
+      const b = brackets[i];
+      if (b.upTo === Infinity) continue; // skip last bracket
+      let grossTarget;
+      if (filingStatus === 'separate' || singleMode) {
+        grossTarget = b.upTo + (gross1 > 0 ? WORK_DEDUCTION : 0);
+      } else {
+        // joint: need to add joint reduction plus work deductions for both
+        grossTarget = b.upTo + JOINT_REDUCTION + workDeductions;
+      }
+      // Only show if the target is positive and the bracket rate is different from the previous (to avoid duplicates)
+      if (grossTarget > 0) {
+        let ratePercent = Math.round(b.rate * 100);
+        targets.push({ rate: ratePercent, gross: grossTarget });
+      }
+    }
+
+    // Build the optimisation lines
+    if (targets.length > 0) {
+      targetLines = '<div class="bracket-optimisation">';
+      targetLines += '<div style="font-weight:600; font-size:0.9rem; margin-bottom:0.2rem;">Optimise each bracket:</div>';
+      targets.forEach(t => {
+        targetLines += `<div class="opt-line"><span>Top of ${t.rate}% bracket</span><span>€${Math.round(t.gross)}</span></div>`;
+      });
+      targetLines += '</div>';
+    }
+
+    // Current bracket info
+    let currentHtml = '<div class="bracket-info">';
+    currentHtml += '<strong>Tax Brackets</strong><br/>';
+    if (pos.isTop) {
+      currentHtml += `All income above €${Math.round(pos.lowerBound)} taxed at ${Math.round(pos.currentRate * 100)}%`;
+    } else {
+      if (pos.amountOver > 0) {
+        currentHtml += `€${Math.round(pos.amountOver)} taxed at ${Math.round(pos.currentRate * 100)}%<br/>`;
+      } else {
+        currentHtml += `€0 taxed at ${Math.round(pos.currentRate * 100)}%<br/>`;
+      }
+      if (pos.gap > 0 && pos.nextRate !== null) {
+        currentHtml += `€${Math.round(pos.gap)} more income to be taxed at ${Math.round(pos.nextRate * 100)}%`;
+      } else if (pos.gap === 0 && pos.nextRate !== null) {
+        currentHtml += `next bracket starts at €${Math.round(pos.upperBound)}`;
+      } else {
+        currentHtml += 'at top bracket';
+      }
+    }
+    currentHtml += '</div>';
+
+    // Combine both
+    return currentHtml + targetLines;
+  }
+
+  // --- 2025 split calculation (exact AEAT) ---
+  function calc2025Individual(gross, isOver65) {
+    if (gross <= 0) {
+      return { tax: 0, netIncome: 0, base: 0, stateTax: 0, autonTax: 0, stateAllowTax: 0, autonAllowTax: 0 };
+    }
+    const net = Math.max(0, gross - WORK_DEDUCTION);
+    const base = net;
+
+    const stateMin = isOver65 ? STATE_MIN_OVER_65_2025 : STATE_MIN_UNDER_65_2025;
+    const autonMin = isOver65 ? AUTON_MIN_OVER_65_2025 : AUTON_MIN_UNDER_65_2025;
+
+    const stateTax = taxOnBrackets(base, STATE_BRACKETS_2025);
+    const autonTax = taxOnBrackets(base, AUTON_BRACKETS_2025);
+
+    const stateAllowTax = taxOnBrackets(stateMin, STATE_BRACKETS_2025);
+    const autonAllowTax = taxOnBrackets(autonMin, AUTON_BRACKETS_2025);
+
+    const totalTax = Math.max(0, (stateTax - stateAllowTax) + (autonTax - autonAllowTax));
+
+    return {
+      tax: totalTax,
+      netIncome: gross - totalTax,
+      base: base,
+      stateTax: stateTax,
+      autonTax: autonTax,
+      stateAllowTax: stateAllowTax,
+      autonAllowTax: autonAllowTax,
+      stateMin: stateMin,
+      autonMin: autonMin,
+      // total allowance for display
+      totalAllowance: stateMin + autonMin,
+      totalAllowanceTax: stateAllowTax + autonAllowTax
+    };
+  }
+
+  function calc2025Joint(gross1, gross2, over65_1, over65_2) {
+    const net1 = gross1 > 0 ? Math.max(0, gross1 - WORK_DEDUCTION) : 0;
+    const net2 = gross2 > 0 ? Math.max(0, gross2 - WORK_DEDUCTION) : 0;
+    const totalNet = net1 + net2;
     const base = Math.max(0, totalNet - JOINT_REDUCTION);
 
-    let spouse1Allow = spouse1Over65 ? MIN_OVER_65 : MIN_UNDER_65;
-    let spouse2Allow = spouse2Over65 ? MIN_OVER_65 : MIN_UNDER_65;
+    let stateMin = 0;
+    let autonMin = 0;
+    if (gross1 > 0) {
+      stateMin += over65_1 ? STATE_MIN_OVER_65_2025 : STATE_MIN_UNDER_65_2025;
+      autonMin += over65_1 ? AUTON_MIN_OVER_65_2025 : AUTON_MIN_UNDER_65_2025;
+    }
+    if (gross2 > 0) {
+      stateMin += over65_2 ? STATE_MIN_OVER_65_2025 : STATE_MIN_UNDER_65_2025;
+      autonMin += over65_2 ? AUTON_MIN_OVER_65_2025 : AUTON_MIN_UNDER_65_2025;
+    }
 
-    // AEAT rule: spouse's allowance applies ONLY if spouse has income > 0
-    if (spouse2Gross <= 0) spouse2Allow = 0;
+    const stateTax = taxOnBrackets(base, STATE_BRACKETS_2025);
+    const autonTax = taxOnBrackets(base, AUTON_BRACKETS_2025);
 
-    const totalAllowance = spouse1Allow + spouse2Allow;
+    const stateAllowTax = taxOnBrackets(stateMin, STATE_BRACKETS_2025);
+    const autonAllowTax = taxOnBrackets(autonMin, AUTON_BRACKETS_2025);
 
-    const grossTax = taxOnBase(base);
-    const allowanceTax = taxOnBase(totalAllowance);
-    const tax = Math.max(0, grossTax - allowanceTax);
+    const totalTax = Math.max(0, (stateTax - stateAllowTax) + (autonTax - autonAllowTax));
+    const totalGross = gross1 + gross2;
 
-    const totalGross = spouse1Gross + spouse2Gross;
+    return {
+      totalGross: totalGross,
+      tax: totalTax,
+      netIncome: totalGross - totalTax,
+      base: base,
+      stateTax: stateTax,
+      autonTax: autonTax,
+      stateAllowTax: stateAllowTax,
+      autonAllowTax: autonAllowTax,
+      stateMin: stateMin,
+      autonMin: autonMin,
+      totalAllowance: stateMin + autonMin,
+      totalAllowanceTax: stateAllowTax + autonAllowTax,
+      gross1: gross1,
+      gross2: gross2
+    };
+  }
+
+  // --- 2026 simplified combined calculation ---
+  function calc2026Individual(gross, isOver65) {
+    if (gross <= 0) return { tax: 0, netIncome: 0, base: 0, grossTax: 0, allowTax: 0 };
+    const net = Math.max(0, gross - WORK_DEDUCTION);
+    const base = net;
+    const allowance = isOver65 ? COMBINED_MIN_OVER_65 : COMBINED_MIN_UNDER_65;
+    const grossTax = taxOnBrackets(base, COMBINED_BRACKETS_2026);
+    const allowTax = taxOnBrackets(allowance, COMBINED_BRACKETS_2026);
+    const tax = Math.max(0, grossTax - allowTax);
+    return {
+      tax: tax,
+      netIncome: gross - tax,
+      base: base,
+      grossTax: grossTax,
+      allowTax: allowTax,
+      allowance: allowance
+    };
+  }
+
+  function calc2026Joint(gross1, gross2, over65_1, over65_2) {
+    const net1 = gross1 > 0 ? Math.max(0, gross1 - WORK_DEDUCTION) : 0;
+    const net2 = gross2 > 0 ? Math.max(0, gross2 - WORK_DEDUCTION) : 0;
+    const totalNet = net1 + net2;
+    const base = Math.max(0, totalNet - JOINT_REDUCTION);
+
+    let allowance = 0;
+    if (gross1 > 0) allowance += over65_1 ? COMBINED_MIN_OVER_65 : COMBINED_MIN_UNDER_65;
+    if (gross2 > 0) allowance += over65_2 ? COMBINED_MIN_OVER_65 : COMBINED_MIN_UNDER_65;
+
+    const grossTax = taxOnBrackets(base, COMBINED_BRACKETS_2026);
+    const allowTax = taxOnBrackets(allowance, COMBINED_BRACKETS_2026);
+    const tax = Math.max(0, grossTax - allowTax);
+    const totalGross = gross1 + gross2;
+
     return {
       totalGross: totalGross,
       tax: tax,
       netIncome: totalGross - tax,
       base: base,
-      totalAllowance: totalAllowance,
       grossTax: grossTax,
-      allowanceTax: allowanceTax,
-      spouse1Allow: spouse1Allow,
-      spouse2Allow: spouse2Allow,
-      spouse1Gross: spouse1Gross,
-      spouse2Gross: spouse2Gross
+      allowTax: allowTax,
+      allowance: allowance,
+      gross1: gross1,
+      gross2: gross2
     };
   }
 
-  // ---- UI ----
+  // ================================================================
+  // UI
+  // ================================================================
   function formatCurrency(amount) {
     return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
 
-  // Toggle single taxpayer mode
-  document.getElementById('singleMode').addEventListener('change', function() {
-    const col = document.getElementById('spouse2Col');
-    const filingStatus = document.getElementById('filingStatus');
-    if (this.checked) {
-      col.classList.add('hidden');
-      document.getElementById('spouse2Income').value = 0;
-      document.getElementById('spouse2Over65').checked = false;
-      filingStatus.disabled = true;
-      filingStatus.value = 'separate';
-    } else {
-      col.classList.remove('hidden');
-      filingStatus.disabled = false;
-    }
-    calculateTax();
-  });
+  // Generate HTML for a breakdown table with allowance credit
+  function breakdownTableHTML(breakdown, title, allowanceAmount = 0, allowanceTax = 0) {
+    if (!breakdown || breakdown.length === 0) return '';
+    let rows = breakdown.map(item => `
+      <tr>
+        <td>${item.bracketLabel}</td>
+        <td>€${formatCurrency(item.amount)}</td>
+        <td>${(item.rate * 100).toFixed(1)}%</td>
+        <td>€${formatCurrency(item.tax)}</td>
+      </tr>
+    `).join('');
 
-  function calculateTax() {
+    const totalGrossTax = breakdown.reduce((sum, i) => sum + i.tax, 0);
+    const totalAmount = breakdown.reduce((sum, i) => sum + i.amount, 0);
+    const netTax = Math.max(0, totalGrossTax - allowanceTax);
+
+    // Add allowance row if applicable
+    let allowanceRow = '';
+    if (allowanceTax > 0) {
+      allowanceRow = `
+        <tr style="background:#f0faf0;">
+          <td><strong>Personal allowance credit</strong></td>
+          <td>€${formatCurrency(allowanceAmount)}</td>
+          <td>${(allowanceTax / allowanceAmount * 100).toFixed(1)}%</td>
+          <td><strong>-€${formatCurrency(allowanceTax)}</strong></td>
+        </tr>
+      `;
+    }
+
+    return `
+      <div class="section-title">${title}</div>
+      <table class="breakdown-table">
+        <thead>
+          <tr><th>Bracket</th><th>Amount Taxed</th><th>Rate</th><th>Tax</th></tr>
+        </thead>
+        <tbody>
+          ${rows}
+          ${allowanceRow}
+          <tr class="breakdown-total" style="border-top:2px solid #1a2b4c;">
+            <td><strong>Total gross tax</strong></td>
+            <td><strong>€${formatCurrency(totalAmount)}</strong></td>
+            <td></td>
+            <td><strong>€${formatCurrency(totalGrossTax)}</strong></td>
+          </tr>
+          <tr class="breakdown-total" style="background:#dff0df;">
+            <td colspan="3"><strong>Net tax payable</strong></td>
+            <td><strong>€${formatCurrency(netTax)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
+
+  // Apply contributions and return adjusted gross incomes
+  // Now uses net work income (gross - WORK_DEDUCTION) for spousal contribution condition
+  function applyContributions(gross1, gross2, contrib1Own, contrib2Own, contribSpousal12) {
+    // Compute net work income for each spouse (after the general work deduction)
+    let net1 = Math.max(0, gross1 - WORK_DEDUCTION);
+    let net2 = Math.max(0, gross2 - WORK_DEDUCTION);
+
+    // Own contributions (max 1500 each) – reduce gross income
+    let own1 = Math.min(contrib1Own, OWN_CONTRIB_LIMIT);
+    let own2 = Math.min(contrib2Own, OWN_CONTRIB_LIMIT);
+    let adj1 = Math.max(0, gross1 - own1);
+    let adj2 = Math.max(0, gross2 - own2);
+
+    // Spousal contribution: allowed if recipient's net work income < 8000
+    let spousal12 = 0;
+    if (net2 < SPOUSAL_CONTRIB_MIN_INCOME) {
+      spousal12 = Math.min(contribSpousal12, SPOUSAL_CONTRIB_LIMIT);
+    }
+    adj1 -= spousal12; // Spouse-1 deducts the spousal contribution from his own income
+
+    // Ensure non-negative
+    adj1 = Math.max(0, adj1);
+    adj2 = Math.max(0, adj2);
+
+    return {
+      adj1: adj1,
+      adj2: adj2,
+      own1: own1,
+      own2: own2,
+      spousal12: spousal12
+    };
+  }
+
+  // ---- Toggle contribution fields based on filing status and single mode ----
+  // Now we show all fields (own1, own2, spousal) except when single mode hides spouse-2.
+  function toggleContributionFields() {
     const singleMode = document.getElementById('singleMode').checked;
-    let spouse1Gross = parseFloat(document.getElementById('spouse1Income').value) || 0;
-    let spouse2Gross = parseFloat(document.getElementById('spouse2Income').value) || 0;
+    const ownRow = document.getElementById('ownContribRow');
+    const spousalRow = document.getElementById('spousalContribRow');
+    const own1Col = document.getElementById('own1Col');
+    const own2Col = document.getElementById('own2Col');
+    const own1Label = document.getElementById('own1Label');
+    const own2Label = document.getElementById('own2Label');
+
+    if (singleMode) {
+      // Single mode: show only own1 contribution, hide everything else
+      ownRow.classList.remove('hidden');
+      if (own1Col) own1Col.classList.remove('hidden');
+      if (own2Col) own2Col.classList.add('hidden');
+      spousalRow.classList.add('hidden');
+      // Update label for own1
+      own1Label.textContent = 'Single Taxpayer own contribution (max €1,500)';
+      // Reset other fields
+      document.getElementById('contrib2Own').value = 0;
+      document.getElementById('contribSpousal12').value = 0;
+      return;
+    }
+
+    // Not single mode: show everything
+    ownRow.classList.remove('hidden');
+    spousalRow.classList.remove('hidden');
+    if (own1Col) own1Col.classList.remove('hidden');
+    if (own2Col) own2Col.classList.remove('hidden');
+    own1Label.textContent = 'Spouse-1 own contribution (max €1,500)';
+    own2Label.textContent = 'Spouse-2 own contribution (max €1,500)';
+  }
+
+  // ---- Main calculation ----
+  function calculateTax() {
+    const year = parseInt(document.getElementById('taxYear').value);
+
+    const singleMode = document.getElementById('singleMode').checked;
+    let spouse1GrossRaw = parseFloat(document.getElementById('spouse1Income').value) || 0;
+    let spouse2GrossRaw = parseFloat(document.getElementById('spouse2Income').value) || 0;
     const spouse1Over65 = document.getElementById('spouse1Over65').checked;
     const spouse2Over65 = document.getElementById('spouse2Over65').checked;
     let filingStatus = document.getElementById('filingStatus').value;
 
-    // If single mode, force spouse2 to zero and name change
+    // Read contributions
+    let contrib1Own = parseFloat(document.getElementById('contrib1Own').value) || 0;
+    let contrib2Own = parseFloat(document.getElementById('contrib2Own').value) || 0;
+    let contribSpousal12 = parseFloat(document.getElementById('contribSpousal12').value) || 0;
+
     let label1 = 'Spouse-1';
     let label2 = 'Spouse-2';
     if (singleMode) {
-      spouse2Gross = 0;
+      spouse2GrossRaw = 0;
       label1 = 'Single Taxpayer';
       label2 = '';
-      filingStatus = 'separate'; // force separate for single taxpayer
+      filingStatus = 'separate';
+      contribSpousal12 = 0;
+      contrib2Own = 0;
     }
+
+    // Apply contributions
+    const adj = applyContributions(
+      spouse1GrossRaw, spouse2GrossRaw,
+      contrib1Own, contrib2Own,
+      contribSpousal12
+    );
+    const spouse1Gross = adj.adj1;
+    const spouse2Gross = adj.adj2;
+    const own1 = adj.own1;
+    const own2 = adj.own2;
+    const spousal12 = adj.spousal12;
 
     const resultDiv = document.getElementById('results');
     const contentDiv = document.getElementById('resultContent');
 
     let html = '';
+    let totalTax = 0;
+    let totalNet = 0;
 
-    if (filingStatus === 'separate') {
-      const s1 = calculateIndividual(spouse1Gross, spouse1Over65);
-      const s2 = calculateIndividual(spouse2Gross, spouse2Over65);
-      const totalTax = s1.tax + s2.tax;
-      const totalNet = s1.netIncome + s2.netIncome;
-
-      html = `
-        <h3 style="margin-top:0;">Separate Filing – Results</h3>
-        <div class="result-grid">
-          <div class="result-item"><span class="label">${label1} Gross Income</span><span class="value">€${formatCurrency(s1.gross)}</span></div>
-          <div class="result-item"><span class="label">${label1} Tax Paid</span><span class="value">€${formatCurrency(s1.tax)}</span></div>
-          <div class="result-item"><span class="label">${label1} Net Income</span><span class="value">€${formatCurrency(s1.netIncome)}</span></div>
-          <div class="result-item"><span class="label">${label1} Allowance Used</span><span class="value">€${formatCurrency(s1.allowance)}</span></div>
-          ${!singleMode ? `
-            <div style="border-top:1px solid #dce3f0; grid-column:1/-1;"></div>
-            <div class="result-item"><span class="label">${label2} Gross Income</span><span class="value">€${formatCurrency(s2.gross)}</span></div>
-            <div class="result-item"><span class="label">${label2} Tax Paid</span><span class="value">€${formatCurrency(s2.tax)}</span></div>
-            <div class="result-item"><span class="label">${label2} Net Income</span><span class="value">€${formatCurrency(s2.netIncome)}</span></div>
-            <div class="result-item"><span class="label">${label2} Allowance Used</span><span class="value">€${formatCurrency(s2.allowance)}</span></div>
-          ` : ''}
-          <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
-          <div class="result-item" style="font-weight:700;"><span class="label">Total Tax Payable</span><span class="value">€${formatCurrency(totalTax)}</span></div>
-          <div class="result-item" style="font-weight:700;"><span class="label">Total Net Income</span><span class="value">€${formatCurrency(totalNet)}</span></div>
-        </div>
-        <div class="highlight">💰 Effective tax rate: ${((totalTax / (spouse1Gross + spouse2Gross)) * 100).toFixed(1)}%</div>
-      `;
+    // Choose brackets for breakdown
+    let breakdownBrackets;
+    if (year === 2025) {
+      breakdownBrackets = COMBINED_BRACKETS_2025;
     } else {
-      // Joint
-      const j = calculateJoint(spouse1Gross, spouse2Gross, spouse1Over65, spouse2Over65);
-      const s1 = calculateIndividual(spouse1Gross, spouse1Over65);
-      const s2 = calculateIndividual(spouse2Gross, spouse2Over65);
-      const separateTax = s1.tax + s2.tax;
-      const saving = separateTax - j.tax;
+      breakdownBrackets = COMBINED_BRACKETS_2026;
+    }
 
-      // Proportional allocation of joint tax (for illustration purposes)
-      const totalGross = j.totalGross;
-      let spouse1Alloc = 0;
-      let spouse2Alloc = 0;
-      if (totalGross > 0) {
-        spouse1Alloc = j.tax * (spouse1Gross / totalGross);
-        spouse2Alloc = j.tax * (spouse2Gross / totalGross);
+    // Compute tax without contributions for comparison
+    const noContribAdj = applyContributions(spouse1GrossRaw, spouse2GrossRaw, 0, 0, 0);
+    let taxWithoutContrib = 0;
+    if (year === 2025) {
+      if (filingStatus === 'separate') {
+        const s1No = calc2025Individual(noContribAdj.adj1, spouse1Over65);
+        const s2No = calc2025Individual(noContribAdj.adj2, spouse2Over65);
+        taxWithoutContrib = s1No.tax + s2No.tax;
+      } else {
+        const jNo = calc2025Joint(noContribAdj.adj1, noContribAdj.adj2, spouse1Over65, spouse2Over65);
+        taxWithoutContrib = jNo.tax;
       }
+    } else {
+      if (filingStatus === 'separate') {
+        const s1No = calc2026Individual(noContribAdj.adj1, spouse1Over65);
+        const s2No = calc2026Individual(noContribAdj.adj2, spouse2Over65);
+        taxWithoutContrib = s1No.tax + s2No.tax;
+      } else {
+        const jNo = calc2026Joint(noContribAdj.adj1, noContribAdj.adj2, spouse1Over65, spouse2Over65);
+        taxWithoutContrib = jNo.tax;
+      }
+    }
 
-      html = `
-        <h3 style="margin-top:0;">Joint Filing – Results</h3>
-        <div class="result-grid">
-          <div class="result-item"><span class="label">Total Gross Income</span><span class="value">€${formatCurrency(j.totalGross)}</span></div>
-          <div class="result-item"><span class="label">Joint Reduction</span><span class="value">€${formatCurrency(JOINT_REDUCTION)}</span></div>
-          <div class="result-item"><span class="label">Taxable Base</span><span class="value">€${formatCurrency(j.base)}</span></div>
-          <div class="result-item"><span class="label">${label1} Allowance</span><span class="value">€${formatCurrency(j.spouse1Allow)}</span></div>
-          ${!singleMode ? `<div class="result-item"><span class="label">${label2} Allowance (${spouse2Gross > 0 ? 'applied' : 'lost (no income)'})</span><span class="value">€${formatCurrency(j.spouse2Allow)}</span></div>` : ''}
-          <div class="result-item"><span class="label">Total Allowance Tax Credit</span><span class="value">€${formatCurrency(j.allowanceTax)}</span></div>
-          <div style="border-top:1px solid #dce3f0; grid-column:1/-1;"></div>
-          <div class="result-item" style="font-weight:700;"><span class="label">Joint Tax Payable</span><span class="value">€${formatCurrency(j.tax)}</span></div>
-          ${!singleMode ? `
-            <div style="border-top:1px solid #dce3f0; grid-column:1/-1;"></div>
-            <div class="result-item"><span class="label">${label1} Allocated Tax (${((spouse1Gross/totalGross)*100).toFixed(0)}% of income)</span><span class="value">€${formatCurrency(spouse1Alloc)}</span></div>
-            <div class="result-item"><span class="label">${label2} Allocated Tax (${((spouse2Gross/totalGross)*100).toFixed(0)}% of income)</span><span class="value">€${formatCurrency(spouse2Alloc)}</span></div>
-          ` : ''}
-          <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
-          <div class="result-item" style="font-weight:700;"><span class="label">Joint Net Income</span><span class="value">€${formatCurrency(j.netIncome)}</span></div>
-        </div>
-        <div style="margin:1rem 0 0.5rem; background:#e6f0fa; border-radius:8px; padding:0.8rem;">
-          <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
-            <span><strong>Separate filing tax:</strong> €${formatCurrency(separateTax)}</span>
-            <span><strong>Joint filing tax:</strong> €${formatCurrency(j.tax)}</span>
-            <span style="color:${saving > 0 ? '#0b6e2e' : '#b91c1c'}; font-weight:700;">
-              ${saving > 0 ? '✅ SAVING with Separate: €' : '❌ EXTRA with Joint: €'}${formatCurrency(Math.abs(saving))}
-            </span>
+    // Now compute with contributions
+    if (year === 2025) {
+      if (filingStatus === 'separate') {
+        const s1 = calc2025Individual(spouse1Gross, spouse1Over65);
+        const s2 = calc2025Individual(spouse2Gross, spouse2Over65);
+        totalTax = s1.tax + s2.tax;
+        totalNet = s1.netIncome + s2.netIncome;
+
+        const breakdown1 = getBracketBreakdown(s1.base, breakdownBrackets);
+        const breakdown2 = getBracketBreakdown(s2.base, breakdownBrackets);
+        const pos1 = getBracketPosition(s1.base, breakdownBrackets);
+        const pos2 = getBracketPosition(s2.base, breakdownBrackets);
+        const taxSaving = taxWithoutContrib - totalTax;
+
+        html = `
+          <h3 style="margin-top:0;">Separate Return – ${year}</h3>
+          <div class="result-grid">
+            <div class="result-item"><span class="label">${label1} Gross (after contribs)</span><span class="value">€${formatCurrency(spouse1Gross)}</span></div>
+            <div class="result-item"><span class="label">${label1} Tax</span><span class="value">€${formatCurrency(s1.tax)}</span></div>
+            <div class="result-item"><span class="label">${label1} Net</span><span class="value">€${formatCurrency(s1.netIncome)}</span></div>
+            <div class="result-item" style="grid-column:1/-1; border-bottom:none; padding-bottom:0;">
+              ${formatBracketSection(pos1, s1.base, breakdownBrackets, 'separate', year, singleMode, spouse1Gross, spouse2Gross)}
+            </div>
+            ${!singleMode ? `
+              <div style="border-top:1px solid #dce3f0; grid-column:1/-1;"></div>
+              <div class="result-item"><span class="label">${label2} Gross (after contribs)</span><span class="value">€${formatCurrency(spouse2Gross)}</span></div>
+              <div class="result-item"><span class="label">${label2} Tax</span><span class="value">€${formatCurrency(s2.tax)}</span></div>
+              <div class="result-item"><span class="label">${label2} Net</span><span class="value">€${formatCurrency(s2.netIncome)}</span></div>
+              <div class="result-item" style="grid-column:1/-1; border-bottom:none; padding-bottom:0;">
+                ${formatBracketSection(pos2, s2.base, breakdownBrackets, 'separate', year, singleMode, spouse2Gross, spouse1Gross)}
+              </div>
+            ` : ''}
+            <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
+            <div class="result-item" style="font-weight:700;"><span class="label">Total Tax</span><span class="value">€${formatCurrency(totalTax)}</span></div>
+            <div class="result-item" style="font-weight:700;"><span class="label">Total Net</span><span class="value">€${formatCurrency(totalNet)}</span></div>
+            ${taxSaving > 0 ? `<div class="result-item" style="background:#dff0df; grid-column:1/-1; border-radius:4px;"><span class="label">💰 Tax saving from contributions</span><span class="value" style="color:#0b6e2e;">€${formatCurrency(taxSaving)}</span></div>` : ''}
           </div>
-        </div>
-        <div class="highlight">💰 Effective tax rate: ${((j.tax / j.totalGross) * 100).toFixed(1)}%</div>
-      `;
+          <div class="highlight">💰 Effective tax rate: ${((totalTax / (spouse1GrossRaw + spouse2GrossRaw)) * 100).toFixed(1)}%</div>
+          <div style="margin-top:0.8rem; font-size:0.9rem; background:#f8faff; padding:0.5rem 1rem; border-radius:8px;">
+            <strong>Contributions applied:</strong>
+            ${own1 > 0 ? ` ${label1} own: €${formatCurrency(own1)}` : ''}
+            ${own2 > 0 ? ` ${label2} own: €${formatCurrency(own2)}` : ''}
+            ${spousal12 > 0 ? ` Spouse-1 → Spouse-2: €${formatCurrency(spousal12)}` : ''}
+            ${(own1+own2+spousal12) === 0 ? ' None' : ''}
+          </div>
+          <div style="margin-top:1.2rem;">
+            ${breakdown1.length ? breakdownTableHTML(breakdown1, `${label1} – Tax Breakdown`, s1.totalAllowance, s1.totalAllowanceTax) : ''}
+            ${!singleMode && breakdown2.length ? breakdownTableHTML(breakdown2, `${label2} – Tax Breakdown`, s2.totalAllowance, s2.totalAllowanceTax) : ''}
+          </div>
+        `;
+      } else {
+        // Joint
+        const j = calc2025Joint(spouse1Gross, spouse2Gross, spouse1Over65, spouse2Over65);
+        const s1 = calc2025Individual(spouse1Gross, spouse1Over65);
+        const s2 = calc2025Individual(spouse2Gross, spouse2Over65);
+        const separateTax = s1.tax + s2.tax;
+        const saving = separateTax - j.tax;
+
+        const totalGross = j.totalGross;
+        let alloc1 = 0, alloc2 = 0;
+        if (totalGross > 0) {
+          alloc1 = j.tax * (spouse1Gross / totalGross);
+          alloc2 = j.tax * (spouse2Gross / totalGross);
+        }
+
+        const breakdown = getBracketBreakdown(j.base, breakdownBrackets);
+        const posJoint = getBracketPosition(j.base, breakdownBrackets);
+        const taxSaving = taxWithoutContrib - j.tax;
+
+        html = `
+          <h3 style="margin-top:0;">Joint Return – ${year}</h3>
+          <div class="result-grid">
+            <div class="result-item"><span class="label">Total Gross (after contribs)</span><span class="value">€${formatCurrency(j.totalGross)}</span></div>
+            <div class="result-item"><span class="label">Joint Reduction</span><span class="value">€${formatCurrency(JOINT_REDUCTION)}</span></div>
+            <div class="result-item"><span class="label">Taxable Base</span><span class="value">€${formatCurrency(j.base)}</span></div>
+            <div class="result-item" style="grid-column:1/-1; border-bottom:none; padding-bottom:0;">
+              ${formatBracketSection(posJoint, j.base, breakdownBrackets, 'joint', year, singleMode, spouse1Gross, spouse2Gross)}
+            </div>
+            <div class="result-item"><span class="label">State Min. applied</span><span class="value">€${formatCurrency(j.stateMin)}</span></div>
+            <div class="result-item"><span class="label">Auton. Min. applied</span><span class="value">€${formatCurrency(j.autonMin)}</span></div>
+            <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
+            <div class="result-item" style="font-weight:700;"><span class="label">Total Tax</span><span class="value">€${formatCurrency(j.tax)}</span></div>
+            ${taxSaving > 0 ? `<div class="result-item" style="background:#dff0df; grid-column:1/-1; border-radius:4px;"><span class="label">💰 Tax saving from contributions</span><span class="value" style="color:#0b6e2e;">€${formatCurrency(taxSaving)}</span></div>` : ''}
+            ${!singleMode ? `
+              <div style="border-top:1px solid #dce3f0; grid-column:1/-1;"></div>
+              <div class="result-item"><span class="label">${label1} allocated tax (${((spouse1Gross/totalGross)*100).toFixed(0)}%)</span><span class="value">€${formatCurrency(alloc1)}</span></div>
+              <div class="result-item"><span class="label">${label2} allocated tax (${((spouse2Gross/totalGross)*100).toFixed(0)}%)</span><span class="value">€${formatCurrency(alloc2)}</span></div>
+            ` : ''}
+            <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
+            <div class="result-item" style="font-weight:700;"><span class="label">Joint Net Income</span><span class="value">€${formatCurrency(j.netIncome)}</span></div>
+          </div>
+          <div style="margin:1rem 0 0.5rem; background:#e6f0fa; border-radius:8px; padding:0.8rem;">
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
+              <span><strong>Separate tax:</strong> €${formatCurrency(separateTax)}</span>
+              <span><strong>Joint tax:</strong> €${formatCurrency(j.tax)}</span>
+              <span style="color:${saving > 0 ? '#0b6e2e' : '#b91c1c'}; font-weight:700;">
+                ${saving > 0 ? '✅ SAVING with Separate: €' : '❌ EXTRA with Joint: €'}${formatCurrency(Math.abs(saving))}
+              </span>
+            </div>
+          </div>
+          <div style="margin-top:0.8rem; font-size:0.9rem; background:#f8faff; padding:0.5rem 1rem; border-radius:8px;">
+            <strong>Contributions applied:</strong>
+            ${own1 > 0 ? ` ${label1} own: €${formatCurrency(own1)}` : ''}
+            ${own2 > 0 ? ` ${label2} own: €${formatCurrency(own2)}` : ''}
+            ${spousal12 > 0 ? ` Spouse-1 → Spouse-2: €${formatCurrency(spousal12)}` : ''}
+            ${(own1+own2+spousal12) === 0 ? ' None' : ''}
+          </div>
+          <div class="highlight">💰 Effective tax rate: ${((j.tax / j.totalGross) * 100).toFixed(1)}%</div>
+          <div style="margin-top:1.2rem;">
+            ${breakdown.length ? breakdownTableHTML(breakdown, 'Joint Taxable Base – Breakdown', j.totalAllowance, j.totalAllowanceTax) : ''}
+          </div>
+        `;
+      }
+    } else {
+      // 2026
+      if (filingStatus === 'separate') {
+        const s1 = calc2026Individual(spouse1Gross, spouse1Over65);
+        const s2 = calc2026Individual(spouse2Gross, spouse2Over65);
+        totalTax = s1.tax + s2.tax;
+        totalNet = s1.netIncome + s2.netIncome;
+
+        const breakdown1 = getBracketBreakdown(s1.base, breakdownBrackets);
+        const breakdown2 = getBracketBreakdown(s2.base, breakdownBrackets);
+        const pos1 = getBracketPosition(s1.base, breakdownBrackets);
+        const pos2 = getBracketPosition(s2.base, breakdownBrackets);
+        const taxSaving = taxWithoutContrib - totalTax;
+
+        html = `
+          <h3 style="margin-top:0;">Separate Return – ${year}</h3>
+          <div class="result-grid">
+            <div class="result-item"><span class="label">${label1} Gross (after contribs)</span><span class="value">€${formatCurrency(spouse1Gross)}</span></div>
+            <div class="result-item"><span class="label">${label1} Tax</span><span class="value">€${formatCurrency(s1.tax)}</span></div>
+            <div class="result-item"><span class="label">${label1} Net</span><span class="value">€${formatCurrency(s1.netIncome)}</span></div>
+            <div class="result-item" style="grid-column:1/-1; border-bottom:none; padding-bottom:0;">
+              ${formatBracketSection(pos1, s1.base, breakdownBrackets, 'separate', year, singleMode, spouse1Gross, spouse2Gross)}
+            </div>
+            ${!singleMode ? `
+              <div style="border-top:1px solid #dce3f0; grid-column:1/-1;"></div>
+              <div class="result-item"><span class="label">${label2} Gross (after contribs)</span><span class="value">€${formatCurrency(spouse2Gross)}</span></div>
+              <div class="result-item"><span class="label">${label2} Tax</span><span class="value">€${formatCurrency(s2.tax)}</span></div>
+              <div class="result-item"><span class="label">${label2} Net</span><span class="value">€${formatCurrency(s2.netIncome)}</span></div>
+              <div class="result-item" style="grid-column:1/-1; border-bottom:none; padding-bottom:0;">
+                ${formatBracketSection(pos2, s2.base, breakdownBrackets, 'separate', year, singleMode, spouse2Gross, spouse1Gross)}
+              </div>
+            ` : ''}
+            <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
+            <div class="result-item" style="font-weight:700;"><span class="label">Total Tax</span><span class="value">€${formatCurrency(totalTax)}</span></div>
+            <div class="result-item" style="font-weight:700;"><span class="label">Total Net</span><span class="value">€${formatCurrency(totalNet)}</span></div>
+            ${taxSaving > 0 ? `<div class="result-item" style="background:#dff0df; grid-column:1/-1; border-radius:4px;"><span class="label">💰 Tax saving from contributions</span><span class="value" style="color:#0b6e2e;">€${formatCurrency(taxSaving)}</span></div>` : ''}
+          </div>
+          <div class="highlight">💰 Effective tax rate: ${((totalTax / (spouse1GrossRaw + spouse2GrossRaw)) * 100).toFixed(1)}%</div>
+          <div style="margin-top:0.8rem; font-size:0.9rem; background:#f8faff; padding:0.5rem 1rem; border-radius:8px;">
+            <strong>Contributions applied:</strong>
+            ${own1 > 0 ? ` ${label1} own: €${formatCurrency(own1)}` : ''}
+            ${own2 > 0 ? ` ${label2} own: €${formatCurrency(own2)}` : ''}
+            ${spousal12 > 0 ? ` Spouse-1 → Spouse-2: €${formatCurrency(spousal12)}` : ''}
+            ${(own1+own2+spousal12) === 0 ? ' None' : ''}
+          </div>
+          <div style="margin-top:1.2rem;">
+            ${breakdown1.length ? breakdownTableHTML(breakdown1, `${label1} – Tax Breakdown`, s1.allowance, s1.allowTax) : ''}
+            ${!singleMode && breakdown2.length ? breakdownTableHTML(breakdown2, `${label2} – Tax Breakdown`, s2.allowance, s2.allowTax) : ''}
+          </div>
+        `;
+      } else {
+        // Joint 2026
+        const j = calc2026Joint(spouse1Gross, spouse2Gross, spouse1Over65, spouse2Over65);
+        const s1 = calc2026Individual(spouse1Gross, spouse1Over65);
+        const s2 = calc2026Individual(spouse2Gross, spouse2Over65);
+        const separateTax = s1.tax + s2.tax;
+        const saving = separateTax - j.tax;
+
+        const totalGross = j.totalGross;
+        let alloc1 = 0, alloc2 = 0;
+        if (totalGross > 0) {
+          alloc1 = j.tax * (spouse1Gross / totalGross);
+          alloc2 = j.tax * (spouse2Gross / totalGross);
+        }
+
+        const breakdown = getBracketBreakdown(j.base, breakdownBrackets);
+        const posJoint = getBracketPosition(j.base, breakdownBrackets);
+        const taxSaving = taxWithoutContrib - j.tax;
+
+        html = `
+          <h3 style="margin-top:0;">Joint Return – ${year}</h3>
+          <div class="result-grid">
+            <div class="result-item"><span class="label">Total Gross (after contribs)</span><span class="value">€${formatCurrency(j.totalGross)}</span></div>
+            <div class="result-item"><span class="label">Joint Reduction</span><span class="value">€${formatCurrency(JOINT_REDUCTION)}</span></div>
+            <div class="result-item"><span class="label">Taxable Base</span><span class="value">€${formatCurrency(j.base)}</span></div>
+            <div class="result-item" style="grid-column:1/-1; border-bottom:none; padding-bottom:0;">
+              ${formatBracketSection(posJoint, j.base, breakdownBrackets, 'joint', year, singleMode, spouse1Gross, spouse2Gross)}
+            </div>
+            <div class="result-item"><span class="label">Allowance applied</span><span class="value">€${formatCurrency(j.allowance)}</span></div>
+            <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
+            <div class="result-item" style="font-weight:700;"><span class="label">Total Tax</span><span class="value">€${formatCurrency(j.tax)}</span></div>
+            ${taxSaving > 0 ? `<div class="result-item" style="background:#dff0df; grid-column:1/-1; border-radius:4px;"><span class="label">💰 Tax saving from contributions</span><span class="value" style="color:#0b6e2e;">€${formatCurrency(taxSaving)}</span></div>` : ''}
+            ${!singleMode ? `
+              <div style="border-top:1px solid #dce3f0; grid-column:1/-1;"></div>
+              <div class="result-item"><span class="label">${label1} allocated tax (${((spouse1Gross/totalGross)*100).toFixed(0)}%)</span><span class="value">€${formatCurrency(alloc1)}</span></div>
+              <div class="result-item"><span class="label">${label2} allocated tax (${((spouse2Gross/totalGross)*100).toFixed(0)}%)</span><span class="value">€${formatCurrency(alloc2)}</span></div>
+            ` : ''}
+            <div style="border-top:2px solid #1a2b4c; grid-column:1/-1;"></div>
+            <div class="result-item" style="font-weight:700;"><span class="label">Joint Net Income</span><span class="value">€${formatCurrency(j.netIncome)}</span></div>
+          </div>
+          <div style="margin:1rem 0 0.5rem; background:#e6f0fa; border-radius:8px; padding:0.8rem;">
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
+              <span><strong>Separate tax:</strong> €${formatCurrency(separateTax)}</span>
+              <span><strong>Joint tax:</strong> €${formatCurrency(j.tax)}</span>
+              <span style="color:${saving > 0 ? '#0b6e2e' : '#b91c1c'}; font-weight:700;">
+                ${saving > 0 ? '✅ SAVING with Separate: €' : '❌ EXTRA with Joint: €'}${formatCurrency(Math.abs(saving))}
+              </span>
+            </div>
+          </div>
+          <div style="margin-top:0.8rem; font-size:0.9rem; background:#f8faff; padding:0.5rem 1rem; border-radius:8px;">
+            <strong>Contributions applied:</strong>
+            ${own1 > 0 ? ` ${label1} own: €${formatCurrency(own1)}` : ''}
+            ${own2 > 0 ? ` ${label2} own: €${formatCurrency(own2)}` : ''}
+            ${spousal12 > 0 ? ` Spouse-1 → Spouse-2: €${formatCurrency(spousal12)}` : ''}
+            ${(own1+own2+spousal12) === 0 ? ' None' : ''}
+          </div>
+          <div class="highlight">💰 Effective tax rate: ${((j.tax / j.totalGross) * 100).toFixed(1)}%</div>
+          <div style="margin-top:1.2rem;">
+            ${breakdown.length ? breakdownTableHTML(breakdown, 'Joint Taxable Base – Breakdown', j.allowance, j.allowTax) : ''}
+          </div>
+        `;
+      }
     }
 
     contentDiv.innerHTML = html;
     resultDiv.classList.add('visible');
   }
 
-  // Auto-run on load with default values
-  window.onload = calculateTax;
-</script>
+  // ---- Event listeners ----
+  document.getElementById('singleMode').addEventListener('change', function() {
+    const col = document.getElementById('spouse2Col');
+    const filingStatus = document.getElementById('filingStatus');
+    const spouse1Label = document.getElementById('spouse1Label');
+    if (this.checked) {
+      col.classList.add('hidden');
+      document.getElementById('spouse2Income').value = 0;
+      document.getElementById('spouse2Over65').checked = false;
+      // Reset contributions
+      document.getElementById('contrib2Own').value = 0;
+      document.getElementById('contribSpousal12').value = 0;
+      filingStatus.disabled = true;
+      filingStatus.value = 'separate';
+      spouse1Label.textContent = 'Single Taxpayer – Gross Income (€)';
+    } else {
+      col.classList.remove('hidden');
+      filingStatus.disabled = false;
+      spouse1Label.textContent = 'Spouse-1 – Gross Income (€)';
+    }
+    toggleContributionFields();
+    calculateTax();
+  });
 
+  document.getElementById('filingStatus').addEventListener('change', function() {
+    // No need to toggle fields, but we recalculate
+    calculateTax();
+  });
+
+  // Initial setup
+  window.onload = function() {
+    toggleContributionFields();
+    calculateTax();
+  };
+</script>
 </body>
 </html>
