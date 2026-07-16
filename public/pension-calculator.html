@@ -860,7 +860,7 @@
         <span class="badge">Add all properties</span>
       </div>
       <div class="section-help" style="margin-bottom:0.8rem;">
-        For each property, enter its name, value, mortgage balance, annual mortgage payment, rental income, expected sale year (dropdown), and net proceeds on sale.
+        For each property, enter its name, value, mortgage balance, annual mortgage payment, rental income, expected sale year (dropdown), and net proceeds on sale. <strong>Leaving "Sale Year" empty means the property is kept for the entire projection.</strong>
       </div>
       <div id="propertiesContainer">
         <!-- Dynamic property rows inserted here -->
@@ -983,10 +983,10 @@
       saleId = 0,
       purchaseId = 0;
 
-    // Generate sale year options from current year + 50
+    // Generate sale year options with empty default
     function getYearOptions() {
       const currentYear = new Date().getFullYear();
-      let html = '';
+      let html = '<option value="">Select year</option>';
       for (let y = currentYear; y <= currentYear + 50; y++) {
         html += `<option value="${y}">${y}</option>`;
       }
@@ -1244,6 +1244,8 @@
       const propRows = document.querySelectorAll('#propertiesContainer .property-row');
       const properties = [];
       propRows.forEach(row => {
+        // Get sale year value (could be empty string)
+        const saleYearVal = row.querySelector('.prop-sale-year').value;
         properties.push({
           name: row.querySelector('.prop-name-input').value || 'Property',
           value: parseFloat(row.querySelector('.prop-value').value) || 0,
@@ -1251,7 +1253,7 @@
           mortgage: parseFloat(row.querySelector('.prop-mortgage').value) || 0,
           mortgagePayment: parseFloat(row.querySelector('.prop-mortgage-payment').value) || 0,
           rentalIncome: parseFloat(row.querySelector('.prop-rental').value) || 0,
-          saleYear: parseInt(row.querySelector('.prop-sale-year').value) || null,
+          saleYear: saleYearVal ? parseInt(saleYearVal) : null,
           saleProceeds: parseFloat(row.querySelector('.prop-proceeds').value) || 0,
         });
       });
@@ -1355,7 +1357,7 @@
       const otherValue = convertToBaseCurrency(assets.otherAssets.value, assets.otherAssets.currency);
       let liquidAssets = cashValue + investmentValue + otherValue;
 
-      // Properties
+      // Properties – we'll keep track of which properties are sold
       const props = properties.map(p => ({
         value: convertToBaseCurrency(p.value, p.currency),
         mortgage: convertToBaseCurrency(p.mortgage, p.currency),
@@ -1363,6 +1365,7 @@
         rentalIncome: convertToBaseCurrency(p.rentalIncome, p.currency),
         saleYear: p.saleYear,
         saleProceeds: convertToBaseCurrency(p.saleProceeds, p.currency),
+        sold: false, // track if sold
       }));
 
       const sales = assetSales.map(s => ({
@@ -1410,6 +1413,7 @@
       function getRentalIncomeForYear(year) {
         let total = 0;
         for (const p of props) {
+          if (p.sold) continue;
           if (p.saleYear && year >= p.saleYear) continue;
           total += p.rentalIncome;
         }
@@ -1419,8 +1423,19 @@
       function getMortgagePaymentsForYear(year) {
         let total = 0;
         for (const p of props) {
+          if (p.sold) continue;
           if (p.saleYear && year >= p.saleYear) continue;
           total += p.mortgagePayment;
+        }
+        return total;
+      }
+
+      function getPropertyValueForYear(year) {
+        let total = 0;
+        for (const p of props) {
+          if (p.sold) continue;
+          if (p.saleYear && year >= p.saleYear) continue;
+          total += p.value - p.mortgage;
         }
         return total;
       }
@@ -1488,16 +1503,12 @@
         // ---- Irish IQA ----
         let iqaAmount = 0;
         if (profile.includeIQA && age2 < 66) {
-          // Check if spouse 1 is receiving Irish pension (i.e., age1 >= 66 and has Irish weeks)
           const ireWeeks1 = statePensions.ireland.weeks1;
           if (ireWeeks1 > 0 && age1 >= 66) {
-            const ireMonthly = countryPensions.ireland.monthly1; // already in base currency
-            // IQA is approximately 75% of the Irish pension
+            const ireMonthly = countryPensions.ireland.monthly1;
             iqaAmount = 0.75 * ireMonthly;
           }
         }
-
-        // Add IQA to spouse 2's state pension
         monthlyState2 += iqaAmount;
 
         // Annual state pensions
@@ -1511,7 +1522,7 @@
         let drawdown1 = 0,
           drawdown2 = 0;
 
-        // Lump sums (tax-free)
+        // Lump sums (tax-free) from pensions
         let lumpSumAdded = 0;
         if (privatePensions.pot1.lumpSumTaken && age1 === pot1LumpYear && pot1Balance > 0) {
           const lump = Math.min(pot1Lump, pot1Balance);
@@ -1525,6 +1536,16 @@
           pot2Balance -= lump;
           lumpSumAdded += lump;
         }
+
+        // ---- Property Sale Proceeds and mark property as sold ----
+        let propertySaleProceeds = 0;
+        for (const p of props) {
+          if (!p.sold && p.saleYear && year === p.saleYear) {
+            propertySaleProceeds += p.saleProceeds;
+            p.sold = true; // mark as sold
+          }
+        }
+        // Add proceeds to liquid assets (done later after net cash)
 
         // Annuity income
         let annuityIncome1 = 0,
@@ -1605,45 +1626,43 @@
 
         const netAnnual = totalAnnualIncome - tax - totalOutgoings;
 
-        liquidAssets = liquidAssets + netAnnual + lumpSumAdded;
+        // Add property sale proceeds to liquid assets (and lump sums)
+        liquidAssets = liquidAssets + netAnnual + lumpSumAdded + propertySaleProceeds;
         if (liquidAssets < 0) liquidAssets = 0;
 
         let specialFlag = false;
-        if (annualPurchases > 0 || annualSales > 0 || lumpSumAdded > 0) {
+        if (annualPurchases > 0 || annualSales > 0 || lumpSumAdded > 0 || propertySaleProceeds > 0) {
           specialFlag = true;
         }
+
+        // Compute current property value (net)
+        const currentPropertyValue = getPropertyValueForYear(year);
 
         // Store year data (all monthly amounts for display)
         yearData.push({
           year,
           age1,
           age2,
-          // Monthly state pensions (including IQA)
           state1: monthlyState1,
           state2: monthlyState2,
           iqa: iqaAmount,
-          // Monthly drawdowns
           drawdown1: drawdown1 / 12,
           drawdown2: drawdown2 / 12,
-          // Monthly annuities
           annuity1: annuityIncome1 / 12,
           annuity2: annuityIncome2 / 12,
-          // Monthly rental and sales
           rental: annualRental / 12,
           sales: annualSales / 12,
-          // Monthly mortgage
           mortgage: annualMortgage / 12,
-          // Monthly tax and net cash
           tax: tax / 12,
           netCashFlow: netAnnual / 12,
-          // Liquid assets (year-end)
           liquidAssetsStart: previousLiquid,
           liquidAssetsEnd: liquidAssets,
-          // Pot balances (year-end)
           pot1Balance: pot1Balance,
           pot2Balance: pot2Balance,
+          propertyValue: currentPropertyValue,
           specialFlag: specialFlag,
           purchases: annualPurchases / 12,
+          propertySaleProceeds: propertySaleProceeds / 12,
         });
 
         previousLiquid = liquidAssets;
@@ -1651,8 +1670,9 @@
         if (age1 >= endAge && age2 >= endAge) break;
       }
 
-      const propertyValues = props.reduce((sum, p) => sum + p.value - p.mortgage, 0);
-      const finalWealth = liquidAssets + pot1Balance + pot2Balance + propertyValues;
+      // Final property values (already reflected in last yearData)
+      const finalPropertyValue = yearData.length > 0 ? yearData[yearData.length - 1].propertyValue : 0;
+      const finalWealth = liquidAssets + pot1Balance + pot2Balance + finalPropertyValue;
       const inheritanceAchieved = finalWealth >= financialGoals.targetInheritance;
 
       return {
@@ -1663,7 +1683,7 @@
           liquidAssets: Math.round(liquidAssets),
           pot1Balance: Math.round(pot1Balance),
           pot2Balance: Math.round(pot2Balance),
-          propertyValues: Math.round(propertyValues),
+          propertyValues: Math.round(finalPropertyValue),
           targetInheritance: Math.round(financialGoals.targetInheritance),
           inheritanceAchieved,
           inheritanceShortfall: Math.round(Math.max(0, financialGoals.targetInheritance - finalWealth)),
@@ -1721,7 +1741,6 @@
             <th>Total Annual Pension</th>
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
-            // Annualise monthly state pensions (including IQA)
             const state1Annual = d.state1 * 12;
             const state2Annual = d.state2 * 12;
             const drawdown1Annual = (d.drawdown1 + d.annuity1) * 12;
@@ -1756,7 +1775,7 @@
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
             const totalPensionMonthly = d.state1 + d.state2 + d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2;
-            const investmentIncome = d.rental + d.sales; // combined
+            const investmentIncome = d.rental + d.sales;
             const outgoings = (inputs.financialGoals.monthlySpend || 0) + d.purchases + d.mortgage;
             const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
             const specialIcon = d.specialFlag ? '★' : '';
@@ -1773,7 +1792,7 @@
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsEnd)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.pot1Balance)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.pot2Balance)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(result.summary.propertyValues)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(d.propertyValue)}</td>
             </tr>`;
           }
           html += `</tbody></table></div>`;
@@ -1845,8 +1864,7 @@
         inp.addEventListener('input', updateContributionSummary);
       });
 
-      // Add a default property example (optional – remove for empty start)
-      // addProperty('Main House', 300000, 'EUR', 150000, 12000, 12000, 2040, 250000);
+      // No default properties – user adds them as needed.
       setTimeout(calculatePension, 500);
     };
   </script>
