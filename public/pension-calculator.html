@@ -780,7 +780,6 @@
     // ────────────────────────────────────────────────────────────────
     // 3. GATHER INPUTS
     // ────────────────────────────────────────────────────────────────
-    // Fixed per-country retirement ages: Ireland & UK = 66, Spain & Other EU = 67
     const STATE_PENSION_CONFIG = {
       ireland: { fullWeeks: 2080, fullPension: 1297, currency: 'EUR', retireAge: 66 },
       uk: { fullWeeks: 1820, fullPension: 882, currency: 'GBP', retireAge: 66 },
@@ -800,8 +799,6 @@
         workExtra2: parseInt(document.getElementById('workExtra2').value) || 0,
         includeIQA: document.getElementById('includeIQA').checked,
       };
-
-      // No longer using defaultStateAge – each country has its own retireAge in config
 
       const statePensions = {
         ireland: {
@@ -952,7 +949,7 @@
     }
 
     // ────────────────────────────────────────────────────────────────
-    // 4. CORE PENSION ENGINE (FIXED)
+    // 4. CORE PENSION ENGINE
     // ────────────────────────────────────────────────────────────────
     function calculatePensionEngine(inputs) {
       const { profile, statePensions, privatePensions, assets, properties, assetSales, financialGoals,
@@ -967,12 +964,12 @@
         return value;
       }
 
-      // ---- State Pensions (with per-country retireAge) ----
+      // ---- State Pensions ----
       const countryPensions = {};
       for (const [key, val] of Object.entries(statePensions)) {
         const fullPensionBase = convertToBaseCurrency(val.fullPension, val.currency);
         countryPensions[key] = {
-          retireAge: val.retireAge, // now correctly per country
+          retireAge: val.retireAge,
           monthly1: fullPensionBase * Math.min(1, val.weeks1 / val.fullWeeks),
           monthly2: fullPensionBase * Math.min(1, val.weeks2 / val.fullWeeks),
         };
@@ -1086,7 +1083,7 @@
       }
 
       function calculateSpanishTax(income) {
-        const allowance = 5550 + 5550 + 3400; // simplified joint filing
+        const allowance = 5550 + 5550 + 3400;
         const taxableBase = Math.max(0, income - allowance);
         const brackets = [
           { upTo: 12450, rate: 0.19 },
@@ -1119,7 +1116,7 @@
 
         if (age1 > endAge && age2 > endAge) break;
 
-        // ---- State Pensions (per country with correct retireAge) ----
+        // ---- State Pensions ----
         let monthlyState1 = 0,
           monthlyState2 = 0;
         for (const [key, val] of Object.entries(countryPensions)) {
@@ -1141,13 +1138,15 @@
         const annualState1 = monthlyState1 * 12;
         const annualState2 = monthlyState2 * 12;
 
-        // ---- Interest on Cash/Investments (taxable income) ----
+        // ---- Interest on Cash/Investments ----
         const interestIncome = liquidAssets * (cashYield + investmentYield + otherYield);
-        liquidAssets += interestIncome; // add interest to cash
+        liquidAssets += interestIncome;
 
-        // ---- Lump Sums (tax‑free, NOT income) ----
-        let lumpSumAdded = 0;
-        // Spouse 1
+        // ---- LUMP SUMS (tax-free, NOT income) ----
+        let lumpSumAdded1 = 0;
+        let lumpSumAdded2 = 0;
+
+        // Spouse 1 lump sum
         if (privatePensions.pot1.lumpSumTaken && year === privatePensions.pot1.lumpSumYear && pot1Balance > 0) {
           let lump = 0;
           if (privatePensions.pot1.lumpSumType === 'fixed') {
@@ -1159,10 +1158,11 @@
           if (lump > 0) {
             liquidAssets += lump;
             pot1Balance -= lump;
-            lumpSumAdded += lump;
+            lumpSumAdded1 = lump;
           }
         }
-        // Spouse 2
+
+        // Spouse 2 lump sum
         if (privatePensions.pot2.lumpSumTaken && year === privatePensions.pot2.lumpSumYear && pot2Balance > 0) {
           let lump = 0;
           if (privatePensions.pot2.lumpSumType === 'fixed') {
@@ -1174,9 +1174,11 @@
           if (lump > 0) {
             liquidAssets += lump;
             pot2Balance -= lump;
-            lumpSumAdded += lump;
+            lumpSumAdded2 = lump;
           }
         }
+
+        const totalLumpSumAdded = lumpSumAdded1 + lumpSumAdded2;
 
         // ---- Property Sale Proceeds ----
         let propertySaleProceeds = 0;
@@ -1247,7 +1249,7 @@
           }
         }
 
-        // ---- Growth on ARF pots (after withdrawals) ----
+        // ---- Growth on ARF pots ----
         if (privatePensions.pot1.type === 'ARF') {
           pot1Balance = pot1Balance * (1 + privatePensions.pot1.growth);
           if (pot1Balance < 0) pot1Balance = 0;
@@ -1285,7 +1287,7 @@
 
         // ---- Special Flag ----
         let specialFlag = false;
-        if (annualPurchases > 0 || annualSales > 0 || lumpSumAdded > 0 || propertySaleProceeds > 0) {
+        if (annualPurchases > 0 || annualSales > 0 || totalLumpSumAdded > 0 || propertySaleProceeds > 0) {
           specialFlag = true;
         }
 
@@ -1302,7 +1304,9 @@
           drawdown2: drawdown2,
           annuity1: annuityIncome1,
           annuity2: annuityIncome2,
-          lumpSumAdded: lumpSumAdded,
+          lumpSumAdded1: lumpSumAdded1,
+          lumpSumAdded2: lumpSumAdded2,
+          totalLumpSumAdded: totalLumpSumAdded,
           interestIncome: interestIncome,
           rental: annualRental,
           sales: annualSales,
@@ -1383,7 +1387,7 @@
             html += `<div class="highlight success">✅ Goal achieved! Surplus: ${currencySymbol}${formatCurrencyWhole(result.summary.finalWealth - result.summary.targetInheritance)}</div>`;
           }
 
-          // ---- Pension Income Table ----
+          // ---- Pension Income Table (with Lump Sum column) ----
           html += `<div class="section-title" style="margin-top:1.5rem;">Pension Income per Year (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
@@ -1393,10 +1397,12 @@
             <th>Private Drawdown 2</th>
             <th>Annuity 1</th>
             <th>Annuity 2</th>
+            <th style="background:#fef3c7;">💸 Lump Sum</th>
             <th>Total Pension</th>
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
             const totalPension = d.state1 + d.state2 + d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2;
+            const totalLump = d.lumpSumAdded1 + d.lumpSumAdded2;
             html += `<tr>
               <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.state1)}</td>
@@ -1405,18 +1411,21 @@
               <td>${currencySymbol}${formatCurrencyWhole(d.drawdown2)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.annuity1)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.annuity2)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(totalPension)}</td>
+              <td style="background:#fef3c7; font-weight:700;">${totalLump > 0 ? currencySymbol + formatCurrencyWhole(totalLump) : '—'}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(totalPension + totalLump)}</td>
             </tr>`;
           }
           html += `</tbody></table></div>`;
+          html += `<div style="font-size:0.7rem; color:#6b7a93; margin-top:0.3rem;">💸 Lump Sum is tax-free and added to cash in the year taken.</div>`;
 
-          // ---- Cash Flow Table ----
+          // ---- Cash Flow Table (with Lump Sum column) ----
           html += `<div class="section-title" style="margin-top:1.5rem;">Detailed Cash Flow (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
             <th>Income</th>
             <th>Outgoings</th>
             <th>Tax</th>
+            <th style="background:#dff0df;">➕ Lump Sum</th>
             <th>Net Cash</th>
             <th>Cash Start</th>
             <th>Cash End</th>
@@ -1426,19 +1435,19 @@
             <th>★</th>
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
-            // Income includes: state pensions, drawdowns, annuities, interest, rental, sales.
-            // Lump sum is NOT included (it's added to cash separately).
             const totalIncome = d.state1 + d.state2 + d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2 +
               d.interestIncome + d.rental + d.sales;
             const monthlySpendAnnual = inputs.financialGoals.monthlySpend * 12;
             const totalOutgoings = monthlySpendAnnual + d.mortgage + d.purchases;
             const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
             const specialIcon = d.specialFlag ? '★' : '';
+            const totalLump = d.lumpSumAdded1 + d.lumpSumAdded2;
             html += `<tr>
               <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
               <td>${currencySymbol}${formatCurrencyWhole(totalIncome)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(totalOutgoings)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.tax)}</td>
+              <td style="background:#dff0df; font-weight:700;">${totalLump > 0 ? currencySymbol + formatCurrencyWhole(totalLump) : '—'}</td>
               <td class="${netClass}">${currencySymbol}${formatCurrencyWhole(d.netCashFlow)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsStart)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsEnd)}</td>
@@ -1449,6 +1458,7 @@
             </tr>`;
           }
           html += `</tbody></table></div>`;
+          html += `<div style="font-size:0.7rem; color:#6b7a93; margin-top:0.3rem;">➕ Lump Sum appears as a cash addition in the year taken (tax-free).</div>`;
 
           contentDiv.innerHTML = html;
           resultsDiv.classList.add('visible');
