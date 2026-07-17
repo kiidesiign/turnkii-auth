@@ -503,7 +503,7 @@
         </div>
         <div class="row">
           <div class="col"><label>Growth Rate (%)</label><select id="pot1Growth"><option value="0">0%</option><option value="1">1%</option><option value="2">2%</option><option value="3" selected>3%</option><option value="4">4%</option><option value="5">5%</option><option value="6">6%</option><option value="7">7%</option><option value="8">8%</option><option value="9">9%</option><option value="10">10%</option></select></div>
-          <div class="col"><label>Tax-Free Lump Sum Taken?</label><select id="pot1LumpSum"><option value="yes" selected>Yes</option><option value="no">No</option></select></div>
+          <div class="col"><label>Tax-Free Lump Sum?</label><select id="pot1LumpSum"><option value="yes" selected>Yes</option><option value="no">No</option></select></div>
         </div>
         <div class="row">
           <div class="col"><label>Lump Sum Type</label><select id="pot1LumpType"><option value="fixed">Fixed Amount</option><option value="percent">Percentage of Pot</option></select></div>
@@ -511,7 +511,7 @@
           <div class="col" id="pot1LumpPercentCol" style="display:none;"><label>Lump Sum Percentage (%)</label><input type="number" id="pot1LumpPercent" value="25" step="0.5" min="0" max="100" /></div>
         </div>
         <div class="row">
-          <div class="col"><label>Lump Sum Year (calendar year)</label><input type="number" id="pot1LumpYear" value="2027" step="1" /><div class="section-help">Year you take the lump sum.</div></div>
+          <div class="col"><label>Lump Sum Year (calendar year)</label><input type="number" id="pot1LumpYear" value="2027" step="1" /><div class="section-help">Year you take the lump sum (not taxable income).</div></div>
           <div class="col"></div>
         </div>
         <div class="row">
@@ -535,7 +535,7 @@
         </div>
         <div class="row">
           <div class="col"><label>Growth Rate (%)</label><select id="pot2Growth"><option value="0">0%</option><option value="1">1%</option><option value="2">2%</option><option value="3" selected>3%</option><option value="4">4%</option><option value="5">5%</option><option value="6">6%</option><option value="7">7%</option><option value="8">8%</option><option value="9">9%</option><option value="10">10%</option></select></div>
-          <div class="col"><label>Tax-Free Lump Sum Taken?</label><select id="pot2LumpSum"><option value="yes" selected>Yes</option><option value="no">No</option></select></div>
+          <div class="col"><label>Tax-Free Lump Sum?</label><select id="pot2LumpSum"><option value="yes" selected>Yes</option><option value="no">No</option></select></div>
         </div>
         <div class="row">
           <div class="col"><label>Lump Sum Type</label><select id="pot2LumpType"><option value="fixed">Fixed Amount</option><option value="percent">Percentage of Pot</option></select></div>
@@ -543,7 +543,7 @@
           <div class="col" id="pot2LumpPercentCol" style="display:none;"><label>Lump Sum Percentage (%)</label><input type="number" id="pot2LumpPercent" value="25" step="0.5" min="0" max="100" /></div>
         </div>
         <div class="row">
-          <div class="col"><label>Lump Sum Year (calendar year)</label><input type="number" id="pot2LumpYear" value="2027" step="1" /><div class="section-help">Year you take the lump sum.</div></div>
+          <div class="col"><label>Lump Sum Year (calendar year)</label><input type="number" id="pot2LumpYear" value="2027" step="1" /><div class="section-help">Year you take the lump sum (not taxable income).</div></div>
           <div class="col"></div>
         </div>
         <div class="row">
@@ -780,6 +780,7 @@
     // ────────────────────────────────────────────────────────────────
     // 3. GATHER INPUTS
     // ────────────────────────────────────────────────────────────────
+    // Fixed per-country retirement ages: Ireland & UK = 66, Spain & Other EU = 67
     const STATE_PENSION_CONFIG = {
       ireland: { fullWeeks: 2080, fullPension: 1297, currency: 'EUR', retireAge: 66 },
       uk: { fullWeeks: 1820, fullPension: 882, currency: 'GBP', retireAge: 66 },
@@ -800,15 +801,14 @@
         includeIQA: document.getElementById('includeIQA').checked,
       };
 
-      const retirementResidence = document.getElementById('retirementResidence').value;
-      const defaultStateAge = (retirementResidence === 'Ireland' || retirementResidence === 'UK') ? 66 : 67;
+      // No longer using defaultStateAge – each country has its own retireAge in config
 
       const statePensions = {
         ireland: {
           fullWeeks: STATE_PENSION_CONFIG.ireland.fullWeeks,
           fullPension: STATE_PENSION_CONFIG.ireland.fullPension,
           currency: STATE_PENSION_CONFIG.ireland.currency,
-          retireAge: defaultStateAge,
+          retireAge: STATE_PENSION_CONFIG.ireland.retireAge,
           weeks1: parseInt(document.getElementById('ireWeeks1').value) || 0,
           weeks2: parseInt(document.getElementById('ireWeeks2').value) || 0,
         },
@@ -816,7 +816,7 @@
           fullWeeks: STATE_PENSION_CONFIG.uk.fullWeeks,
           fullPension: STATE_PENSION_CONFIG.uk.fullPension,
           currency: STATE_PENSION_CONFIG.uk.currency,
-          retireAge: defaultStateAge,
+          retireAge: STATE_PENSION_CONFIG.uk.retireAge,
           weeks1: parseInt(document.getElementById('ukWeeks1').value) || 0,
           weeks2: parseInt(document.getElementById('ukWeeks2').value) || 0,
         },
@@ -824,7 +824,7 @@
           fullWeeks: STATE_PENSION_CONFIG.spain.fullWeeks,
           fullPension: STATE_PENSION_CONFIG.spain.fullPension,
           currency: STATE_PENSION_CONFIG.spain.currency,
-          retireAge: defaultStateAge,
+          retireAge: STATE_PENSION_CONFIG.spain.retireAge,
           weeks1: parseInt(document.getElementById('spWeeks1').value) || 0,
           weeks2: parseInt(document.getElementById('spWeeks2').value) || 0,
         },
@@ -832,7 +832,7 @@
           fullWeeks: STATE_PENSION_CONFIG.otherEU.fullWeeks,
           fullPension: STATE_PENSION_CONFIG.otherEU.fullPension,
           currency: STATE_PENSION_CONFIG.otherEU.currency,
-          retireAge: defaultStateAge,
+          retireAge: STATE_PENSION_CONFIG.otherEU.retireAge,
           weeks1: parseInt(document.getElementById('euWeeks1').value) || 0,
           weeks2: parseInt(document.getElementById('euWeeks2').value) || 0,
         },
@@ -967,12 +967,12 @@
         return value;
       }
 
-      // ---- State Pensions ----
+      // ---- State Pensions (with per-country retireAge) ----
       const countryPensions = {};
       for (const [key, val] of Object.entries(statePensions)) {
         const fullPensionBase = convertToBaseCurrency(val.fullPension, val.currency);
         countryPensions[key] = {
-          retireAge: val.retireAge,
+          retireAge: val.retireAge, // now correctly per country
           monthly1: fullPensionBase * Math.min(1, val.weeks1 / val.fullWeeks),
           monthly2: fullPensionBase * Math.min(1, val.weeks2 / val.fullWeeks),
         };
@@ -1119,7 +1119,7 @@
 
         if (age1 > endAge && age2 > endAge) break;
 
-        // ---- State Pensions ----
+        // ---- State Pensions (per country with correct retireAge) ----
         let monthlyState1 = 0,
           monthlyState2 = 0;
         for (const [key, val] of Object.entries(countryPensions)) {
@@ -1141,13 +1141,11 @@
         const annualState1 = monthlyState1 * 12;
         const annualState2 = monthlyState2 * 12;
 
-        // ---- Interest on Cash/Investments (applied to liquid assets) ----
-        // Interest is earned on the starting liquid assets balance.
-        // This is taxable income and added to the cash balance.
+        // ---- Interest on Cash/Investments (taxable income) ----
         const interestIncome = liquidAssets * (cashYield + investmentYield + otherYield);
         liquidAssets += interestIncome; // add interest to cash
 
-        // ---- Lump Sums ----
+        // ---- Lump Sums (tax‑free, NOT income) ----
         let lumpSumAdded = 0;
         // Spouse 1
         if (privatePensions.pot1.lumpSumTaken && year === privatePensions.pot1.lumpSumYear && pot1Balance > 0) {
@@ -1268,7 +1266,7 @@
         const annualSales = getSalesForYear(year);
         const annualMortgage = getMortgagePayments(year);
 
-        // ---- Total Income for Tax ----
+        // ---- Total Income for Tax (excludes lump sum) ----
         const totalAnnualIncome = annualState1 + annualState2 + drawdown1 + drawdown2 +
           annuityIncome1 + annuityIncome2 + interestIncome + annualRental + annualSales;
 
@@ -1428,9 +1426,11 @@
             <th>★</th>
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
-            const monthlySpendAnnual = inputs.financialGoals.monthlySpend * 12;
+            // Income includes: state pensions, drawdowns, annuities, interest, rental, sales.
+            // Lump sum is NOT included (it's added to cash separately).
             const totalIncome = d.state1 + d.state2 + d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2 +
               d.interestIncome + d.rental + d.sales;
+            const monthlySpendAnnual = inputs.financialGoals.monthlySpend * 12;
             const totalOutgoings = monthlySpendAnnual + d.mortgage + d.purchases;
             const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
             const specialIcon = d.specialFlag ? '★' : '';
