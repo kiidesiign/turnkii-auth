@@ -612,8 +612,9 @@
             <input type="number" id="pot1LumpAmount" value="0" step="1000" />
           </div>
           <div class="col">
-            <label>Lump Sum Year (age)</label>
-            <input type="number" id="pot1LumpYear" value="66" />
+            <label>Lump Sum Year (calendar year)</label>
+            <input type="number" id="pot1LumpYear" value="2027" />
+            <div class="section-help">Enter the calendar year when you want to take the lump sum (e.g., 2027).</div>
           </div>
         </div>
         <div class="row">
@@ -700,8 +701,9 @@
             <input type="number" id="pot2LumpAmount" value="0" step="1000" />
           </div>
           <div class="col">
-            <label>Lump Sum Year (age)</label>
-            <input type="number" id="pot2LumpYear" value="66" />
+            <label>Lump Sum Year (calendar year)</label>
+            <input type="number" id="pot2LumpYear" value="2027" />
+            <div class="section-help">Enter the calendar year when you want to take the lump sum.</div>
           </div>
         </div>
         <div class="row">
@@ -1199,7 +1201,7 @@
           growth: parseFloat(document.getElementById('pot1Growth').value) / 100 || 0.03,
           lumpSumTaken: document.getElementById('pot1LumpSum').value === 'yes',
           lumpSumAmount: parseFloat(document.getElementById('pot1LumpAmount').value) || 0,
-          lumpSumYear: parseInt(document.getElementById('pot1LumpYear').value) || 66,
+          lumpSumYear: parseInt(document.getElementById('pot1LumpYear').value) || 2027, // calendar year
           type: document.getElementById('pot1Type').value,
           annuityIncome: parseFloat(document.getElementById('pot1AnnuityIncome').value) || 0,
           strategy: document.getElementById('pot1Strategy').value,
@@ -1213,7 +1215,7 @@
           growth: parseFloat(document.getElementById('pot2Growth').value) / 100 || 0.03,
           lumpSumTaken: document.getElementById('pot2LumpSum').value === 'yes',
           lumpSumAmount: parseFloat(document.getElementById('pot2LumpAmount').value) || 0,
-          lumpSumYear: parseInt(document.getElementById('pot2LumpYear').value) || 66,
+          lumpSumYear: parseInt(document.getElementById('pot2LumpYear').value) || 2027,
           type: document.getElementById('pot2Type').value,
           annuityIncome: parseFloat(document.getElementById('pot2AnnuityIncome').value) || 0,
           strategy: document.getElementById('pot2Strategy').value,
@@ -1337,9 +1339,9 @@
       let pot1Value = convertToBaseCurrency(privatePensions.pot1.value, privatePensions.pot1.currency);
       let pot2Value = convertToBaseCurrency(privatePensions.pot2.value, privatePensions.pot2.currency);
 
-      // Lump sum details
+      // Lump sum details (calendar year)
       const pot1Lump = privatePensions.pot1.lumpSumTaken ? privatePensions.pot1.lumpSumAmount : 0;
-      const pot1LumpYear = privatePensions.pot1.lumpSumYear;
+      const pot1LumpYear = privatePensions.pot1.lumpSumYear; // calendar year
       const pot2Lump = privatePensions.pot2.lumpSumTaken ? privatePensions.pot2.lumpSumAmount : 0;
       const pot2LumpYear = privatePensions.pot2.lumpSumYear;
 
@@ -1522,15 +1524,15 @@
         let drawdown1 = 0,
           drawdown2 = 0;
 
-        // Lump sums (tax-free) from pensions
+        // Lump sums (tax-free) from pensions – check calendar year
         let lumpSumAdded = 0;
-        if (privatePensions.pot1.lumpSumTaken && age1 === pot1LumpYear && pot1Balance > 0) {
+        if (privatePensions.pot1.lumpSumTaken && year === pot1LumpYear && pot1Balance > 0) {
           const lump = Math.min(pot1Lump, pot1Balance);
           liquidAssets += lump;
           pot1Balance -= lump;
           lumpSumAdded += lump;
         }
-        if (privatePensions.pot2.lumpSumTaken && age2 === pot2LumpYear && pot2Balance > 0) {
+        if (privatePensions.pot2.lumpSumTaken && year === pot2LumpYear && pot2Balance > 0) {
           const lump = Math.min(pot2Lump, pot2Balance);
           liquidAssets += lump;
           pot2Balance -= lump;
