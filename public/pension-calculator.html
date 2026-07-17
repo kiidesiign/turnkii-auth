@@ -34,7 +34,6 @@
       font-size: 0.9rem;
     }
 
-    /* ── Sections ── */
     .section {
       background: #f8faff;
       padding: 1.2rem 1.5rem;
@@ -57,16 +56,6 @@
       border-radius: 20px;
       font-size: 0.7rem;
     }
-    .subsection-title {
-      font-weight: 600;
-      font-size: 0.9rem;
-      color: #2c3e5a;
-      margin: 0.8rem 0 0.4rem 0;
-      padding-bottom: 0.3rem;
-      border-bottom: 1px dashed #dce3f0;
-    }
-
-    /* ── Cards for spouses / asset groups ── */
     .card-box {
       padding: 1rem 1.2rem;
       margin-bottom: 1.2rem;
@@ -83,7 +72,6 @@
       font-size: 0.95rem;
     }
 
-    /* ── Grid / Columns ── */
     .row {
       display: flex;
       flex-wrap: wrap;
@@ -94,11 +82,6 @@
       flex: 1 1 180px;
       min-width: 140px;
     }
-    .col.hidden {
-      display: none;
-    }
-
-    /* ── Form Elements ── */
     label {
       display: block;
       font-weight: 600;
@@ -128,7 +111,6 @@
       line-height: 1.2;
     }
 
-    /* ── Country rows (Section 3) ── */
     .country-row {
       display: flex;
       flex-wrap: wrap;
@@ -155,7 +137,6 @@
       min-width: 90px;
     }
 
-    /* ── Summary row for Section 3 ── */
     .summary-row {
       display: flex;
       flex-wrap: wrap;
@@ -175,7 +156,6 @@
       color: #1a2b4c;
     }
 
-    /* ── Buttons ── */
     .btn {
       background: #1a2b4c;
       color: white;
@@ -236,7 +216,6 @@
       background: #fecaca;
     }
 
-    /* ── Property rows (Section 6) ── */
     .property-row {
       padding: 0.8rem 1rem;
       margin-bottom: 0.8rem;
@@ -268,7 +247,6 @@
       margin-left: auto;
     }
 
-    /* ── Results ── */
     .results {
       margin-top: 1.8rem;
       background: #f0f4fe;
@@ -412,70 +390,37 @@
         <span class="badge">Both spouses</span>
       </div>
 
-      <!-- Spouse 1 -->
       <div class="card-box">
         <div class="card-label">👤 Spouse 1</div>
         <div class="row">
-          <div class="col">
-            <label>Name (optional)</label>
-            <input type="text" id="name1" value="Spouse 1" />
-          </div>
-          <div class="col">
-            <label>Sex</label>
-            <select id="sex1">
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
+          <div class="col"><label>Name (optional)</label><input type="text" id="name1" value="Spouse 1" /></div>
+          <div class="col"><label>Sex</label><select id="sex1"><option value="Male">Male</option><option value="Female">Female</option></select></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Current Age</label>
-            <input type="number" id="age1" value="56" />
-          </div>
-          <div class="col">
-            <label>Work Past State Age? (years)</label>
-            <input type="number" id="workExtra1" value="0" min="0" max="5" />
-          </div>
+          <div class="col"><label>Current Age</label><input type="number" id="age1" value="56" /></div>
+          <div class="col"><label>Work Past State Age? (years)</label><input type="number" id="workExtra1" value="0" min="0" max="5" /></div>
         </div>
       </div>
 
-      <!-- Spouse 2 -->
       <div class="card-box">
         <div class="card-label">👤 Spouse 2</div>
         <div class="row">
-          <div class="col">
-            <label>Name (optional)</label>
-            <input type="text" id="name2" value="Spouse 2" />
-          </div>
-          <div class="col">
-            <label>Sex</label>
-            <select id="sex2">
-              <option value="Male">Male</option>
-              <option value="Female" selected>Female</option>
-            </select>
-          </div>
+          <div class="col"><label>Name (optional)</label><input type="text" id="name2" value="Spouse 2" /></div>
+          <div class="col"><label>Sex</label><select id="sex2"><option value="Male">Male</option><option value="Female" selected>Female</option></select></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Current Age</label>
-            <input type="number" id="age2" value="46" />
-          </div>
-          <div class="col">
-            <label>Work Past State Age? (years)</label>
-            <input type="number" id="workExtra2" value="0" min="0" max="5" />
-          </div>
+          <div class="col"><label>Current Age</label><input type="number" id="age2" value="46" /></div>
+          <div class="col"><label>Work Past State Age? (years)</label><input type="number" id="workExtra2" value="0" min="0" max="5" /></div>
         </div>
       </div>
 
-      <!-- IQA toggle -->
       <div class="row" style="margin-top:0.5rem;">
         <div class="col">
           <label style="display:inline-flex; align-items:center; gap:0.5rem;">
             <input type="checkbox" id="includeIQA" />
             <span>Include Irish IQA (Increase for Qualified Adult)</span>
           </label>
-          <div class="section-help">If checked, eligible spouse (under 66, dependent) will receive the Irish IQA payment (75% of the contributor’s Irish pension).</div>
+          <div class="section-help">If checked, eligible spouse (under 66, dependent) receives 75% of the contributor's Irish pension.</div>
         </div>
       </div>
     </div>
@@ -489,24 +434,8 @@
         <span class="badge">Tax jurisdiction</span>
       </div>
       <div class="row">
-        <div class="col">
-          <label>Current Primary Residence Country</label>
-          <select id="currentResidence">
-            <option value="Ireland">Ireland</option>
-            <option value="UK">UK</option>
-            <option value="Spain" selected>Spain</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        <div class="col">
-          <label>Country of Retirement Residence</label>
-          <select id="retirementResidence">
-            <option value="Ireland">Ireland</option>
-            <option value="UK">UK</option>
-            <option value="Spain" selected>Spain</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
+        <div class="col"><label>Current Primary Residence Country</label><select id="currentResidence"><option value="Ireland">Ireland</option><option value="UK">UK</option><option value="Spain" selected>Spain</option><option value="Other">Other</option></select></div>
+        <div class="col"><label>Country of Retirement Residence</label><select id="retirementResidence"><option value="Ireland">Ireland</option><option value="UK">UK</option><option value="Spain" selected>Spain</option><option value="Other">Other</option></select></div>
       </div>
     </div>
 
@@ -557,7 +486,7 @@
     </div>
 
     <!-- ========================================================== -->
-    <!-- SECTION 4: Private Pension Pots (with Lump Sum %)           -->
+    <!-- SECTION 4: Private Pension Pots                             -->
     <!-- ========================================================== -->
     <div class="section">
       <div class="section-title">
@@ -569,102 +498,31 @@
       <div class="card-box">
         <div class="card-label">👤 Spouse 1</div>
         <div class="row">
-          <div class="col">
-            <label>Pot Value</label>
-            <input type="number" id="pot1" value="0" step="1000" />
-          </div>
-          <div class="col">
-            <label>Currency</label>
-            <select id="pot1Currency">
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </select>
-          </div>
+          <div class="col"><label>Pot Value</label><input type="number" id="pot1" value="0" step="1000" /></div>
+          <div class="col"><label>Currency</label><select id="pot1Currency"><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Growth Rate (%)</label>
-            <select id="pot1Growth">
-              <option value="0">0%</option>
-              <option value="1">1%</option>
-              <option value="2">2%</option>
-              <option value="3" selected>3%</option>
-              <option value="4">4%</option>
-              <option value="5">5%</option>
-              <option value="6">6%</option>
-              <option value="7">7%</option>
-              <option value="8">8%</option>
-              <option value="9">9%</option>
-              <option value="10">10%</option>
-            </select>
-          </div>
-          <div class="col">
-            <label>Tax-Free Lump Sum Taken?</label>
-            <select id="pot1LumpSum">
-              <option value="yes" selected>Yes</option>
-              <option value="no">No</option>
-            </select>
-          </div>
+          <div class="col"><label>Growth Rate (%)</label><select id="pot1Growth"><option value="0">0%</option><option value="1">1%</option><option value="2">2%</option><option value="3" selected>3%</option><option value="4">4%</option><option value="5">5%</option><option value="6">6%</option><option value="7">7%</option><option value="8">8%</option><option value="9">9%</option><option value="10">10%</option></select></div>
+          <div class="col"><label>Tax-Free Lump Sum Taken?</label><select id="pot1LumpSum"><option value="yes" selected>Yes</option><option value="no">No</option></select></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Lump Sum Type</label>
-            <select id="pot1LumpType">
-              <option value="fixed">Fixed Amount</option>
-              <option value="percent">Percentage of Pot</option>
-            </select>
-          </div>
-          <div class="col" id="pot1LumpFixedCol">
-            <label>Lump Sum Amount (€)</label>
-            <input type="number" id="pot1LumpAmount" value="0" step="1000" />
-          </div>
-          <div class="col" id="pot1LumpPercentCol" style="display:none;">
-            <label>Lump Sum Percentage (%)</label>
-            <input type="number" id="pot1LumpPercent" value="25" step="0.5" min="0" max="100" />
-          </div>
+          <div class="col"><label>Lump Sum Type</label><select id="pot1LumpType"><option value="fixed">Fixed Amount</option><option value="percent">Percentage of Pot</option></select></div>
+          <div class="col" id="pot1LumpFixedCol"><label>Lump Sum Amount (€)</label><input type="number" id="pot1LumpAmount" value="0" step="1000" /></div>
+          <div class="col" id="pot1LumpPercentCol" style="display:none;"><label>Lump Sum Percentage (%)</label><input type="number" id="pot1LumpPercent" value="25" step="0.5" min="0" max="100" /></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Lump Sum Year (calendar year)</label>
-            <input type="number" id="pot1LumpYear" value="2027" step="1" />
-            <div class="section-help">Year you take the lump sum.</div>
-          </div>
+          <div class="col"><label>Lump Sum Year (calendar year)</label><input type="number" id="pot1LumpYear" value="2027" step="1" /><div class="section-help">Year you take the lump sum.</div></div>
           <div class="col"></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Pension Type</label>
-            <select id="pot1Type">
-              <option value="ARF">ARF (Drawdown)</option>
-              <option value="Annuity">Annuity</option>
-            </select>
-          </div>
-          <div class="col" id="pot1AnnuityCol" style="display:none;">
-            <label>Annuity Annual Income (€)</label>
-            <input type="number" id="pot1AnnuityIncome" value="0" step="100" />
-          </div>
-          <div class="col" id="pot1DrawdownCol">
-            <label>Drawdown Strategy</label>
-            <select id="pot1Strategy">
-              <option value="fixed">Fixed Amount</option>
-              <option value="optimised">Tax-Optimised</option>
-            </select>
-          </div>
-          <div class="col" id="pot1FixedCol">
-            <label>If Fixed – Annual Amount (€)</label>
-            <input type="number" id="pot1Fixed" value="0" step="500" />
-          </div>
+          <div class="col"><label>Pension Type</label><select id="pot1Type"><option value="ARF">ARF (Drawdown)</option><option value="Annuity">Annuity</option></select></div>
+          <div class="col" id="pot1AnnuityCol" style="display:none;"><label>Annuity Annual Income (€)</label><input type="number" id="pot1AnnuityIncome" value="0" step="100" /></div>
+          <div class="col" id="pot1DrawdownCol"><label>Drawdown Strategy</label><select id="pot1Strategy"><option value="fixed">Fixed Amount</option><option value="optimised">Tax-Optimised</option></select></div>
+          <div class="col" id="pot1FixedCol"><label>If Fixed – Annual Amount (€)</label><input type="number" id="pot1Fixed" value="0" step="500" /></div>
         </div>
         <div class="row" id="pot1MaxRow">
-          <div class="col">
-            <label>If Optimised – Max Annual Amount (€)</label>
-            <input type="number" id="pot1Max" value="0" step="500" />
-          </div>
-          <div class="col">
-            <label>Drawdown Start Age</label>
-            <input type="number" id="pot1DrawdownAge" value="66" />
-            <div class="section-help">Age when withdrawals from this pot begin.</div>
-          </div>
+          <div class="col"><label>If Optimised – Max Annual Amount (€)</label><input type="number" id="pot1Max" value="0" step="500" /></div>
+          <div class="col"><label>Drawdown Start Age</label><input type="number" id="pot1DrawdownAge" value="66" /><div class="section-help">Age when withdrawals begin.</div></div>
         </div>
       </div>
 
@@ -672,102 +530,31 @@
       <div class="card-box">
         <div class="card-label">👤 Spouse 2</div>
         <div class="row">
-          <div class="col">
-            <label>Pot Value</label>
-            <input type="number" id="pot2" value="0" step="1000" />
-          </div>
-          <div class="col">
-            <label>Currency</label>
-            <select id="pot2Currency">
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </select>
-          </div>
+          <div class="col"><label>Pot Value</label><input type="number" id="pot2" value="0" step="1000" /></div>
+          <div class="col"><label>Currency</label><select id="pot2Currency"><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Growth Rate (%)</label>
-            <select id="pot2Growth">
-              <option value="0">0%</option>
-              <option value="1">1%</option>
-              <option value="2">2%</option>
-              <option value="3" selected>3%</option>
-              <option value="4">4%</option>
-              <option value="5">5%</option>
-              <option value="6">6%</option>
-              <option value="7">7%</option>
-              <option value="8">8%</option>
-              <option value="9">9%</option>
-              <option value="10">10%</option>
-            </select>
-          </div>
-          <div class="col">
-            <label>Tax-Free Lump Sum Taken?</label>
-            <select id="pot2LumpSum">
-              <option value="yes" selected>Yes</option>
-              <option value="no">No</option>
-            </select>
-          </div>
+          <div class="col"><label>Growth Rate (%)</label><select id="pot2Growth"><option value="0">0%</option><option value="1">1%</option><option value="2">2%</option><option value="3" selected>3%</option><option value="4">4%</option><option value="5">5%</option><option value="6">6%</option><option value="7">7%</option><option value="8">8%</option><option value="9">9%</option><option value="10">10%</option></select></div>
+          <div class="col"><label>Tax-Free Lump Sum Taken?</label><select id="pot2LumpSum"><option value="yes" selected>Yes</option><option value="no">No</option></select></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Lump Sum Type</label>
-            <select id="pot2LumpType">
-              <option value="fixed">Fixed Amount</option>
-              <option value="percent">Percentage of Pot</option>
-            </select>
-          </div>
-          <div class="col" id="pot2LumpFixedCol">
-            <label>Lump Sum Amount (€)</label>
-            <input type="number" id="pot2LumpAmount" value="0" step="1000" />
-          </div>
-          <div class="col" id="pot2LumpPercentCol" style="display:none;">
-            <label>Lump Sum Percentage (%)</label>
-            <input type="number" id="pot2LumpPercent" value="25" step="0.5" min="0" max="100" />
-          </div>
+          <div class="col"><label>Lump Sum Type</label><select id="pot2LumpType"><option value="fixed">Fixed Amount</option><option value="percent">Percentage of Pot</option></select></div>
+          <div class="col" id="pot2LumpFixedCol"><label>Lump Sum Amount (€)</label><input type="number" id="pot2LumpAmount" value="0" step="1000" /></div>
+          <div class="col" id="pot2LumpPercentCol" style="display:none;"><label>Lump Sum Percentage (%)</label><input type="number" id="pot2LumpPercent" value="25" step="0.5" min="0" max="100" /></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Lump Sum Year (calendar year)</label>
-            <input type="number" id="pot2LumpYear" value="2027" step="1" />
-            <div class="section-help">Year you take the lump sum.</div>
-          </div>
+          <div class="col"><label>Lump Sum Year (calendar year)</label><input type="number" id="pot2LumpYear" value="2027" step="1" /><div class="section-help">Year you take the lump sum.</div></div>
           <div class="col"></div>
         </div>
         <div class="row">
-          <div class="col">
-            <label>Pension Type</label>
-            <select id="pot2Type">
-              <option value="ARF">ARF (Drawdown)</option>
-              <option value="Annuity">Annuity</option>
-            </select>
-          </div>
-          <div class="col" id="pot2AnnuityCol" style="display:none;">
-            <label>Annuity Annual Income (€)</label>
-            <input type="number" id="pot2AnnuityIncome" value="0" step="100" />
-          </div>
-          <div class="col" id="pot2DrawdownCol">
-            <label>Drawdown Strategy</label>
-            <select id="pot2Strategy">
-              <option value="fixed">Fixed Amount</option>
-              <option value="optimised">Tax-Optimised</option>
-            </select>
-          </div>
-          <div class="col" id="pot2FixedCol">
-            <label>If Fixed – Annual Amount (€)</label>
-            <input type="number" id="pot2Fixed" value="0" step="500" />
-          </div>
+          <div class="col"><label>Pension Type</label><select id="pot2Type"><option value="ARF">ARF (Drawdown)</option><option value="Annuity">Annuity</option></select></div>
+          <div class="col" id="pot2AnnuityCol" style="display:none;"><label>Annuity Annual Income (€)</label><input type="number" id="pot2AnnuityIncome" value="0" step="100" /></div>
+          <div class="col" id="pot2DrawdownCol"><label>Drawdown Strategy</label><select id="pot2Strategy"><option value="fixed">Fixed Amount</option><option value="optimised">Tax-Optimised</option></select></div>
+          <div class="col" id="pot2FixedCol"><label>If Fixed – Annual Amount (€)</label><input type="number" id="pot2Fixed" value="0" step="500" /></div>
         </div>
         <div class="row" id="pot2MaxRow">
-          <div class="col">
-            <label>If Optimised – Max Annual Amount (€)</label>
-            <input type="number" id="pot2Max" value="0" step="500" />
-          </div>
-          <div class="col">
-            <label>Drawdown Start Age</label>
-            <input type="number" id="pot2DrawdownAge" value="66" />
-            <div class="section-help">Age when withdrawals from this pot begin.</div>
-          </div>
+          <div class="col"><label>If Optimised – Max Annual Amount (€)</label><input type="number" id="pot2Max" value="0" step="500" /></div>
+          <div class="col"><label>Drawdown Start Age</label><input type="number" id="pot2DrawdownAge" value="66" /><div class="section-help">Age when withdrawals begin.</div></div>
         </div>
       </div>
     </div>
@@ -781,108 +568,33 @@
         <span class="badge">Cash + Investments</span>
       </div>
 
-      <div class="card-box">
-        <div class="card-label">💰 Cash & Savings</div>
+      <div class="card-box"><div class="card-label">💰 Cash & Savings</div>
         <div class="row">
-          <div class="col">
-            <label>Value</label>
-            <input type="number" id="cashSavings" value="0" step="1000" />
-          </div>
-          <div class="col">
-            <label>Currency</label>
-            <select id="cashCurrency">
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </select>
-          </div>
-          <div class="col">
-            <label>Annual Yield (%)</label>
-            <select id="cashYield">
-              <option value="0">0%</option>
-              <option value="1" selected>1%</option>
-              <option value="2">2%</option>
-              <option value="3">3%</option>
-              <option value="4">4%</option>
-              <option value="5">5%</option>
-              <option value="6">6%</option>
-              <option value="7">7%</option>
-              <option value="8">8%</option>
-              <option value="9">9%</option>
-              <option value="10">10%</option>
-            </select>
-          </div>
+          <div class="col"><label>Value</label><input type="number" id="cashSavings" value="0" step="1000" /></div>
+          <div class="col"><label>Currency</label><select id="cashCurrency"><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div>
+          <div class="col"><label>Annual Yield (%)</label><select id="cashYield"><option value="0">0%</option><option value="1" selected>1%</option><option value="2">2%</option><option value="3">3%</option><option value="4">4%</option><option value="5">5%</option><option value="6">6%</option><option value="7">7%</option><option value="8">8%</option><option value="9">9%</option><option value="10">10%</option></select></div>
         </div>
       </div>
 
-      <div class="card-box">
-        <div class="card-label">📈 Investment Portfolio</div>
+      <div class="card-box"><div class="card-label">📈 Investment Portfolio</div>
         <div class="row">
-          <div class="col">
-            <label>Value</label>
-            <input type="number" id="investmentPortfolio" value="0" step="1000" />
-          </div>
-          <div class="col">
-            <label>Currency</label>
-            <select id="investmentCurrency">
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </select>
-          </div>
-          <div class="col">
-            <label>Annual Yield (%)</label>
-            <select id="investmentYield">
-              <option value="0">0%</option>
-              <option value="1">1%</option>
-              <option value="2">2%</option>
-              <option value="3">3%</option>
-              <option value="4">4%</option>
-              <option value="5" selected>5%</option>
-              <option value="6">6%</option>
-              <option value="7">7%</option>
-              <option value="8">8%</option>
-              <option value="9">9%</option>
-              <option value="10">10%</option>
-            </select>
-          </div>
+          <div class="col"><label>Value</label><input type="number" id="investmentPortfolio" value="0" step="1000" /></div>
+          <div class="col"><label>Currency</label><select id="investmentCurrency"><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div>
+          <div class="col"><label>Annual Yield (%)</label><select id="investmentYield"><option value="0">0%</option><option value="1">1%</option><option value="2">2%</option><option value="3">3%</option><option value="4">4%</option><option value="5" selected>5%</option><option value="6">6%</option><option value="7">7%</option><option value="8">8%</option><option value="9">9%</option><option value="10">10%</option></select></div>
         </div>
       </div>
 
-      <div class="card-box">
-        <div class="card-label">💎 Other Assets (e.g., gold, collectibles)</div>
+      <div class="card-box"><div class="card-label">💎 Other Assets (e.g., gold, collectibles)</div>
         <div class="row">
-          <div class="col">
-            <label>Value</label>
-            <input type="number" id="otherAssets" value="0" step="1000" />
-          </div>
-          <div class="col">
-            <label>Currency</label>
-            <select id="otherCurrency">
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-            </select>
-          </div>
-          <div class="col">
-            <label>Annual Yield (%)</label>
-            <select id="otherYield">
-              <option value="0">0%</option>
-              <option value="1">1%</option>
-              <option value="2">2%</option>
-              <option value="3" selected>3%</option>
-              <option value="4">4%</option>
-              <option value="5">5%</option>
-              <option value="6">6%</option>
-              <option value="7">7%</option>
-              <option value="8">8%</option>
-              <option value="9">9%</option>
-              <option value="10">10%</option>
-            </select>
-          </div>
+          <div class="col"><label>Value</label><input type="number" id="otherAssets" value="0" step="1000" /></div>
+          <div class="col"><label>Currency</label><select id="otherCurrency"><option value="EUR">EUR</option><option value="GBP">GBP</option></select></div>
+          <div class="col"><label>Annual Yield (%)</label><select id="otherYield"><option value="0">0%</option><option value="1">1%</option><option value="2">2%</option><option value="3" selected>3%</option><option value="4">4%</option><option value="5">5%</option><option value="6">6%</option><option value="7">7%</option><option value="8">8%</option><option value="9">9%</option><option value="10">10%</option></select></div>
         </div>
       </div>
     </div>
 
     <!-- ========================================================== -->
-    <!-- SECTION 6: Property Portfolio (improved)                    -->
+    <!-- SECTION 6: Property Portfolio                               -->
     <!-- ========================================================== -->
     <div class="section">
       <div class="section-title">
@@ -892,9 +604,7 @@
       <div class="section-help" style="margin-bottom:0.8rem;">
         For each property, enter its name, value, mortgage balance, annual mortgage payment, rental income, expected sale year (dropdown), and net proceeds on sale. <strong>Leaving "Sale Year" empty means the property is kept for the entire projection.</strong>
       </div>
-      <div id="propertiesContainer">
-        <!-- Dynamic rows inserted here -->
-      </div>
+      <div id="propertiesContainer"></div>
       <button class="add-row-btn" onclick="addProperty()">+ Add Property</button>
     </div>
 
@@ -906,12 +616,8 @@
         <span>SECTION 7: Asset Sales</span>
         <span class="badge">Liquidation events</span>
       </div>
-      <div class="section-help" style="margin-bottom:0.8rem;">
-        Use this section for selling <strong>non-property assets</strong> (e.g., investments, vehicles, collectibles, etc.). For property sales, use the "Sale Year" dropdown in Section 6 above.
-      </div>
-      <div id="salesContainer">
-        <!-- Dynamic rows inserted here -->
-      </div>
+      <div class="section-help" style="margin-bottom:0.8rem;">Use this section for selling <strong>non-property assets</strong> (e.g., investments, vehicles, collectibles, etc.). For property sales, use the "Sale Year" dropdown in Section 6 above.</div>
+      <div id="salesContainer"></div>
       <button class="add-row-btn" onclick="addSale()">+ Add Asset Sale</button>
     </div>
 
@@ -924,20 +630,12 @@
         <span class="badge">Spending + Inheritance</span>
       </div>
       <div class="row">
-        <div class="col">
-          <label>Monthly Net Spend Target (€)</label>
-          <input type="number" id="monthlySpend" value="3000" step="100" />
-        </div>
-        <div class="col">
-          <label>Target Inheritance to Leave (€)</label>
-          <input type="number" id="targetInheritance" value="0" step="10000" />
-        </div>
+        <div class="col"><label>Monthly Net Spend Target (€)</label><input type="number" id="monthlySpend" value="3000" step="100" /></div>
+        <div class="col"><label>Target Inheritance to Leave (€)</label><input type="number" id="targetInheritance" value="0" step="10000" /></div>
       </div>
       <div style="margin-top:0.8rem;">
         <label>Major Purchases (One-off outflows)</label>
-        <div id="purchasesContainer">
-          <!-- Dynamic rows inserted here -->
-        </div>
+        <div id="purchasesContainer"></div>
         <button class="add-row-btn" onclick="addPurchase()">+ Add Major Purchase</button>
       </div>
     </div>
@@ -951,60 +649,26 @@
         <span class="badge">Currency & time horizon</span>
       </div>
       <div class="row">
-        <div class="col">
-          <label>Base Currency for Reports</label>
-          <select id="baseCurrency">
-            <option value="EUR" selected>EUR</option>
-            <option value="GBP">GBP</option>
-          </select>
-        </div>
-        <div class="col">
-          <label id="exchangeRateLabel">GBP → EUR Rate</label>
-          <input type="number" id="exchangeRate" value="1.15" step="0.01" />
-        </div>
+        <div class="col"><label>Base Currency for Reports</label><select id="baseCurrency"><option value="EUR" selected>EUR</option><option value="GBP">GBP</option></select></div>
+        <div class="col"><label id="exchangeRateLabel">GBP → EUR Rate</label><input type="number" id="exchangeRate" value="1.15" step="0.01" /></div>
       </div>
       <div class="row">
-        <div class="col">
-          <label>Projection End Type</label>
-          <select id="endType">
-            <option value="lifeExpectancy" selected>Standard Life Expectancy (Younger + 10)</option>
-            <option value="fixed">Fixed End Age</option>
-          </select>
-        </div>
-        <div class="col" id="fixedAgeCol">
-          <label>Fixed End Age (last surviving)</label>
-          <input type="number" id="fixedEndAge" value="85" />
-        </div>
+        <div class="col"><label>Projection End Type</label><select id="endType"><option value="lifeExpectancy" selected>Standard Life Expectancy (Younger + 10)</option><option value="fixed">Fixed End Age</option></select></div>
+        <div class="col" id="fixedAgeCol"><label>Fixed End Age (last surviving)</label><input type="number" id="fixedEndAge" value="85" /></div>
       </div>
-      <div class="section-help" style="margin-top:0.5rem;">
-        <strong>Note:</strong> "Standard Life Expectancy" now extends 10 years beyond the younger spouse's life expectancy.
-      </div>
+      <div class="section-help" style="margin-top:0.5rem;"><strong>Note:</strong> "Standard Life Expectancy" extends 10 years beyond the younger spouse's life expectancy.</div>
     </div>
 
-    <!-- ========================================================== -->
-    <!-- BUTTONS                                                    -->
-    <!-- ========================================================== -->
     <div class="btn-group">
       <button class="btn" onclick="calculatePension()">📊 Run Calculation</button>
       <button class="btn btn-secondary" onclick="saveCalculation()">💾 Save Results</button>
       <button class="btn btn-success" onclick="exportReport()">📄 Export PDF Report</button>
     </div>
 
-    <!-- ========================================================== -->
-    <!-- RESULTS AREA                                               -->
-    <!-- ========================================================== -->
-    <div id="results" class="results">
-      <div id="resultContent"></div>
-    </div>
-
-    <div class="disclaimer">
-      <strong>Important:</strong> This calculator is for illustrative purposes only. Always verify with your financial advisor and the relevant tax authorities.
-    </div>
+    <div id="results" class="results"><div id="resultContent"></div></div>
+    <div class="disclaimer"><strong>Important:</strong> This calculator is for illustrative purposes only. Always verify with your financial advisor and the relevant tax authorities.</div>
   </div>
 
-  <!-- ========================================================== -->
-  <!-- JAVASCRIPT                                                  -->
-  <!-- ========================================================== -->
   <script>
     // ────────────────────────────────────────────────────────────────
     // 1. DYNAMIC ROWS
@@ -1013,7 +677,6 @@
       saleId = 0,
       purchaseId = 0;
 
-    // Generate sale year options with empty default
     function getYearOptions() {
       const currentYear = new Date().getFullYear();
       let html = '<option value="">Select year</option>';
@@ -1033,37 +696,13 @@
           <input type="text" placeholder="Property Name" value="${value || ''}" class="prop-name-input" style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;" />
         </div>
         <div class="prop-fields">
-          <div class="field-group">
-            <label>Value</label>
-            <input type="number" placeholder="Value" value="${value || ''}" class="prop-value" />
-          </div>
-          <div class="field-group">
-            <label>Currency</label>
-            <select class="prop-currency">
-              <option value="EUR" ${currency === 'EUR' ? 'selected' : ''}>EUR</option>
-              <option value="GBP" ${currency === 'GBP' ? 'selected' : ''}>GBP</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>Mortgage</label>
-            <input type="number" placeholder="Mortgage" value="${mortgage || '0'}" class="prop-mortgage" />
-          </div>
-          <div class="field-group">
-            <label>Annual Mortgage Payment</label>
-            <input type="number" placeholder="Payment" value="${mortgagePayment || '0'}" class="prop-mortgage-payment" />
-          </div>
-          <div class="field-group">
-            <label>Rental Income (€/yr)</label>
-            <input type="number" placeholder="Rental" value="${rental || '0'}" class="prop-rental" />
-          </div>
-          <div class="field-group">
-            <label>Sale Year</label>
-            <select class="prop-sale-year">${getYearOptions()}</select>
-          </div>
-          <div class="field-group">
-            <label>Net Proceeds</label>
-            <input type="number" placeholder="Proceeds" value="${proceeds || ''}" class="prop-proceeds" />
-          </div>
+          <div class="field-group"><label>Value</label><input type="number" placeholder="Value" value="${value || ''}" class="prop-value" /></div>
+          <div class="field-group"><label>Currency</label><select class="prop-currency"><option value="EUR" ${currency === 'EUR' ? 'selected' : ''}>EUR</option><option value="GBP" ${currency === 'GBP' ? 'selected' : ''}>GBP</option></select></div>
+          <div class="field-group"><label>Mortgage</label><input type="number" placeholder="Mortgage" value="${mortgage || '0'}" class="prop-mortgage" /></div>
+          <div class="field-group"><label>Annual Mortgage Payment</label><input type="number" placeholder="Payment" value="${mortgagePayment || '0'}" class="prop-mortgage-payment" /></div>
+          <div class="field-group"><label>Rental Income (€/yr)</label><input type="number" placeholder="Rental" value="${rental || '0'}" class="prop-rental" /></div>
+          <div class="field-group"><label>Sale Year</label><select class="prop-sale-year">${getYearOptions()}</select></div>
+          <div class="field-group"><label>Net Proceeds</label><input type="number" placeholder="Proceeds" value="${proceeds || ''}" class="prop-proceeds" /></div>
           <button class="remove-row-btn" onclick="this.closest('.property-row').remove()" style="margin-left:auto;">✕</button>
         </div>
       `;
@@ -1079,10 +718,7 @@
         <input type="number" placeholder="Year" value="${year || ''}" class="sale-year" style="flex:1 1 70px;" />
         <input type="text" placeholder="Description" value="${description || ''}" class="sale-desc" style="flex:2 1 120px;" />
         <input type="number" placeholder="Amount" value="${amount || ''}" class="sale-amount" style="flex:1 1 80px;" />
-        <select class="sale-currency" style="flex:1 1 70px;">
-          <option value="EUR" ${currency === 'EUR' ? 'selected' : ''}>EUR</option>
-          <option value="GBP" ${currency === 'GBP' ? 'selected' : ''}>GBP</option>
-        </select>
+        <select class="sale-currency" style="flex:1 1 70px;"><option value="EUR" ${currency === 'EUR' ? 'selected' : ''}>EUR</option><option value="GBP" ${currency === 'GBP' ? 'selected' : ''}>GBP</option></select>
         <button class="remove-row-btn" onclick="this.parentElement.remove()" style="flex:0 0 30px;">✕</button>
       `;
       container.appendChild(div);
@@ -1097,70 +733,53 @@
         <input type="number" placeholder="Year" value="${year || ''}" class="purchase-year" style="flex:1 1 70px;" />
         <input type="text" placeholder="Description" value="${description || ''}" class="purchase-desc" style="flex:2 1 120px;" />
         <input type="number" placeholder="Amount" value="${amount || ''}" class="purchase-amount" style="flex:1 1 80px;" />
-        <select class="purchase-currency" style="flex:1 1 70px;">
-          <option value="EUR" ${currency === 'EUR' ? 'selected' : ''}>EUR</option>
-          <option value="GBP" ${currency === 'GBP' ? 'selected' : ''}>GBP</option>
-        </select>
+        <select class="purchase-currency" style="flex:1 1 70px;"><option value="EUR" ${currency === 'EUR' ? 'selected' : ''}>EUR</option><option value="GBP" ${currency === 'GBP' ? 'selected' : ''}>GBP</option></select>
         <button class="remove-row-btn" onclick="this.parentElement.remove()" style="flex:0 0 30px;">✕</button>
       `;
       container.appendChild(div);
     }
 
     // ────────────────────────────────────────────────────────────────
-    // 2. UPDATE EXCHANGE RATE LABEL & SUMMARY & TOGGLE ANNUITY FIELDS
+    // 2. HELPERS
     // ────────────────────────────────────────────────────────────────
     function updateExchangeRateLabel() {
       const base = document.getElementById('baseCurrency').value;
-      const label = document.getElementById('exchangeRateLabel');
-      if (base === 'EUR') {
-        label.textContent = 'GBP → EUR Rate';
-      } else {
-        label.textContent = 'EUR → GBP Rate';
-      }
+      document.getElementById('exchangeRateLabel').textContent = base === 'EUR' ? 'GBP → EUR Rate' : 'EUR → GBP Rate';
     }
 
     function updateContributionSummary() {
-      const ids = ['ireWeeks1', 'ukWeeks1', 'spWeeks1', 'euWeeks1'];
+      const ids1 = ['ireWeeks1', 'ukWeeks1', 'spWeeks1', 'euWeeks1'];
       let total1 = 0;
-      ids.forEach(id => {
-        total1 += parseInt(document.getElementById(id).value) || 0;
-      });
+      ids1.forEach(id => { total1 += parseInt(document.getElementById(id).value) || 0; });
       const ids2 = ['ireWeeks2', 'ukWeeks2', 'spWeeks2', 'euWeeks2'];
       let total2 = 0;
-      ids2.forEach(id => {
-        total2 += parseInt(document.getElementById(id).value) || 0;
-      });
+      ids2.forEach(id => { total2 += parseInt(document.getElementById(id).value) || 0; });
       const maxWeeks = 2080;
-      const pct1 = (total1 / maxWeeks * 100).toFixed(1);
-      const pct2 = (total2 / maxWeeks * 100).toFixed(1);
       document.getElementById('totalWeeks1').textContent = total1;
-      document.getElementById('percent1').textContent = pct1 + '%';
+      document.getElementById('percent1').textContent = (total1 / maxWeeks * 100).toFixed(1) + '%';
       document.getElementById('totalWeeks2').textContent = total2;
-      document.getElementById('percent2').textContent = pct2 + '%';
+      document.getElementById('percent2').textContent = (total2 / maxWeeks * 100).toFixed(1) + '%';
     }
 
     function toggleAnnuityFields() {
-      // Spouse 1
-      const type1 = document.getElementById('pot1Type').value;
-      document.getElementById('pot1AnnuityCol').style.display = type1 === 'Annuity' ? 'block' : 'none';
-      document.getElementById('pot1DrawdownCol').style.display = type1 === 'ARF' ? 'block' : 'none';
-      document.getElementById('pot1FixedCol').style.display = type1 === 'ARF' ? 'block' : 'none';
-      document.getElementById('pot1MaxRow').style.display = type1 === 'ARF' ? 'flex' : 'none';
+      ['pot1', 'pot2'].forEach(prefix => {
+        const type = document.getElementById(prefix + 'Type').value;
+        document.getElementById(prefix + 'AnnuityCol').style.display = type === 'Annuity' ? 'block' : 'none';
+        document.getElementById(prefix + 'DrawdownCol').style.display = type === 'ARF' ? 'block' : 'none';
+        document.getElementById(prefix + 'FixedCol').style.display = type === 'ARF' ? 'block' : 'none';
+        document.getElementById(prefix + 'MaxRow').style.display = type === 'ARF' ? 'flex' : 'none';
+      });
+    }
 
-      // Spouse 2
-      const type2 = document.getElementById('pot2Type').value;
-      document.getElementById('pot2AnnuityCol').style.display = type2 === 'Annuity' ? 'block' : 'none';
-      document.getElementById('pot2DrawdownCol').style.display = type2 === 'ARF' ? 'block' : 'none';
-      document.getElementById('pot2FixedCol').style.display = type2 === 'ARF' ? 'block' : 'none';
-      document.getElementById('pot2MaxRow').style.display = type2 === 'ARF' ? 'flex' : 'none';
+    function toggleLumpSumFields(prefix) {
+      const isPercent = document.getElementById(prefix + 'LumpType').value === 'percent';
+      document.getElementById(prefix + 'LumpFixedCol').style.display = isPercent ? 'none' : 'block';
+      document.getElementById(prefix + 'LumpPercentCol').style.display = isPercent ? 'block' : 'none';
     }
 
     // ────────────────────────────────────────────────────────────────
     // 3. GATHER INPUTS
     // ────────────────────────────────────────────────────────────────
-
-    // Hardcoded state pension parameters (full career weeks, full monthly amount in local currency)
-    // Also define retirement ages per country
     const STATE_PENSION_CONFIG = {
       ireland: { fullWeeks: 2080, fullPension: 1297, currency: 'EUR', retireAge: 66 },
       uk: { fullWeeks: 1820, fullPension: 882, currency: 'GBP', retireAge: 66 },
@@ -1181,18 +800,15 @@
         includeIQA: document.getElementById('includeIQA').checked,
       };
 
-      const residency = {
-        currentResidence: document.getElementById('currentResidence').value,
-        retirementResidence: document.getElementById('retirementResidence').value,
-      };
+      const retirementResidence = document.getElementById('retirementResidence').value;
+      const defaultStateAge = (retirementResidence === 'Ireland' || retirementResidence === 'UK') ? 66 : 67;
 
-      // State pensions: read weeks only, use hardcoded fullWeeks, fullPension, currency, retireAge
       const statePensions = {
         ireland: {
           fullWeeks: STATE_PENSION_CONFIG.ireland.fullWeeks,
           fullPension: STATE_PENSION_CONFIG.ireland.fullPension,
           currency: STATE_PENSION_CONFIG.ireland.currency,
-          retireAge: STATE_PENSION_CONFIG.ireland.retireAge,
+          retireAge: defaultStateAge,
           weeks1: parseInt(document.getElementById('ireWeeks1').value) || 0,
           weeks2: parseInt(document.getElementById('ireWeeks2').value) || 0,
         },
@@ -1200,7 +816,7 @@
           fullWeeks: STATE_PENSION_CONFIG.uk.fullWeeks,
           fullPension: STATE_PENSION_CONFIG.uk.fullPension,
           currency: STATE_PENSION_CONFIG.uk.currency,
-          retireAge: STATE_PENSION_CONFIG.uk.retireAge,
+          retireAge: defaultStateAge,
           weeks1: parseInt(document.getElementById('ukWeeks1').value) || 0,
           weeks2: parseInt(document.getElementById('ukWeeks2').value) || 0,
         },
@@ -1208,7 +824,7 @@
           fullWeeks: STATE_PENSION_CONFIG.spain.fullWeeks,
           fullPension: STATE_PENSION_CONFIG.spain.fullPension,
           currency: STATE_PENSION_CONFIG.spain.currency,
-          retireAge: STATE_PENSION_CONFIG.spain.retireAge,
+          retireAge: defaultStateAge,
           weeks1: parseInt(document.getElementById('spWeeks1').value) || 0,
           weeks2: parseInt(document.getElementById('spWeeks2').value) || 0,
         },
@@ -1216,13 +832,12 @@
           fullWeeks: STATE_PENSION_CONFIG.otherEU.fullWeeks,
           fullPension: STATE_PENSION_CONFIG.otherEU.fullPension,
           currency: STATE_PENSION_CONFIG.otherEU.currency,
-          retireAge: STATE_PENSION_CONFIG.otherEU.retireAge,
+          retireAge: defaultStateAge,
           weeks1: parseInt(document.getElementById('euWeeks1').value) || 0,
           weeks2: parseInt(document.getElementById('euWeeks2').value) || 0,
         },
       };
 
-      // Lump sum processing: if type is 'percent', compute amount from pot at that time (we'll do in engine)
       const privatePensions = {
         pot1: {
           value: parseFloat(document.getElementById('pot1').value) || 0,
@@ -1279,7 +894,6 @@
       const propRows = document.querySelectorAll('#propertiesContainer .property-row');
       const properties = [];
       propRows.forEach(row => {
-        // Get sale year value (could be empty string)
         const saleYearVal = row.querySelector('.prop-sale-year').value;
         properties.push({
           name: row.querySelector('.prop-name-input').value || 'Property',
@@ -1328,22 +942,17 @@
         fixedEndAge: parseInt(document.getElementById('fixedEndAge').value) || 85,
       };
 
+      const residency = {
+        currentResidence: document.getElementById('currentResidence').value,
+        retirementResidence: document.getElementById('retirementResidence').value,
+      };
+
       return { profile, residency, statePensions, privatePensions, assets, properties, assetSales, financialGoals,
         projection };
     }
 
     // ────────────────────────────────────────────────────────────────
-    // 4. CURRENCY CONVERSION
-    // ────────────────────────────────────────────────────────────────
-    function convertToBase(value, currency, baseCurrency, exchangeRate) {
-      if (currency === baseCurrency) return value;
-      if (currency === 'GBP' && baseCurrency === 'EUR') return value * exchangeRate;
-      if (currency === 'EUR' && baseCurrency === 'GBP') return value / exchangeRate;
-      return value;
-    }
-
-    // ────────────────────────────────────────────────────────────────
-    // 5. CORE PENSION ENGINE
+    // 4. CORE PENSION ENGINE (FIXED)
     // ────────────────────────────────────────────────────────────────
     function calculatePensionEngine(inputs) {
       const { profile, statePensions, privatePensions, assets, properties, assetSales, financialGoals,
@@ -1352,54 +961,41 @@
       const exchangeRate = projection.exchangeRate;
 
       function convertToBaseCurrency(value, currency) {
-        return convertToBase(value, currency, baseCurrency, exchangeRate);
+        if (currency === baseCurrency) return value;
+        if (currency === 'GBP' && baseCurrency === 'EUR') return value * exchangeRate;
+        if (currency === 'EUR' && baseCurrency === 'GBP') return value / exchangeRate;
+        return value;
       }
 
-      // Pre-calculate per-country monthly pension amounts (in base currency)
+      // ---- State Pensions ----
       const countryPensions = {};
       for (const [key, val] of Object.entries(statePensions)) {
         const fullPensionBase = convertToBaseCurrency(val.fullPension, val.currency);
-        const monthly1 = fullPensionBase * Math.min(1, val.weeks1 / val.fullWeeks);
-        const monthly2 = fullPensionBase * Math.min(1, val.weeks2 / val.fullWeeks);
         countryPensions[key] = {
           retireAge: val.retireAge,
-          monthly1: monthly1,
-          monthly2: monthly2,
+          monthly1: fullPensionBase * Math.min(1, val.weeks1 / val.fullWeeks),
+          monthly2: fullPensionBase * Math.min(1, val.weeks2 / val.fullWeeks),
         };
       }
 
-      // Private pension pots
-      let pot1Value = convertToBaseCurrency(privatePensions.pot1.value, privatePensions.pot1.currency);
-      let pot2Value = convertToBaseCurrency(privatePensions.pot2.value, privatePensions.pot2.currency);
+      // ---- Private Pensions ----
+      let pot1Balance = convertToBaseCurrency(privatePensions.pot1.value, privatePensions.pot1.currency);
+      let pot2Balance = convertToBaseCurrency(privatePensions.pot2.value, privatePensions.pot2.currency);
 
-      // Lump sum details
-      const pot1LumpTaken = privatePensions.pot1.lumpSumTaken;
-      const pot1LumpType = privatePensions.pot1.lumpSumType;
-      const pot1LumpAmount = privatePensions.pot1.lumpSumAmount;
-      const pot1LumpPercent = privatePensions.pot1.lumpSumPercent;
-      const pot1LumpYear = privatePensions.pot1.lumpSumYear;
-
-      const pot2LumpTaken = privatePensions.pot2.lumpSumTaken;
-      const pot2LumpType = privatePensions.pot2.lumpSumType;
-      const pot2LumpAmount = privatePensions.pot2.lumpSumAmount;
-      const pot2LumpPercent = privatePensions.pot2.lumpSumPercent;
-      const pot2LumpYear = privatePensions.pot2.lumpSumYear;
-
-      // Annuity incomes
-      const pot1Annuity = privatePensions.pot1.type === 'Annuity' ? privatePensions.pot1.annuityIncome : 0;
-      const pot2Annuity = privatePensions.pot2.type === 'Annuity' ? privatePensions.pot2.annuityIncome : 0;
-
-      // Drawdown ages
       const pot1DrawdownAge = privatePensions.pot1.drawdownAge;
       const pot2DrawdownAge = privatePensions.pot2.drawdownAge;
 
-      // Assets
-      const cashValue = convertToBaseCurrency(assets.cashSavings.value, assets.cashSavings.currency);
-      const investmentValue = convertToBaseCurrency(assets.investmentPortfolio.value, assets.investmentPortfolio.currency);
-      const otherValue = convertToBaseCurrency(assets.otherAssets.value, assets.otherAssets.currency);
-      let liquidAssets = cashValue + investmentValue + otherValue;
+      // ---- Assets ----
+      const cashYield = assets.cashSavings.yield || 0;
+      const investmentYield = assets.investmentPortfolio.yield || 0;
+      const otherYield = assets.otherAssets.yield || 0;
 
-      // Properties – we'll keep track of which properties are sold
+      let liquidAssets =
+        convertToBaseCurrency(assets.cashSavings.value, assets.cashSavings.currency) +
+        convertToBaseCurrency(assets.investmentPortfolio.value, assets.investmentPortfolio.currency) +
+        convertToBaseCurrency(assets.otherAssets.value, assets.otherAssets.currency);
+
+      // ---- Properties ----
       const props = properties.map(p => ({
         value: convertToBaseCurrency(p.value, p.currency),
         mortgage: convertToBaseCurrency(p.mortgage, p.currency),
@@ -1407,7 +1003,7 @@
         rentalIncome: convertToBaseCurrency(p.rentalIncome, p.currency),
         saleYear: p.saleYear,
         saleProceeds: convertToBaseCurrency(p.saleProceeds, p.currency),
-        sold: false, // track if sold
+        sold: false,
       }));
 
       const sales = assetSales.map(s => ({
@@ -1422,37 +1018,28 @@
         amount: convertToBaseCurrency(p.amount, p.currency),
       }));
 
-      // Life expectancy
-      function getLifeExpectancy(sex, age) {
-        if (sex === 'Male') return 82;
-        if (sex === 'Female') return 85;
-        return 83;
-      }
-
+      // ---- Life Expectancy ----
+      function getLifeExpectancy(sex) { return sex === 'Male' ? 82 : 85; }
       let endAge;
       if (projection.endType === 'fixed') {
         endAge = projection.fixedEndAge;
       } else {
-        const le1 = getLifeExpectancy(profile.sex1, profile.age1);
-        const le2 = getLifeExpectancy(profile.sex2, profile.age2);
+        const le1 = getLifeExpectancy(profile.sex1);
+        const le2 = getLifeExpectancy(profile.sex2);
         const youngerLE = (profile.age1 < profile.age2) ? le1 : le2;
         const olderLE = (profile.age1 < profile.age2) ? le2 : le1;
         endAge = Math.max(olderLE, youngerLE + 10);
       }
 
-      // Simulation - yearly
-      let liquidAssetsStart = liquidAssets;
-      let pot1Balance = pot1Value;
-      let pot2Balance = pot2Value;
+      // ---- Simulation ----
       let totalTaxPaid = 0;
       const yearData = [];
-
       const startYear = 2026;
       const startAge1 = profile.age1;
       const startAge2 = profile.age2;
-      const maxYears = endAge - Math.max(startAge1, startAge2) + 15; // buffer
+      const maxYears = endAge - Math.max(startAge1, startAge2) + 15;
 
-      function getRentalIncomeForYear(year) {
+      function getRentalIncome(year) {
         let total = 0;
         for (const p of props) {
           if (p.sold) continue;
@@ -1462,7 +1049,7 @@
         return total;
       }
 
-      function getMortgagePaymentsForYear(year) {
+      function getMortgagePayments(year) {
         let total = 0;
         for (const p of props) {
           if (p.sold) continue;
@@ -1472,7 +1059,7 @@
         return total;
       }
 
-      function getPropertyValueForYear(year) {
+      function getPropertyValue(year) {
         let total = 0;
         for (const p of props) {
           if (p.sold) continue;
@@ -1498,11 +1085,9 @@
         return total;
       }
 
-      function calculateSpanishTax(income, age1, age2) {
-        const allowance1 = age1 >= 65 ? 6700 : 5550;
-        const allowance2 = age2 >= 65 ? 6700 : 5550;
-        const totalAllowance = allowance1 + allowance2 + 3400;
-        const taxableBase = Math.max(0, income - totalAllowance);
+      function calculateSpanishTax(income) {
+        const allowance = 5550 + 5550 + 3400; // simplified joint filing
+        const taxableBase = Math.max(0, income - allowance);
         const brackets = [
           { upTo: 12450, rate: 0.19 },
           { upTo: 20200, rate: 0.24 },
@@ -1534,7 +1119,7 @@
 
         if (age1 > endAge && age2 > endAge) break;
 
-        // ---- State Pensions (per country, with country-specific retirement age) ----
+        // ---- State Pensions ----
         let monthlyState1 = 0,
           monthlyState2 = 0;
         for (const [key, val] of Object.entries(countryPensions)) {
@@ -1553,70 +1138,76 @@
         }
         monthlyState2 += iqaAmount;
 
-        // Annual state pensions
         const annualState1 = monthlyState1 * 12;
         const annualState2 = monthlyState2 * 12;
 
-        // ---- Private Drawdown (ARF only) ----
+        // ---- Interest on Cash/Investments (applied to liquid assets) ----
+        // Interest is earned on the starting liquid assets balance.
+        // This is taxable income and added to the cash balance.
+        const interestIncome = liquidAssets * (cashYield + investmentYield + otherYield);
+        liquidAssets += interestIncome; // add interest to cash
+
+        // ---- Lump Sums ----
+        let lumpSumAdded = 0;
+        // Spouse 1
+        if (privatePensions.pot1.lumpSumTaken && year === privatePensions.pot1.lumpSumYear && pot1Balance > 0) {
+          let lump = 0;
+          if (privatePensions.pot1.lumpSumType === 'fixed') {
+            lump = Math.min(privatePensions.pot1.lumpSumAmount, pot1Balance);
+          } else {
+            lump = (privatePensions.pot1.lumpSumPercent / 100) * pot1Balance;
+            lump = Math.min(lump, pot1Balance);
+          }
+          if (lump > 0) {
+            liquidAssets += lump;
+            pot1Balance -= lump;
+            lumpSumAdded += lump;
+          }
+        }
+        // Spouse 2
+        if (privatePensions.pot2.lumpSumTaken && year === privatePensions.pot2.lumpSumYear && pot2Balance > 0) {
+          let lump = 0;
+          if (privatePensions.pot2.lumpSumType === 'fixed') {
+            lump = Math.min(privatePensions.pot2.lumpSumAmount, pot2Balance);
+          } else {
+            lump = (privatePensions.pot2.lumpSumPercent / 100) * pot2Balance;
+            lump = Math.min(lump, pot2Balance);
+          }
+          if (lump > 0) {
+            liquidAssets += lump;
+            pot2Balance -= lump;
+            lumpSumAdded += lump;
+          }
+        }
+
+        // ---- Property Sale Proceeds ----
+        let propertySaleProceeds = 0;
+        for (const p of props) {
+          if (!p.sold && p.saleYear && year === p.saleYear) {
+            propertySaleProceeds += p.saleProceeds;
+            p.sold = true;
+          }
+        }
+        liquidAssets += propertySaleProceeds;
+
+        // ---- Private Drawdown (ARF) ----
         const drawdown1Active = age1 >= pot1DrawdownAge && privatePensions.pot1.type === 'ARF';
         const drawdown2Active = age2 >= pot2DrawdownAge && privatePensions.pot2.type === 'ARF';
 
         let drawdown1 = 0,
           drawdown2 = 0;
 
-        // Lump sums (tax-free) from pensions – check calendar year
-        let lumpSumAdded = 0;
-        // Spouse 1 lump sum
-        if (pot1LumpTaken && year === pot1LumpYear && pot1Balance > 0) {
-          let lumpAmount = 0;
-          if (pot1LumpType === 'fixed') {
-            lumpAmount = Math.min(pot1LumpAmount, pot1Balance);
-          } else if (pot1LumpType === 'percent') {
-            lumpAmount = (pot1LumpPercent / 100) * pot1Balance;
-            lumpAmount = Math.min(lumpAmount, pot1Balance);
-          }
-          if (lumpAmount > 0) {
-            liquidAssets += lumpAmount;
-            pot1Balance -= lumpAmount;
-            lumpSumAdded += lumpAmount;
-          }
-        }
-        // Spouse 2 lump sum
-        if (pot2LumpTaken && year === pot2LumpYear && pot2Balance > 0) {
-          let lumpAmount = 0;
-          if (pot2LumpType === 'fixed') {
-            lumpAmount = Math.min(pot2LumpAmount, pot2Balance);
-          } else if (pot2LumpType === 'percent') {
-            lumpAmount = (pot2LumpPercent / 100) * pot2Balance;
-            lumpAmount = Math.min(lumpAmount, pot2Balance);
-          }
-          if (lumpAmount > 0) {
-            liquidAssets += lumpAmount;
-            pot2Balance -= lumpAmount;
-            lumpSumAdded += lumpAmount;
-          }
-        }
-
-        // ---- Property Sale Proceeds and mark property as sold ----
-        let propertySaleProceeds = 0;
-        for (const p of props) {
-          if (!p.sold && p.saleYear && year === p.saleYear) {
-            propertySaleProceeds += p.saleProceeds;
-            p.sold = true; // mark as sold
-          }
-        }
-
         // Annuity income
         let annuityIncome1 = 0,
           annuityIncome2 = 0;
         if (privatePensions.pot1.type === 'Annuity' && age1 >= pot1DrawdownAge) {
-          annuityIncome1 = pot1Annuity;
+          annuityIncome1 = privatePensions.pot1.annuityIncome;
         }
         if (privatePensions.pot2.type === 'Annuity' && age2 >= pot2DrawdownAge) {
-          annuityIncome2 = pot2Annuity;
+          annuityIncome2 = privatePensions.pot2.annuityIncome;
         }
 
-        // ARF drawdown
+        // ARF drawdown (Spouse 1)
         if (drawdown1Active && pot1Balance > 0) {
           const strategy1 = privatePensions.pot1.strategy;
           if (strategy1 === 'fixed') {
@@ -1624,16 +1215,20 @@
           } else {
             let maxDraw = privatePensions.pot1.maxAmount || 0;
             let testDraw = 0;
-            const baseIncome = annualState1 + annualState2 + annuityIncome1 + annuityIncome2 + drawdown2;
+            const baseIncome = annualState1 + annualState2 + annuityIncome1 + annuityIncome2 + interestIncome + drawdown2;
             while (testDraw < maxDraw && testDraw < pot1Balance) {
-              const testIncome = baseIncome + testDraw;
-              if (calculateSpanishTax(testIncome, age1, age2) > 0) break;
+              if (calculateSpanishTax(baseIncome + testDraw) > 0) break;
               testDraw += 100;
             }
             drawdown1 = Math.min(testDraw, pot1Balance, maxDraw);
           }
+          if (drawdown1 > 0) {
+            liquidAssets += drawdown1;
+            pot1Balance -= drawdown1;
+          }
         }
 
+        // ARF drawdown (Spouse 2)
         if (drawdown2Active && pot2Balance > 0) {
           const strategy2 = privatePensions.pot2.strategy;
           if (strategy2 === 'fixed') {
@@ -1641,63 +1236,63 @@
           } else {
             let maxDraw = privatePensions.pot2.maxAmount || 0;
             let testDraw = 0;
-            const baseIncome = annualState1 + annualState2 + annuityIncome1 + annuityIncome2 + drawdown1;
+            const baseIncome = annualState1 + annualState2 + annuityIncome1 + annuityIncome2 + interestIncome + drawdown1;
             while (testDraw < maxDraw && testDraw < pot2Balance) {
-              const testIncome = baseIncome + testDraw;
-              if (calculateSpanishTax(testIncome, age1, age2) > 0) break;
+              if (calculateSpanishTax(baseIncome + testDraw) > 0) break;
               testDraw += 100;
             }
             drawdown2 = Math.min(testDraw, pot2Balance, maxDraw);
           }
+          if (drawdown2 > 0) {
+            liquidAssets += drawdown2;
+            pot2Balance -= drawdown2;
+          }
         }
 
-        // Growth on ARF pots
+        // ---- Growth on ARF pots (after withdrawals) ----
         if (privatePensions.pot1.type === 'ARF') {
-          pot1Balance = (pot1Balance - drawdown1) * (1 + privatePensions.pot1.growth);
+          pot1Balance = pot1Balance * (1 + privatePensions.pot1.growth);
           if (pot1Balance < 0) pot1Balance = 0;
         } else {
           pot1Balance = 0;
         }
         if (privatePensions.pot2.type === 'ARF') {
-          pot2Balance = (pot2Balance - drawdown2) * (1 + privatePensions.pot2.growth);
+          pot2Balance = pot2Balance * (1 + privatePensions.pot2.growth);
           if (pot2Balance < 0) pot2Balance = 0;
         } else {
           pot2Balance = 0;
         }
 
-        // Rental income and mortgage payments
-        const annualRental = getRentalIncomeForYear(year);
-        const annualMortgage = getMortgagePaymentsForYear(year);
+        // ---- Rental & Sales Income ----
+        const annualRental = getRentalIncome(year);
         const annualSales = getSalesForYear(year);
+        const annualMortgage = getMortgagePayments(year);
 
-        // Total annual income (excluding lump sum for tax)
-        const totalAnnualIncome = annualState1 + annualState2 + drawdown1 + drawdown2 + annuityIncome1 + annuityIncome2 +
-          annualRental + annualSales;
+        // ---- Total Income for Tax ----
+        const totalAnnualIncome = annualState1 + annualState2 + drawdown1 + drawdown2 +
+          annuityIncome1 + annuityIncome2 + interestIncome + annualRental + annualSales;
 
-        // Tax
-        const tax = calculateSpanishTax(totalAnnualIncome, age1, age2);
+        const tax = calculateSpanishTax(totalAnnualIncome);
         totalTaxPaid += tax;
 
-        // Outgoings: monthly spend + major purchases + mortgage payments
+        // ---- Outgoings ----
         const annualSpend = financialGoals.monthlySpend * 12;
         const annualPurchases = getPurchasesForYear(year);
         const totalOutgoings = annualSpend + annualPurchases + annualMortgage;
 
+        // ---- Net Cash Flow ----
         const netAnnual = totalAnnualIncome - tax - totalOutgoings;
-
-        // Add property sale proceeds to liquid assets (and lump sums already added)
-        liquidAssets = liquidAssets + netAnnual + propertySaleProceeds;
+        liquidAssets += netAnnual;
         if (liquidAssets < 0) liquidAssets = 0;
 
+        // ---- Special Flag ----
         let specialFlag = false;
         if (annualPurchases > 0 || annualSales > 0 || lumpSumAdded > 0 || propertySaleProceeds > 0) {
           specialFlag = true;
         }
 
-        // Compute current property value (net)
-        const currentPropertyValue = getPropertyValueForYear(year);
+        const currentPropertyValue = getPropertyValue(year);
 
-        // Store year data (all monthly amounts for display)
         yearData.push({
           year,
           age1,
@@ -1705,24 +1300,25 @@
           state1: monthlyState1,
           state2: monthlyState2,
           iqa: iqaAmount,
-          drawdown1: drawdown1 / 12,
-          drawdown2: drawdown2 / 12,
-          annuity1: annuityIncome1 / 12,
-          annuity2: annuityIncome2 / 12,
-          rental: annualRental / 12,
-          sales: annualSales / 12,
-          mortgage: annualMortgage / 12,
-          tax: tax / 12,
-          netCashFlow: netAnnual / 12,
+          drawdown1: drawdown1,
+          drawdown2: drawdown2,
+          annuity1: annuityIncome1,
+          annuity2: annuityIncome2,
+          lumpSumAdded: lumpSumAdded,
+          interestIncome: interestIncome,
+          rental: annualRental,
+          sales: annualSales,
+          mortgage: annualMortgage,
+          tax: tax,
+          netCashFlow: netAnnual,
           liquidAssetsStart: previousLiquid,
           liquidAssetsEnd: liquidAssets,
           pot1Balance: pot1Balance,
           pot2Balance: pot2Balance,
           propertyValue: currentPropertyValue,
           specialFlag: specialFlag,
-          purchases: annualPurchases / 12,
-          propertySaleProceeds: propertySaleProceeds / 12,
-          lumpSumAdded: lumpSumAdded / 12,
+          purchases: annualPurchases,
+          propertySaleProceeds: propertySaleProceeds,
         });
 
         previousLiquid = liquidAssets;
@@ -1730,7 +1326,6 @@
         if (age1 >= endAge && age2 >= endAge) break;
       }
 
-      // Final property values (already reflected in last yearData)
       const finalPropertyValue = yearData.length > 0 ? yearData[yearData.length - 1].propertyValue : 0;
       const finalWealth = liquidAssets + pot1Balance + pot2Balance + finalPropertyValue;
       const inheritanceAchieved = finalWealth >= financialGoals.targetInheritance;
@@ -1754,7 +1349,7 @@
     }
 
     // ────────────────────────────────────────────────────────────────
-    // 6. UI: CALCULATE & DISPLAY RESULTS
+    // 5. UI: DISPLAY RESULTS
     // ────────────────────────────────────────────────────────────────
     function calculatePension() {
       const resultsDiv = document.getElementById('results');
@@ -1770,7 +1365,7 @@
           const baseCurrency = inputs.projection.baseCurrency;
           const currencySymbol = baseCurrency === 'EUR' ? '€' : '£';
 
-          // ---- Summary -----
+          // ---- Summary ----
           let html = `<h3 style="margin-top:0;">📊 Projection Summary (${baseCurrency})</h3>`;
           html += `<div class="result-grid">
             <div class="result-item"><span class="label">Projection Period</span><span class="value">${result.summary.totalYears} years</span></div>
@@ -1790,34 +1385,34 @@
             html += `<div class="highlight success">✅ Goal achieved! Surplus: ${currencySymbol}${formatCurrencyWhole(result.summary.finalWealth - result.summary.targetInheritance)}</div>`;
           }
 
-          // ---- Pension Summary Table (annual amounts) ----
+          // ---- Pension Income Table ----
           html += `<div class="section-title" style="margin-top:1.5rem;">Pension Income per Year (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
-            <th>State Pension 1 (annual)</th>
-            <th>State Pension 2 (annual)</th>
-            <th>Private Drawdown 1 (annual)</th>
-            <th>Private Drawdown 2 (annual)</th>
-            <th>Total Annual Pension</th>
+            <th>State Pension 1</th>
+            <th>State Pension 2</th>
+            <th>Private Drawdown 1</th>
+            <th>Private Drawdown 2</th>
+            <th>Annuity 1</th>
+            <th>Annuity 2</th>
+            <th>Total Pension</th>
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
-            const state1Annual = d.state1 * 12;
-            const state2Annual = d.state2 * 12;
-            const drawdown1Annual = (d.drawdown1 + d.annuity1) * 12;
-            const drawdown2Annual = (d.drawdown2 + d.annuity2) * 12;
-            const totalAnnual = state1Annual + state2Annual + drawdown1Annual + drawdown2Annual;
+            const totalPension = d.state1 + d.state2 + d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2;
             html += `<tr>
               <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(state1Annual)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(state2Annual)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(drawdown1Annual)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(drawdown2Annual)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(totalAnnual)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(d.state1)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(d.state2)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(d.drawdown1)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(d.drawdown2)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(d.annuity1)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(d.annuity2)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(totalPension)}</td>
             </tr>`;
           }
           html += `</tbody></table></div>`;
 
-          // ---- Cash Flow Table (annual totals, simplified) ----
+          // ---- Cash Flow Table ----
           html += `<div class="section-title" style="margin-top:1.5rem;">Detailed Cash Flow (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
@@ -1833,35 +1428,18 @@
             <th>★</th>
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
-            // Annualise all monthly values
-            const state1Annual = d.state1 * 12;
-            const state2Annual = d.state2 * 12;
-            const drawdown1Annual = (d.drawdown1 + d.annuity1) * 12;
-            const drawdown2Annual = (d.drawdown2 + d.annuity2) * 12;
-            const rentalAnnual = d.rental * 12;
-            const salesAnnual = d.sales * 12;
-            const mortgageAnnual = d.mortgage * 12;
-            const purchasesAnnual = d.purchases * 12;
-            const taxAnnual = d.tax * 12;
-            const netCashAnnual = d.netCashFlow * 12;
             const monthlySpendAnnual = inputs.financialGoals.monthlySpend * 12;
-
-            // Income = state pensions + private drawdowns + rental + sales
-            const totalIncome = state1Annual + state2Annual + drawdown1Annual + drawdown2Annual + rentalAnnual + salesAnnual;
-            // Outgoings = monthly spend + mortgage + major purchases
-            const totalOutgoings = monthlySpendAnnual + mortgageAnnual + purchasesAnnual;
-
+            const totalIncome = d.state1 + d.state2 + d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2 +
+              d.interestIncome + d.rental + d.sales;
+            const totalOutgoings = monthlySpendAnnual + d.mortgage + d.purchases;
+            const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
             const specialIcon = d.specialFlag ? '★' : '';
-            const netClass = netCashAnnual >= 0 ? 'positive' : 'negative';
-
             html += `<tr>
-              <td>${d.year}</td>
-              <td>${d.age1}</td>
-              <td>${d.age2}</td>
+              <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
               <td>${currencySymbol}${formatCurrencyWhole(totalIncome)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(totalOutgoings)}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(taxAnnual)}</td>
-              <td class="${netClass}">${currencySymbol}${formatCurrencyWhole(netCashAnnual)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(d.tax)}</td>
+              <td class="${netClass}">${currencySymbol}${formatCurrencyWhole(d.netCashFlow)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsStart)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsEnd)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.pot1Balance)}</td>
@@ -1886,7 +1464,7 @@
     }
 
     // ────────────────────────────────────────────────────────────────
-    // 7. SAVE / EXPORT (Vercel API)
+    // 6. SAVE / EXPORT (Vercel API)
     // ────────────────────────────────────────────────────────────────
     async function saveCalculation() {
       try {
@@ -1921,41 +1499,24 @@
     }
 
     // ────────────────────────────────────────────────────────────────
-    // 8. INITIALISE
+    // 7. INITIALISE
     // ────────────────────────────────────────────────────────────────
     window.onload = function() {
-      // Add event listeners for annuity toggle
       document.getElementById('pot1Type').addEventListener('change', toggleAnnuityFields);
       document.getElementById('pot2Type').addEventListener('change', toggleAnnuityFields);
       toggleAnnuityFields();
 
-      // Lump sum type toggle for spouse 1
-      document.getElementById('pot1LumpType').addEventListener('change', function() {
-        const isPercent = this.value === 'percent';
-        document.getElementById('pot1LumpFixedCol').style.display = isPercent ? 'none' : 'block';
-        document.getElementById('pot1LumpPercentCol').style.display = isPercent ? 'block' : 'none';
-      });
-      // Lump sum type toggle for spouse 2
-      document.getElementById('pot2LumpType').addEventListener('change', function() {
-        const isPercent = this.value === 'percent';
-        document.getElementById('pot2LumpFixedCol').style.display = isPercent ? 'none' : 'block';
-        document.getElementById('pot2LumpPercentCol').style.display = isPercent ? 'block' : 'none';
-      });
-      // Initial state
-      document.getElementById('pot1LumpType').dispatchEvent(new Event('change'));
-      document.getElementById('pot2LumpType').dispatchEvent(new Event('change'));
+      document.getElementById('pot1LumpType').addEventListener('change', function() { toggleLumpSumFields('pot1'); });
+      document.getElementById('pot2LumpType').addEventListener('change', function() { toggleLumpSumFields('pot2'); });
+      toggleLumpSumFields('pot1');
+      toggleLumpSumFields('pot2');
 
       updateExchangeRateLabel();
       updateContributionSummary();
-      document.getElementById('baseCurrency').addEventListener('change', function() {
-        updateExchangeRateLabel();
-      });
+      document.getElementById('baseCurrency').addEventListener('change', updateExchangeRateLabel);
       const inputs = document.querySelectorAll('#ireWeeks1, #ukWeeks1, #spWeeks1, #euWeeks1, #ireWeeks2, #ukWeeks2, #spWeeks2, #euWeeks2');
-      inputs.forEach(inp => {
-        inp.addEventListener('input', updateContributionSummary);
-      });
+      inputs.forEach(inp => inp.addEventListener('input', updateContributionSummary));
 
-      // No default properties – user adds them as needed.
       setTimeout(calculatePension, 500);
     };
   </script>
