@@ -1143,9 +1143,6 @@
         liquidAssets += interestIncome;
 
         // ---- LUMP SUMS (tax-free, NOT income) ----
-        let lumpSumAdded1 = 0;
-        let lumpSumAdded2 = 0;
-
         // Spouse 1 lump sum
         if (privatePensions.pot1.lumpSumTaken && year === privatePensions.pot1.lumpSumYear && pot1Balance > 0) {
           let lump = 0;
@@ -1158,7 +1155,6 @@
           if (lump > 0) {
             liquidAssets += lump;
             pot1Balance -= lump;
-            lumpSumAdded1 = lump;
           }
         }
 
@@ -1174,11 +1170,8 @@
           if (lump > 0) {
             liquidAssets += lump;
             pot2Balance -= lump;
-            lumpSumAdded2 = lump;
           }
         }
-
-        const totalLumpSumAdded = lumpSumAdded1 + lumpSumAdded2;
 
         // ---- Property Sale Proceeds ----
         let propertySaleProceeds = 0;
@@ -1283,11 +1276,12 @@
         // ---- Net Cash Flow ----
         const netAnnual = totalAnnualIncome - tax - totalOutgoings;
         liquidAssets += netAnnual;
-        if (liquidAssets < 0) liquidAssets = 0;
+        // *** FIX: Allow cash to go negative ***
+        // Removed: if (liquidAssets < 0) liquidAssets = 0;
 
         // ---- Special Flag ----
         let specialFlag = false;
-        if (annualPurchases > 0 || annualSales > 0 || totalLumpSumAdded > 0 || propertySaleProceeds > 0) {
+        if (annualPurchases > 0 || annualSales > 0 || propertySaleProceeds > 0) {
           specialFlag = true;
         }
 
@@ -1304,9 +1298,6 @@
           drawdown2: drawdown2,
           annuity1: annuityIncome1,
           annuity2: annuityIncome2,
-          lumpSumAdded1: lumpSumAdded1,
-          lumpSumAdded2: lumpSumAdded2,
-          totalLumpSumAdded: totalLumpSumAdded,
           interestIncome: interestIncome,
           rental: annualRental,
           sales: annualSales,
@@ -1387,7 +1378,7 @@
             html += `<div class="highlight success">✅ Goal achieved! Surplus: ${currencySymbol}${formatCurrencyWhole(result.summary.finalWealth - result.summary.targetInheritance)}</div>`;
           }
 
-          // ---- Pension Income Table (with Lump Sum column) ----
+          // ---- Pension Income Table (no separate Lump Sum column) ----
           html += `<div class="section-title" style="margin-top:1.5rem;">Pension Income per Year (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
@@ -1397,12 +1388,10 @@
             <th>Private Drawdown 2</th>
             <th>Annuity 1</th>
             <th>Annuity 2</th>
-            <th style="background:#fef3c7;">💸 Lump Sum</th>
             <th>Total Pension</th>
           </tr></thead><tbody>`;
           for (const d of result.yearData) {
             const totalPension = d.state1 + d.state2 + d.drawdown1 + d.drawdown2 + d.annuity1 + d.annuity2;
-            const totalLump = d.lumpSumAdded1 + d.lumpSumAdded2;
             html += `<tr>
               <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.state1)}</td>
@@ -1411,21 +1400,18 @@
               <td>${currencySymbol}${formatCurrencyWhole(d.drawdown2)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.annuity1)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.annuity2)}</td>
-              <td style="background:#fef3c7; font-weight:700;">${totalLump > 0 ? currencySymbol + formatCurrencyWhole(totalLump) : '—'}</td>
-              <td>${currencySymbol}${formatCurrencyWhole(totalPension + totalLump)}</td>
+              <td>${currencySymbol}${formatCurrencyWhole(totalPension)}</td>
             </tr>`;
           }
           html += `</tbody></table></div>`;
-          html += `<div style="font-size:0.7rem; color:#6b7a93; margin-top:0.3rem;">💸 Lump Sum is tax-free and added to cash in the year taken.</div>`;
 
-          // ---- Cash Flow Table (with Lump Sum column) ----
+          // ---- Cash Flow Table (no separate Lump Sum column) ----
           html += `<div class="section-title" style="margin-top:1.5rem;">Detailed Cash Flow (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
             <th>Income</th>
             <th>Outgoings</th>
             <th>Tax</th>
-            <th style="background:#dff0df;">➕ Lump Sum</th>
             <th>Net Cash</th>
             <th>Cash Start</th>
             <th>Cash End</th>
@@ -1441,13 +1427,11 @@
             const totalOutgoings = monthlySpendAnnual + d.mortgage + d.purchases;
             const netClass = d.netCashFlow >= 0 ? 'positive' : 'negative';
             const specialIcon = d.specialFlag ? '★' : '';
-            const totalLump = d.lumpSumAdded1 + d.lumpSumAdded2;
             html += `<tr>
               <td>${d.year}</td><td>${d.age1}</td><td>${d.age2}</td>
               <td>${currencySymbol}${formatCurrencyWhole(totalIncome)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(totalOutgoings)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.tax)}</td>
-              <td style="background:#dff0df; font-weight:700;">${totalLump > 0 ? currencySymbol + formatCurrencyWhole(totalLump) : '—'}</td>
               <td class="${netClass}">${currencySymbol}${formatCurrencyWhole(d.netCashFlow)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsStart)}</td>
               <td>${currencySymbol}${formatCurrencyWhole(d.liquidAssetsEnd)}</td>
@@ -1458,7 +1442,6 @@
             </tr>`;
           }
           html += `</tbody></table></div>`;
-          html += `<div style="font-size:0.7rem; color:#6b7a93; margin-top:0.3rem;">➕ Lump Sum appears as a cash addition in the year taken (tax-free).</div>`;
 
           contentDiv.innerHTML = html;
           resultsDiv.classList.add('visible');
