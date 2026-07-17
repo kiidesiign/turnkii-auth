@@ -557,7 +557,7 @@
     </div>
 
     <!-- ========================================================== -->
-    <!-- SECTION 4: Private Pension Pots                             -->
+    <!-- SECTION 4: Private Pension Pots (with Lump Sum %)           -->
     <!-- ========================================================== -->
     <div class="section">
       <div class="section-title">
@@ -601,21 +601,35 @@
           <div class="col">
             <label>Tax-Free Lump Sum Taken?</label>
             <select id="pot1LumpSum">
-              <option value="yes">Yes</option>
-              <option value="no" selected>No</option>
+              <option value="yes" selected>Yes</option>
+              <option value="no">No</option>
             </select>
           </div>
         </div>
         <div class="row">
           <div class="col">
+            <label>Lump Sum Type</label>
+            <select id="pot1LumpType">
+              <option value="fixed">Fixed Amount</option>
+              <option value="percent">Percentage of Pot</option>
+            </select>
+          </div>
+          <div class="col" id="pot1LumpFixedCol">
             <label>Lump Sum Amount (€)</label>
             <input type="number" id="pot1LumpAmount" value="0" step="1000" />
           </div>
+          <div class="col" id="pot1LumpPercentCol" style="display:none;">
+            <label>Lump Sum Percentage (%)</label>
+            <input type="number" id="pot1LumpPercent" value="25" step="0.5" min="0" max="100" />
+          </div>
+        </div>
+        <div class="row">
           <div class="col">
             <label>Lump Sum Year (calendar year)</label>
-            <input type="number" id="pot1LumpYear" value="2027" />
-            <div class="section-help">Enter the calendar year when you want to take the lump sum (e.g., 2027).</div>
+            <input type="number" id="pot1LumpYear" value="2027" step="1" />
+            <div class="section-help">Year you take the lump sum.</div>
           </div>
+          <div class="col"></div>
         </div>
         <div class="row">
           <div class="col">
@@ -690,21 +704,35 @@
           <div class="col">
             <label>Tax-Free Lump Sum Taken?</label>
             <select id="pot2LumpSum">
-              <option value="yes">Yes</option>
-              <option value="no" selected>No</option>
+              <option value="yes" selected>Yes</option>
+              <option value="no">No</option>
             </select>
           </div>
         </div>
         <div class="row">
           <div class="col">
+            <label>Lump Sum Type</label>
+            <select id="pot2LumpType">
+              <option value="fixed">Fixed Amount</option>
+              <option value="percent">Percentage of Pot</option>
+            </select>
+          </div>
+          <div class="col" id="pot2LumpFixedCol">
             <label>Lump Sum Amount (€)</label>
             <input type="number" id="pot2LumpAmount" value="0" step="1000" />
           </div>
+          <div class="col" id="pot2LumpPercentCol" style="display:none;">
+            <label>Lump Sum Percentage (%)</label>
+            <input type="number" id="pot2LumpPercent" value="25" step="0.5" min="0" max="100" />
+          </div>
+        </div>
+        <div class="row">
           <div class="col">
             <label>Lump Sum Year (calendar year)</label>
-            <input type="number" id="pot2LumpYear" value="2027" />
-            <div class="section-help">Enter the calendar year when you want to take the lump sum.</div>
+            <input type="number" id="pot2LumpYear" value="2027" step="1" />
+            <div class="section-help">Year you take the lump sum.</div>
           </div>
+          <div class="col"></div>
         </div>
         <div class="row">
           <div class="col">
@@ -865,7 +893,7 @@
         For each property, enter its name, value, mortgage balance, annual mortgage payment, rental income, expected sale year (dropdown), and net proceeds on sale. <strong>Leaving "Sale Year" empty means the property is kept for the entire projection.</strong>
       </div>
       <div id="propertiesContainer">
-        <!-- Dynamic property rows inserted here -->
+        <!-- Dynamic rows inserted here -->
       </div>
       <button class="add-row-btn" onclick="addProperty()">+ Add Property</button>
     </div>
@@ -1194,14 +1222,17 @@
         },
       };
 
+      // Lump sum processing: if type is 'percent', compute amount from pot at that time (we'll do in engine)
       const privatePensions = {
         pot1: {
           value: parseFloat(document.getElementById('pot1').value) || 0,
           currency: document.getElementById('pot1Currency').value,
           growth: parseFloat(document.getElementById('pot1Growth').value) / 100 || 0.03,
           lumpSumTaken: document.getElementById('pot1LumpSum').value === 'yes',
+          lumpSumType: document.getElementById('pot1LumpType').value,
           lumpSumAmount: parseFloat(document.getElementById('pot1LumpAmount').value) || 0,
-          lumpSumYear: parseInt(document.getElementById('pot1LumpYear').value) || 2027, // calendar year
+          lumpSumPercent: parseFloat(document.getElementById('pot1LumpPercent').value) || 25,
+          lumpSumYear: parseInt(document.getElementById('pot1LumpYear').value) || 2027,
           type: document.getElementById('pot1Type').value,
           annuityIncome: parseFloat(document.getElementById('pot1AnnuityIncome').value) || 0,
           strategy: document.getElementById('pot1Strategy').value,
@@ -1214,7 +1245,9 @@
           currency: document.getElementById('pot2Currency').value,
           growth: parseFloat(document.getElementById('pot2Growth').value) / 100 || 0.03,
           lumpSumTaken: document.getElementById('pot2LumpSum').value === 'yes',
+          lumpSumType: document.getElementById('pot2LumpType').value,
           lumpSumAmount: parseFloat(document.getElementById('pot2LumpAmount').value) || 0,
+          lumpSumPercent: parseFloat(document.getElementById('pot2LumpPercent').value) || 25,
           lumpSumYear: parseInt(document.getElementById('pot2LumpYear').value) || 2027,
           type: document.getElementById('pot2Type').value,
           annuityIncome: parseFloat(document.getElementById('pot2AnnuityIncome').value) || 0,
@@ -1339,10 +1372,17 @@
       let pot1Value = convertToBaseCurrency(privatePensions.pot1.value, privatePensions.pot1.currency);
       let pot2Value = convertToBaseCurrency(privatePensions.pot2.value, privatePensions.pot2.currency);
 
-      // Lump sum details (calendar year)
-      const pot1Lump = privatePensions.pot1.lumpSumTaken ? privatePensions.pot1.lumpSumAmount : 0;
-      const pot1LumpYear = privatePensions.pot1.lumpSumYear; // calendar year
-      const pot2Lump = privatePensions.pot2.lumpSumTaken ? privatePensions.pot2.lumpSumAmount : 0;
+      // Lump sum details
+      const pot1LumpTaken = privatePensions.pot1.lumpSumTaken;
+      const pot1LumpType = privatePensions.pot1.lumpSumType;
+      const pot1LumpAmount = privatePensions.pot1.lumpSumAmount;
+      const pot1LumpPercent = privatePensions.pot1.lumpSumPercent;
+      const pot1LumpYear = privatePensions.pot1.lumpSumYear;
+
+      const pot2LumpTaken = privatePensions.pot2.lumpSumTaken;
+      const pot2LumpType = privatePensions.pot2.lumpSumType;
+      const pot2LumpAmount = privatePensions.pot2.lumpSumAmount;
+      const pot2LumpPercent = privatePensions.pot2.lumpSumPercent;
       const pot2LumpYear = privatePensions.pot2.lumpSumYear;
 
       // Annuity incomes
@@ -1526,17 +1566,35 @@
 
         // Lump sums (tax-free) from pensions – check calendar year
         let lumpSumAdded = 0;
-        if (privatePensions.pot1.lumpSumTaken && year === pot1LumpYear && pot1Balance > 0) {
-          const lump = Math.min(pot1Lump, pot1Balance);
-          liquidAssets += lump;
-          pot1Balance -= lump;
-          lumpSumAdded += lump;
+        // Spouse 1 lump sum
+        if (pot1LumpTaken && year === pot1LumpYear && pot1Balance > 0) {
+          let lumpAmount = 0;
+          if (pot1LumpType === 'fixed') {
+            lumpAmount = Math.min(pot1LumpAmount, pot1Balance);
+          } else if (pot1LumpType === 'percent') {
+            lumpAmount = (pot1LumpPercent / 100) * pot1Balance;
+            lumpAmount = Math.min(lumpAmount, pot1Balance);
+          }
+          if (lumpAmount > 0) {
+            liquidAssets += lumpAmount;
+            pot1Balance -= lumpAmount;
+            lumpSumAdded += lumpAmount;
+          }
         }
-        if (privatePensions.pot2.lumpSumTaken && year === pot2LumpYear && pot2Balance > 0) {
-          const lump = Math.min(pot2Lump, pot2Balance);
-          liquidAssets += lump;
-          pot2Balance -= lump;
-          lumpSumAdded += lump;
+        // Spouse 2 lump sum
+        if (pot2LumpTaken && year === pot2LumpYear && pot2Balance > 0) {
+          let lumpAmount = 0;
+          if (pot2LumpType === 'fixed') {
+            lumpAmount = Math.min(pot2LumpAmount, pot2Balance);
+          } else if (pot2LumpType === 'percent') {
+            lumpAmount = (pot2LumpPercent / 100) * pot2Balance;
+            lumpAmount = Math.min(lumpAmount, pot2Balance);
+          }
+          if (lumpAmount > 0) {
+            liquidAssets += lumpAmount;
+            pot2Balance -= lumpAmount;
+            lumpSumAdded += lumpAmount;
+          }
         }
 
         // ---- Property Sale Proceeds and mark property as sold ----
@@ -1547,7 +1605,6 @@
             p.sold = true; // mark as sold
           }
         }
-        // Add proceeds to liquid assets (done later after net cash)
 
         // Annuity income
         let annuityIncome1 = 0,
@@ -1628,8 +1685,8 @@
 
         const netAnnual = totalAnnualIncome - tax - totalOutgoings;
 
-        // Add property sale proceeds to liquid assets (and lump sums)
-        liquidAssets = liquidAssets + netAnnual + lumpSumAdded + propertySaleProceeds;
+        // Add property sale proceeds to liquid assets (and lump sums already added)
+        liquidAssets = liquidAssets + netAnnual + propertySaleProceeds;
         if (liquidAssets < 0) liquidAssets = 0;
 
         let specialFlag = false;
@@ -1665,6 +1722,7 @@
           specialFlag: specialFlag,
           purchases: annualPurchases / 12,
           propertySaleProceeds: propertySaleProceeds / 12,
+          lumpSumAdded: lumpSumAdded / 12,
         });
 
         previousLiquid = liquidAssets;
@@ -1870,6 +1928,22 @@
       document.getElementById('pot1Type').addEventListener('change', toggleAnnuityFields);
       document.getElementById('pot2Type').addEventListener('change', toggleAnnuityFields);
       toggleAnnuityFields();
+
+      // Lump sum type toggle for spouse 1
+      document.getElementById('pot1LumpType').addEventListener('change', function() {
+        const isPercent = this.value === 'percent';
+        document.getElementById('pot1LumpFixedCol').style.display = isPercent ? 'none' : 'block';
+        document.getElementById('pot1LumpPercentCol').style.display = isPercent ? 'block' : 'none';
+      });
+      // Lump sum type toggle for spouse 2
+      document.getElementById('pot2LumpType').addEventListener('change', function() {
+        const isPercent = this.value === 'percent';
+        document.getElementById('pot2LumpFixedCol').style.display = isPercent ? 'none' : 'block';
+        document.getElementById('pot2LumpPercentCol').style.display = isPercent ? 'block' : 'none';
+      });
+      // Initial state
+      document.getElementById('pot1LumpType').dispatchEvent(new Event('change'));
+      document.getElementById('pot2LumpType').dispatchEvent(new Event('change'));
 
       updateExchangeRateLabel();
       updateContributionSummary();
