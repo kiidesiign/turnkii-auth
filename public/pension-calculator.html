@@ -949,7 +949,7 @@
     }
 
     // ────────────────────────────────────────────────────────────────
-    // 4. CORE PENSION ENGINE
+    // 4. CORE PENSION ENGINE (FIXED INTEREST)
     // ────────────────────────────────────────────────────────────────
     function calculatePensionEngine(inputs) {
       const { profile, statePensions, privatePensions, assets, properties, assetSales, financialGoals,
@@ -1138,9 +1138,10 @@
         const annualState1 = monthlyState1 * 12;
         const annualState2 = monthlyState2 * 12;
 
-        // ---- Interest on Cash/Investments ----
-        const interestIncome = liquidAssets * (cashYield + investmentYield + otherYield);
-        liquidAssets += interestIncome;
+        // ---- Interest on Cash/Investments (only on positive balance) ----
+        const positiveLiquid = Math.max(0, liquidAssets);
+        const interestIncome = positiveLiquid * (cashYield + investmentYield + otherYield);
+        liquidAssets += interestIncome; // add interest to cash
 
         // ---- LUMP SUMS (tax-free, NOT income) ----
         // Spouse 1 lump sum
@@ -1276,8 +1277,7 @@
         // ---- Net Cash Flow ----
         const netAnnual = totalAnnualIncome - tax - totalOutgoings;
         liquidAssets += netAnnual;
-        // *** FIX: Allow cash to go negative ***
-        // Removed: if (liquidAssets < 0) liquidAssets = 0;
+        // Allow cash to go negative
 
         // ---- Special Flag ----
         let specialFlag = false;
@@ -1378,7 +1378,7 @@
             html += `<div class="highlight success">✅ Goal achieved! Surplus: ${currencySymbol}${formatCurrencyWhole(result.summary.finalWealth - result.summary.targetInheritance)}</div>`;
           }
 
-          // ---- Pension Income Table (no separate Lump Sum column) ----
+          // ---- Pension Income Table ----
           html += `<div class="section-title" style="margin-top:1.5rem;">Pension Income per Year (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
@@ -1405,7 +1405,7 @@
           }
           html += `</tbody></table></div>`;
 
-          // ---- Cash Flow Table (no separate Lump Sum column) ----
+          // ---- Cash Flow Table ----
           html += `<div class="section-title" style="margin-top:1.5rem;">Detailed Cash Flow (${baseCurrency}) – Annual Totals</div>`;
           html += `<div class="table-wrap"><table><thead><tr>
             <th>Year</th><th>Age1</th><th>Age2</th>
